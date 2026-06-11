@@ -4,6 +4,10 @@
 
 import type { GameData } from '../data';
 import type { Spell, SpellTier } from '../data/schema';
+import type { Pos } from '../maps/schema';
+import { CommandRejectedError, type Command, type GameEvent } from './commands';
+import { isExplored, revealFor, sightRadius } from './fog';
+import { buildMoveContext, isEnterable } from './movement';
 import {
   addEffect,
   damageStack,
@@ -460,5 +464,171 @@ export function castCombatSpell(
   for (const target of targets) {
     if (resistOrImmune(combat, side, target, spell, data, events)) continue;
     applySpellToTarget(target, spell, tierData, hero.spellPower, data, events);
+  }
+}
+
+// --- adventure casting ---
+
+export const ADVENTURE_SPELL_MP_COST = 300;
+export const DIMENSION_DOOR_RADIUS = 8;
+export const DIMENSION_DOOR_DAILY_LIMIT = 2;
+
+const SCHOOL_SKILLS = {
+  air: 'air_magic',
+  earth: 'earth_magic',
+  fire: 'fire_magic',
+  water: 'water_magic',
+} as const;
+
+export function adventureSchoolTier(hero: Hero, spell: Spell, data: GameData): number {
+  if (spell.school === 'all') {
+    return Math.max(
+      ...Object.values(SCHOOL_SKILLS).map((skill) => skillValue(hero, skill, data)),
+    );
+  }
+  return skillValue(hero, SCHOOL_SKILLS[spell.school], data);
+}
+
+export type CastAdventureSpellCommand = Extract<Command, { type: 'castAdventureSpell' }>;
+
+function payAdventureCast(hero: Hero, spell: Spell): void {
+  hero.mana -= spell.manaCost;
+  hero.movementPoints -= ADVENTURE_SPELL_MP_COST;
+}
+
+function leaveVisitedTown(state: GameState, hero: Hero): void {
+  for (const town of Object.values(state.towns)) {
+    if (town.visitingHero === hero.id) town.visitingHero = null;
+  }
+}
+
+function castTownPortal(
+  state: GameState,
+  hero: Hero,
+  spell: Spell,
+  townId: string | undefined,
+  data: GameData,
+  events: GameEvent[],
+): void {
+  const player = getPlayer(state, hero.owner);
+  const ownTowns = player.towns
+    .map((id) => state.towns[id])
+    .filter((town): town is Town => town !== undefined);
+  if (ownTowns.length === 0) {
+    throw new CommandRejectedError('town portal requires at least one own town');
+  }
+  let target: Town;
+  if (townId !== undefined) {
+    if (adventureSchoolTier(hero, spell, data) < 2) {
+      throw new CommandRejectedError('choosing the destination town requires advanced earth magic');
+    }
+    const chosen = ownTowns.find((town) => town.id === townId);
+    if (!chosen) {
+      throw new CommandRejectedError(`${townId} is not an own town`);
+    }
+    target = chosen;
+  } else {
+    target = ownTowns.reduce((best, town) => {
+      const d = (t: Town): number =>
+        (t.pos[0] - hero.pos[0]) ** 2 + (t.pos[1] - hero.pos[1]) ** 2;
+      return d(town) < d(best) ? town : best;
+    });
+  }
+  if (target.visitingHero !== null && target.visitingHero !== hero.id) {
+    throw new CommandRejectedError(`a hero already visits ${target.id}`);
+  }
+  payAdventureCast(hero, spell);
+  const from: Pos = [...hero.pos];
+  leaveVisitedTown(state, hero);
+  hero.pos = [...target.pos];
+  target.visitingHero = hero.id;
+  revealFor(state, player, hero.pos, sightRadius(hero, data));
+  events.push({ type: 'adventureSpellCast', hero: hero.id, spell: spell.id });
+  events.push({ type: 'heroTeleported', hero: hero.id, from, to: [...hero.pos] });
+  const learned = learnGuildSpells(hero, target, data);
+  if (learned.length > 0) {
+    events.push({ type: 'spellsLearned', hero: hero.id, spells: learned });
+  }
+}
+
+function castDimensionDoor(
+  state: GameState,
+  hero: Hero,
+  spell: Spell,
+  dest: Pos | undefined,
+  data: GameData,
+  events: GameEvent[],
+): void {
+  if (!dest) {
+    throw new CommandRejectedError('dimension door needs a destination tile');
+  }
+  if (hero.dimensionDoorCasts >= DIMENSION_DOOR_DAILY_LIMIT) {
+    throw new CommandRejectedError(
+      `dimension door can be cast ${String(DIMENSION_DOOR_DAILY_LIMIT)} times per day`,
+    );
+  }
+  const distance = Math.max(Math.abs(dest[0] - hero.pos[0]), Math.abs(dest[1] - hero.pos[1]));
+  if (distance > DIMENSION_DOOR_RADIUS) {
+    throw new CommandRejectedError(
+      `dimension door reaches at most ${String(DIMENSION_DOOR_RADIUS)} tiles`,
+    );
+  }
+  const player = getPlayer(state, hero.owner);
+  if (!isExplored(player, state.map.size, dest)) {
+    throw new CommandRejectedError('cannot teleport into the shroud');
+  }
+  const ctx = buildMoveContext(state, data, hero);
+  if (!isEnterable(ctx, dest) || ctx.triggers[dest[1] * ctx.size + dest[0]] !== null) {
+    throw new CommandRejectedError('the destination tile is not free');
+  }
+  payAdventureCast(hero, spell);
+  hero.dimensionDoorCasts += 1;
+  const from: Pos = [...hero.pos];
+  leaveVisitedTown(state, hero);
+  hero.pos = [...dest];
+  revealFor(state, player, hero.pos, sightRadius(hero, data));
+  events.push({ type: 'adventureSpellCast', hero: hero.id, spell: spell.id });
+  events.push({ type: 'heroTeleported', hero: hero.id, from, to: [...hero.pos] });
+}
+
+export function castAdventureSpell(
+  state: GameState,
+  command: CastAdventureSpellCommand,
+  data: GameData,
+  events: GameEvent[],
+): void {
+  const hero = state.heroes[command.hero];
+  if (!hero) {
+    throw new CommandRejectedError(`unknown hero: ${command.hero}`);
+  }
+  if (hero.owner !== command.player) {
+    throw new CommandRejectedError(`hero ${hero.id} belongs to ${hero.owner}`);
+  }
+  const spell = data.spells[command.spell];
+  if (!spell) {
+    throw new CommandRejectedError(`unknown spell: ${command.spell}`);
+  }
+  if (spell.kind !== 'adventure') {
+    throw new CommandRejectedError(`${spell.id} is not an adventure spell`);
+  }
+  if (!hero.hasSpellbook || !hero.spells.includes(spell.id)) {
+    throw new CommandRejectedError(`the hero does not know ${spell.id}`);
+  }
+  if (hero.mana < spell.manaCost) {
+    throw new CommandRejectedError(
+      `${spell.id} costs ${String(spell.manaCost)} mana, only ${String(hero.mana)} left`,
+    );
+  }
+  if (hero.movementPoints < ADVENTURE_SPELL_MP_COST) {
+    throw new CommandRejectedError(
+      `adventure spells require ${String(ADVENTURE_SPELL_MP_COST)} movement points`,
+    );
+  }
+  if (spell.id === 'town_portal') {
+    castTownPortal(state, hero, spell, command.town, data, events);
+  } else if (spell.id === 'dimension_door') {
+    castDimensionDoor(state, hero, spell, command.dest, data, events);
+  } else {
+    throw new CommandRejectedError(`unsupported adventure spell: ${spell.id}`);
   }
 }

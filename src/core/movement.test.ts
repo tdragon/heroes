@@ -17,7 +17,8 @@ import {
 } from './movement';
 import { nextFloat, seedRng } from './rng';
 import { newGame, townIdAt } from './setup';
-import { isExplored, type GameState, type Hero, type HeroSkill } from './state';
+import { isExplored } from './fog';
+import { type GameState, type Hero, type HeroSkill } from './state';
 
 const data = loadGameData();
 const tinyMap = compileMap(tinyMapSource, data);
@@ -47,6 +48,7 @@ function makeHero(pos: Pos, overrides: Partial<Hero> = {}): Hero {
     movementPoints: 2000,
     tempLuck: 0,
     tempMorale: 0,
+    dimensionDoorCasts: 0,
     ...overrides,
   };
 }

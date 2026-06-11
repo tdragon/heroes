@@ -54,6 +54,7 @@ export interface Hero {
   movementPoints: number;
   tempLuck: number;
   tempMorale: number;
+  dimensionDoorCasts: number;
 }
 
 export interface Town {
@@ -98,6 +99,15 @@ export interface MapState {
   objects: MapObjectState[];
 }
 
+// object state at the moment a player last saw it (for the dimmed fog layer)
+export interface SeenObject {
+  type: string;
+  at: Pos;
+  owner: PlayerId | null;
+  removed: boolean;
+  subtype?: string;
+}
+
 export interface Player {
   id: PlayerId;
   color: PlayerColor;
@@ -107,6 +117,7 @@ export interface Player {
   heroes: HeroId[];
   towns: TownId[];
   explored: boolean[];
+  seenObjects: Record<ObjectId, SeenObject>;
   daysWithoutTown: number;
   defeated: boolean;
 }
@@ -228,28 +239,3 @@ export function manaRegenPerDay(hero: Hero, data: GameData): number {
   return Math.max(1, mysticism) + artifactBonus(hero, 'manaRegen', data);
 }
 
-export function sightRadius(hero: Hero, data: GameData): number {
-  return 5 + skillValue(hero, 'scouting', data) + artifactBonus(hero, 'sightRadius', data);
-}
-
-export function revealCircle(explored: boolean[], size: number, center: Pos, radius: number): void {
-  const [cx, cy] = center;
-  const r2 = radius * radius;
-  const minY = Math.max(0, cy - radius);
-  const maxY = Math.min(size - 1, cy + radius);
-  const minX = Math.max(0, cx - radius);
-  const maxX = Math.min(size - 1, cx + radius);
-  for (let y = minY; y <= maxY; y++) {
-    for (let x = minX; x <= maxX; x++) {
-      const dx = x - cx;
-      const dy = y - cy;
-      if (dx * dx + dy * dy <= r2) {
-        explored[y * size + x] = true;
-      }
-    }
-  }
-}
-
-export function isExplored(player: Player, size: number, pos: Pos): boolean {
-  return player.explored[pos[1] * size + pos[0]] ?? false;
-}

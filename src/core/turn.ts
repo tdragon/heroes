@@ -86,10 +86,11 @@ function regenerateHeroes(state: GameState, data: GameData): void {
   for (const hero of Object.values(state.heroes)) {
     hero.movementPoints = maxMovementPoints(hero, data);
     hero.mana = Math.min(maxMana(hero, data), hero.mana + manaRegenPerDay(hero, data));
+    hero.dimensionDoorCasts = 0;
   }
 }
 
-function advanceDay(state: GameState, data: GameData, events: GameEvent[]): void {
+export function advanceDay(state: GameState, data: GameData, events: GameEvent[]): void {
   state.day += 1;
   events.push({ type: 'dayStarted', day: state.day });
   if (isWeekStart(state.day)) {

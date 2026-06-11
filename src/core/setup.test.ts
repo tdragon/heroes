@@ -3,7 +3,8 @@ import { loadGameData } from '../data';
 import { compileMap } from '../maps/dsl';
 import { tinyMapSource } from '../maps/fixtures/tiny.dsl';
 import { newGame, townIdAt } from './setup';
-import { isExplored, type CreatureStack } from './state';
+import { isExplored } from './fog';
+import { type CreatureStack } from './state';
 
 const data = loadGameData();
 const tinyMap = compileMap(tinyMapSource, data);

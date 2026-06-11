@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadGameData } from '../data';
+import { compileMap, type MapSource } from '../maps/dsl';
+import type { Pos } from '../maps/schema';
 import { addEffect, effectiveSpeed, getEffect } from './combat/abilities';
 import {
   combatAct,
@@ -9,7 +11,9 @@ import {
   type CombatEvent,
 } from './combat/engine';
 import { getCombatStack, noHero, type CombatHeroInfo, type CombatState } from './combat/state';
+import { dispatch } from './commands';
 import {
+  ADVENTURE_SPELL_MP_COST,
   buySpellbook,
   canLearnSpell,
   castCombatSpell,
@@ -21,6 +25,7 @@ import {
   spellCost,
 } from './magic';
 import { seedRng } from './rng';
+import { newGame, townIdAt } from './setup';
 import { ARMY_SLOTS, emptyResources, type GameState, type Hero, type Town } from './state';
 
 const data = loadGameData();
@@ -61,6 +66,7 @@ function makeHero(overrides: Partial<Hero> = {}): Hero {
     movementPoints: 1500,
     tempLuck: 0,
     tempMorale: 0,
+    dimensionDoorCasts: 0,
     ...overrides,
   };
 }
@@ -658,5 +664,169 @@ describe('school tiers', () => {
     expect(schoolTier(hero, requireSpell('slow'))).toBe(3);
     expect(schoolTier(hero, requireSpell('curse'))).toBe(0);
     expect(schoolTier(hero, requireSpell('magic_arrow'))).toBe(3);
+  });
+});
+
+describe('adventure spells', () => {
+  const adventureSource: MapSource = {
+    id: 'adventure-spells',
+    name: 'Adventure Spells',
+    terrain: Array.from({ length: 12 }, () => 'g'.repeat(12)),
+    players: [
+      { color: 'red', faction: 'castle', isHuman: true, startTownAt: [2, 2], startHero: 'edric' },
+      {
+        color: 'blue',
+        faction: 'necropolis',
+        isHuman: false,
+        startTownAt: [9, 9],
+        startHero: 'mortus',
+      },
+    ],
+    objects: [
+      { type: 'town', at: [2, 2], owner: 'red' },
+      { type: 'town', at: [9, 9], owner: 'blue' },
+      { type: 'town', at: [9, 2], owner: 'red' },
+    ],
+  };
+  const adventureMap = compileMap(adventureSource, data);
+  const NEAR_TOWN = townIdAt([2, 2]);
+  const FAR_TOWN = townIdAt([9, 2]);
+
+  function makeAdventureGame(spells: string[], pos: Pos = [5, 8]): GameState {
+    const state = newGame(adventureMap, {}, 11, data);
+    const hero = state.heroes.edric;
+    if (!hero) throw new Error('missing red hero');
+    const town = state.towns[NEAR_TOWN];
+    if (town?.visitingHero === hero.id) town.visitingHero = null;
+    hero.pos = [...pos];
+    hero.hasSpellbook = true;
+    hero.spells.push(...spells);
+    hero.mana = 100;
+    return state;
+  }
+
+  function castCommand(
+    state: GameState,
+    spell: string,
+    extra: { town?: string; dest?: Pos } = {},
+  ) {
+    return dispatch(
+      state,
+      { type: 'castAdventureSpell', player: 'red', hero: 'edric', spell, ...extra },
+      data,
+    );
+  }
+
+  it('town portal teleports to the nearest own town without earth magic', () => {
+    const state = makeAdventureGame(['town_portal']);
+    const hero = state.heroes.edric;
+    if (!hero) throw new Error('missing hero');
+    const mpBefore = hero.movementPoints;
+    const { state: after, events } = castCommand(state, 'town_portal');
+    const moved = after.heroes.edric;
+    if (!moved) throw new Error('missing hero after cast');
+    expect(moved.pos).toEqual([2, 2]); // nearer than [9,2]
+    expect(after.towns[NEAR_TOWN]?.visitingHero).toBe('edric');
+    expect(moved.mana).toBe(100 - 16);
+    expect(moved.movementPoints).toBe(mpBefore - ADVENTURE_SPELL_MP_COST);
+    expect(events).toContainEqual({ type: 'adventureSpellCast', hero: 'edric', spell: 'town_portal' });
+    expect(events).toContainEqual({
+      type: 'heroTeleported',
+      hero: 'edric',
+      from: [5, 8],
+      to: [2, 2],
+    });
+  });
+
+  it('town portal rejects choosing a town without advanced earth magic', () => {
+    const state = makeAdventureGame(['town_portal']);
+    expect(() => castCommand(state, 'town_portal', { town: FAR_TOWN })).toThrow(
+      'advanced earth magic',
+    );
+  });
+
+  it('town portal teleports to a chosen own town with advanced earth magic', () => {
+    const state = makeAdventureGame(['town_portal']);
+    state.heroes.edric?.skills.push({ skill: 'earth_magic', rank: 'advanced' });
+    const { state: after } = castCommand(state, 'town_portal', { town: FAR_TOWN });
+    expect(after.heroes.edric?.pos).toEqual([9, 2]);
+    expect(after.towns[FAR_TOWN]?.visitingHero).toBe('edric');
+  });
+
+  it('town portal rejects enemy towns and occupied towns', () => {
+    const chosen = makeAdventureGame(['town_portal']);
+    chosen.heroes.edric?.skills.push({ skill: 'earth_magic', rank: 'expert' });
+    expect(() => castCommand(chosen, 'town_portal', { town: townIdAt([9, 9]) })).toThrow(
+      'not an own town',
+    );
+
+    const occupied = makeAdventureGame(['town_portal']);
+    const town = occupied.towns[NEAR_TOWN];
+    if (!town) throw new Error('missing town');
+    town.visitingHero = 'someone-else';
+    expect(() => castCommand(occupied, 'town_portal')).toThrow('already visits');
+  });
+
+  it('rejects casts without the spell, mana, or movement points', () => {
+    const unknown = makeAdventureGame([]);
+    expect(() => castCommand(unknown, 'town_portal')).toThrow('does not know');
+
+    const broke = makeAdventureGame(['town_portal']);
+    const hero = broke.heroes.edric;
+    if (!hero) throw new Error('missing hero');
+    hero.mana = 5;
+    expect(() => castCommand(broke, 'town_portal')).toThrow('mana');
+
+    const tired = makeAdventureGame(['town_portal']);
+    const slowHero = tired.heroes.edric;
+    if (!slowHero) throw new Error('missing hero');
+    slowHero.movementPoints = ADVENTURE_SPELL_MP_COST - 1;
+    expect(() => castCommand(tired, 'town_portal')).toThrow('movement points');
+
+    const combatSpell = makeAdventureGame(['magic_arrow']);
+    expect(() => castCommand(combatSpell, 'magic_arrow')).toThrow('not an adventure spell');
+  });
+
+  it('dimension door teleports to an explored free tile in radius 8', () => {
+    const state = makeAdventureGame(['dimension_door'], [3, 3]);
+    const { state: after, events } = castCommand(state, 'dimension_door', { dest: [5, 5] });
+    const hero = after.heroes.edric;
+    if (!hero) throw new Error('missing hero');
+    expect(hero.pos).toEqual([5, 5]);
+    expect(hero.mana).toBe(100 - 25);
+    expect(hero.dimensionDoorCasts).toBe(1);
+    expect(events).toContainEqual({
+      type: 'heroTeleported',
+      hero: 'edric',
+      from: [3, 3],
+      to: [5, 5],
+    });
+  });
+
+  it('dimension door rejects shrouded, far, and blocked destinations', () => {
+    const state = makeAdventureGame(['dimension_door'], [3, 3]);
+    expect(() => castCommand(state, 'dimension_door', { dest: [9, 8] })).toThrow('shroud');
+    expect(() => castCommand(state, 'dimension_door', { dest: [2, 2] })).toThrow('not free');
+    expect(() => castCommand(state, 'dimension_door')).toThrow('destination');
+
+    const corner = makeAdventureGame(['dimension_door'], [1, 1]);
+    expect(() => castCommand(corner, 'dimension_door', { dest: [10, 10] })).toThrow(
+      'at most 8 tiles',
+    );
+  });
+
+  it('dimension door is limited to 2 casts per day and resets at dawn', () => {
+    const state = makeAdventureGame(['dimension_door'], [3, 3]);
+    const once = castCommand(state, 'dimension_door', { dest: [4, 4] }).state;
+    const twice = castCommand(once, 'dimension_door', { dest: [3, 3] }).state;
+    expect(twice.heroes.edric?.dimensionDoorCasts).toBe(2);
+    expect(() => castCommand(twice, 'dimension_door', { dest: [4, 4] })).toThrow(
+      '2 times per day',
+    );
+
+    const redDone = dispatch(twice, { type: 'endTurn', player: 'red' }, data).state;
+    const nextDay = dispatch(redDone, { type: 'endTurn', player: 'blue' }, data).state;
+    expect(nextDay.day).toBe(2);
+    expect(nextDay.heroes.edric?.dimensionDoorCasts).toBe(0);
   });
 });

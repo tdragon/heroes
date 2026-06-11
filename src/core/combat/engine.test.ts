@@ -640,6 +640,7 @@ describe('heroCombatInfo', () => {
       movementPoints: 1500,
       tempLuck: 0,
       tempMorale: 0,
+      dimensionDoorCasts: 0,
     };
     expect(heroCombatInfo(hero, data)).toEqual({
       hero: 'h1',

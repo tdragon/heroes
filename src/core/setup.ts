@@ -1,14 +1,13 @@
 import type { GameData } from '../data';
 import type { HeroTemplate } from '../data/schema';
 import type { GameMap, MapObject, MapPlayer } from '../maps/schema';
+import { revealFor, sightRadius, TOWN_SIGHT_RADIUS } from './fog';
 import { maxMovementPoints } from './hero';
 import { rollRange, seedRng } from './rng';
 import {
   ARMY_SLOTS,
   emptyResources,
   maxMana,
-  revealCircle,
-  sightRadius,
   type ArmySlots,
   type GameState,
   type Hero,
@@ -83,6 +82,7 @@ export function instantiateHero(
     movementPoints: 0,
     tempLuck: 0,
     tempMorale: 0,
+    dimensionDoorCasts: 0,
   };
   hero.mana = maxMana(hero, data);
   hero.movementPoints = maxMovementPoints(hero, data);
@@ -204,6 +204,9 @@ export function newGame(
     }
     town.visitingHero = hero.id;
 
+    const ownedTowns = Object.values(state.towns)
+      .filter((t) => t.owner === mapPlayer.color)
+      .map((t) => t.id);
     const player: Player = {
       id: mapPlayer.color,
       color: mapPlayer.color,
@@ -211,13 +214,14 @@ export function newGame(
       isHuman: mapPlayer.isHuman,
       resources: { ...emptyResources(), ...startingResources },
       heroes: [hero.id],
-      towns: [townId],
+      towns: ownedTowns,
       explored: Array.from({ length: map.size * map.size }, () => false),
+      seenObjects: {},
       daysWithoutTown: 0,
       defeated: false,
     };
-    revealCircle(player.explored, map.size, hero.pos, sightRadius(hero, data));
-    revealCircle(player.explored, map.size, town.pos, 5);
+    revealFor(state, player, hero.pos, sightRadius(hero, data));
+    revealFor(state, player, town.pos, TOWN_SIGHT_RADIUS);
     state.players.push(player);
   }
 

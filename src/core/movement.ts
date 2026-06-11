@@ -4,16 +4,9 @@ import { objectFootprint } from '../maps/dsl';
 import { NO_ROAD_CHAR, type Pos } from '../maps/schema';
 import type { Command, GameEvent } from './commands';
 import { CommandRejectedError } from './commands';
+import { revealFor, sightRadius } from './fog';
 import { handleObjectTrigger } from './objects';
-import {
-  getPlayer,
-  revealCircle,
-  sightRadius,
-  skillValue,
-  type GameState,
-  type Hero,
-  type ObjectId,
-} from './state';
+import { getPlayer, skillValue, type GameState, type Hero, type ObjectId } from './state';
 
 export const DIAGONAL_FACTOR = 1.414;
 export const TERRAIN_COST_FLOOR = 100;
@@ -305,7 +298,7 @@ export function moveHero(
     const from: Pos = [...hero.pos];
     leaveTile(state, hero, from);
     hero.pos = [...step];
-    revealCircle(player.explored, ctx.size, hero.pos, radius);
+    revealFor(state, player, hero.pos, radius);
     events.push({
       type: 'heroMoved',
       hero: hero.id,

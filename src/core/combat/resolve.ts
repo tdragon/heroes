@@ -8,9 +8,9 @@ import type { GameEvent } from '../commands';
 import { giveExperience } from '../hero';
 import { learnGuildSpells } from '../magic';
 import { defenderLuckBonus, NECROMANCY_AMPLIFIER_BONUS, tavernMoraleBonus } from '../town';
+import { revealFor, TOWN_SIGHT_RADIUS } from '../fog';
 import {
   getPlayer,
-  revealCircle,
   skillValue,
   type ActiveCombat,
   type ArmySlots,
@@ -94,7 +94,7 @@ export function captureTown(
   town.owner = hero.owner;
   obj.owner = hero.owner;
   town.visitingHero = hero.id;
-  revealCircle(player.explored, state.map.size, town.pos, 5);
+  revealFor(state, player, town.pos, TOWN_SIGHT_RADIUS);
   events.push({ type: 'townCaptured', town: town.id, player: hero.owner, previousOwner });
   const learned = learnGuildSpells(hero, town, data);
   if (learned.length > 0) {

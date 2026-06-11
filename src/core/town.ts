@@ -6,6 +6,7 @@ import type { GameData } from '../data';
 import type { Building, Cost, FactionId, ResourceId } from '../data/schema';
 import { RESOURCE_IDS } from '../data/schema';
 import { CommandRejectedError, type Command, type GameEvent } from './commands';
+import { revealFor, sightRadius } from './fog';
 import { learnGuildSpells } from './magic';
 import { MAX_HEROES } from './objects';
 import { rollRange } from './rng';
@@ -14,8 +15,6 @@ import {
   addResources,
   ARMY_SLOTS,
   getPlayer,
-  revealCircle,
-  sightRadius,
   type ArmySlots,
   type GameState,
   type Hero,
@@ -565,7 +564,7 @@ export function hireHero(
   state.heroes[hero.id] = hero;
   player.heroes.push(hero.id);
   town.visitingHero = hero.id;
-  revealCircle(player.explored, state.map.size, hero.pos, sightRadius(hero, data));
+  revealFor(state, player, hero.pos, sightRadius(hero, data));
   state.tavernPool = state.tavernPool.filter((id) => id !== command.hero);
   for (const other of Object.values(state.towns)) {
     other.tavernHeroes = other.tavernHeroes.filter((id) => id !== command.hero);

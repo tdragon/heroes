@@ -620,11 +620,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/fog.ts`, `src/core/victory.ts`
 - Create: `src/core/fog.test.ts`, `src/core/victory.test.ts`
 
-- [ ] implement per-player shroud/explored bitmasks, circular reveal (radius 5 + Scouting + artifacts) on move/capture, Observatory reveal, last-seen object state for dimmed layer
-- [ ] implement victory/loss evaluation each command: defeatAll win, loseAll loss, 7-day townless countdown; emit game-over event; block further commands
-- [ ] implement adventure spells now that map+fog exist: Town Portal, Dimension Door (visibility + MP rules §6)
-- [ ] write tests: reveal radii incl. map edges; explored persists, shroud doesn't; townless countdown resets on capture; defeatAll exact trigger; TP nearest-vs-chosen by skill; DD into shroud rejected, 2/day cap
-- [ ] run tests — must pass before task 12
+- [x] implement per-player shroud/explored bitmasks, circular reveal (radius 5 + Scouting + artifacts) on move/capture, Observatory reveal, last-seen object state for dimmed layer
+- [x] implement victory/loss evaluation each command: defeatAll win, loseAll loss, 7-day townless countdown; emit game-over event; block further commands
+- [x] implement adventure spells now that map+fog exist: Town Portal, Dimension Door (visibility + MP rules §6)
+- [x] write tests: reveal radii incl. map edges; explored persists, shroud doesn't; townless countdown resets on capture; defeatAll exact trigger; TP nearest-vs-chosen by skill; DD into shroud rejected, 2/day cap
+- [x] run tests — must pass before task 12
+- ➕ note: fog helpers (`revealCircle`/`isExplored`/`sightRadius`) moved from `state.ts` into `fog.ts`; `revealFor` also snapshots objects into `Player.seenObjects` (dimmed-layer state), `visibleTiles` computes the bright layer for the renderer; `Hero.dimensionDoorCasts` + `Player.seenObjects` bumped save version to 4; `newGame` now registers all map-authored owned towns in `player.towns` (needed for TP/loseAll); when the current player eliminates themselves the turn passes to the next active player (day advances on wrap)
 
 ### Task 12: Golden replay harness + full-game core test
 

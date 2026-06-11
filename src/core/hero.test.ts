@@ -22,10 +22,10 @@ import {
   type ArmyRef,
 } from './hero';
 import { newGame, townIdAt } from './setup';
+import { sightRadius } from './fog';
 import {
   manaRegenPerDay,
   maxMana,
-  sightRadius,
   type ArmySlots,
   type GameState,
   type Hero,

@@ -4,6 +4,7 @@ import type { Pos } from '../maps/schema';
 import { applyCombatAction, type GameCombatAction } from './combat/resolve';
 import type { CombatEvent } from './combat/state';
 import { applyLevelUpChoice, type PrimaryStat } from './hero';
+import { castAdventureSpell } from './magic';
 import { moveHero } from './movement';
 import { applyObjectReward, OBJECT_CHOICE_KINDS, resolveObjectChoice } from './objects';
 import {
@@ -16,6 +17,7 @@ import {
   upgradeArmyStack,
 } from './town';
 import { endTurn } from './turn';
+import { evaluateVictory } from './victory';
 import type {
   CombatReason,
   GameState,
@@ -46,7 +48,15 @@ export type Command =
   | { type: 'upgradeStack'; player: PlayerId; town: TownId; dest: ArmyDest; slot: number }
   | { type: 'trade'; player: PlayerId; give: ResourceId; receive: ResourceId; amount: number }
   | { type: 'hireHero'; player: PlayerId; town: TownId; hero: string }
-  | { type: 'transformToSkeletons'; player: PlayerId; town: TownId; slot: number };
+  | { type: 'transformToSkeletons'; player: PlayerId; town: TownId; slot: number }
+  | {
+      type: 'castAdventureSpell';
+      player: PlayerId;
+      hero: HeroId;
+      spell: string;
+      town?: TownId;
+      dest?: Pos;
+    };
 
 export type GameEvent =
   | { type: 'turnStarted'; player: PlayerId }
@@ -113,7 +123,10 @@ export type GameEvent =
   | { type: 'heroHired'; hero: HeroId; town: TownId; player: PlayerId }
   | { type: 'tavernRefreshed'; town: TownId; heroes: string[] }
   | { type: 'stackTransformed'; hero: HeroId; slot: number; from: string; count: number }
-  | { type: 'mysticPondYield'; town: TownId; resource: ResourceId; amount: number };
+  | { type: 'mysticPondYield'; town: TownId; resource: ResourceId; amount: number }
+  | { type: 'adventureSpellCast'; hero: HeroId; spell: string }
+  | { type: 'playerDefeated'; player: PlayerId }
+  | { type: 'gameOver'; winner: PlayerId };
 
 export interface DispatchResult {
   state: GameState;
@@ -215,6 +228,10 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
     case 'transformToSkeletons':
       transformToSkeletons(next, command, events);
       break;
+    case 'castAdventureSpell':
+      castAdventureSpell(next, command, data, events);
+      break;
   }
+  evaluateVictory(next, data, events);
   return { state: next, events };
 }

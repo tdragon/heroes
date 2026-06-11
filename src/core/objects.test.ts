@@ -13,8 +13,8 @@ import {
 } from './objects';
 import { dailyIncome } from './turn';
 import { newGame, townIdAt } from './setup';
+import { isExplored } from './fog';
 import {
-  isExplored,
   type GameState,
   type Hero,
   type MapObjectState,

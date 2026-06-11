@@ -4,6 +4,7 @@ import { objectFootprint } from '../maps/dsl';
 import type { Guard, Pos } from '../maps/schema';
 import { captureTown, startGuardCombat, startSiegeCombat } from './combat/resolve';
 import { CommandRejectedError, type GameEvent } from './commands';
+import { revealFor, sightRadius } from './fog';
 import { giveArtifact, giveExperience } from './hero';
 import { learnGuildSpells } from './magic';
 import { rollRange } from './rng';
@@ -13,8 +14,6 @@ import {
   getPlayer,
   isWeekStart,
   maxMana,
-  revealCircle,
-  sightRadius,
   weekOf,
   type GameState,
   type Hero,
@@ -301,7 +300,7 @@ function visitObservatory(
 ): void {
   const radius = data.objectTypes[obj.type]?.reward?.revealRadius ?? 20;
   const player = getPlayer(state, hero.owner);
-  revealCircle(player.explored, state.map.size, obj.at, radius);
+  revealFor(state, player, obj.at, radius);
   obj.visitedBy.push(hero.id);
   events.push({ type: 'areaRevealed', object: obj.id, player: hero.owner });
 }
@@ -333,7 +332,7 @@ function visitMonolith(
   const from: Pos = [...hero.pos];
   hero.pos = [...pair.at];
   const player = getPlayer(state, hero.owner);
-  revealCircle(player.explored, state.map.size, hero.pos, sightRadius(hero, data));
+  revealFor(state, player, hero.pos, sightRadius(hero, data));
   events.push({ type: 'heroTeleported', hero: hero.id, from, to: [...pair.at] });
 }
 
@@ -400,7 +399,7 @@ function visitPrison(
   }
   state.heroes[freed.id] = freed;
   player.heroes.push(freed.id);
-  revealCircle(player.explored, state.map.size, freed.pos, sightRadius(freed, data));
+  revealFor(state, player, freed.pos, sightRadius(freed, data));
   obj.removed = true;
   events.push({ type: 'heroReleased', hero: freed.id, player: hero.owner });
   events.push({ type: 'objectRemoved', object: obj.id });
