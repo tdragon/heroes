@@ -736,9 +736,9 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 
 ### Task 20: [Final] Update documentation
 
-- [ ] write README.md: how to run/build/test, architecture overview, how to add a faction (data-only walkthrough), map DSL guide
-- [ ] create CLAUDE.md with project conventions (determinism rule, command pattern, data-driven content, test commands)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] write README.md: how to run/build/test, architecture overview, how to add a faction (data-only walkthrough), map DSL guide
+- [x] create CLAUDE.md with project conventions (determinism rule, command pattern, data-driven content, test commands)
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 
