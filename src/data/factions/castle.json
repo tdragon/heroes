@@ -156,7 +156,8 @@
       "kind": "special",
       "cost": { "gold": 1000, "ore": 5 },
       "prereqs": ["castle_dwelling_3"],
-      "special": "+3 griffin growth per week"
+      "special": "+3 griffin growth per week",
+      "growthBonus": { "creature": "griffin", "amount": 3 }
     }
   ],
   "heroClasses": ["knight", "cleric"],

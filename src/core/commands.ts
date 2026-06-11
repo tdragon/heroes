@@ -1,10 +1,20 @@
 import type { GameData } from '../data';
+import type { ResourceId } from '../data/schema';
 import type { Pos } from '../maps/schema';
 import { applyCombatAction, type GameCombatAction } from './combat/resolve';
 import type { CombatEvent } from './combat/state';
 import { applyLevelUpChoice, type PrimaryStat } from './hero';
 import { moveHero } from './movement';
 import { applyObjectReward, OBJECT_CHOICE_KINDS, resolveObjectChoice } from './objects';
+import {
+  buildStructure,
+  hireHero,
+  recruitCreatures,
+  recruitFromDwelling,
+  tradeResources,
+  transformToSkeletons,
+  upgradeArmyStack,
+} from './town';
 import { endTurn } from './turn';
 import type {
   CombatReason,
@@ -16,11 +26,27 @@ import type {
   TownId,
 } from './state';
 
+export type ArmyDest = 'garrison' | 'visitingHero';
+
 export type Command =
   | { type: 'endTurn'; player: PlayerId }
   | { type: 'moveHero'; player: PlayerId; hero: HeroId; path: Pos[] }
   | { type: 'resolveChoice'; player: PlayerId; choiceId: string; option: number }
-  | { type: 'combatAction'; player: PlayerId; action: GameCombatAction };
+  | { type: 'combatAction'; player: PlayerId; action: GameCombatAction }
+  | { type: 'build'; player: PlayerId; town: TownId; building: string }
+  | {
+      type: 'recruit';
+      player: PlayerId;
+      town: TownId;
+      dest: ArmyDest;
+      creature: string;
+      count: number;
+    }
+  | { type: 'recruitDwelling'; player: PlayerId; object: ObjectId; hero: HeroId; count: number }
+  | { type: 'upgradeStack'; player: PlayerId; town: TownId; dest: ArmyDest; slot: number }
+  | { type: 'trade'; player: PlayerId; give: ResourceId; receive: ResourceId; amount: number }
+  | { type: 'hireHero'; player: PlayerId; town: TownId; hero: string }
+  | { type: 'transformToSkeletons'; player: PlayerId; town: TownId; slot: number };
 
 export type GameEvent =
   | { type: 'turnStarted'; player: PlayerId }
@@ -65,7 +91,29 @@ export type GameEvent =
   | { type: 'heroFled'; hero: HeroId; player: PlayerId }
   | { type: 'necromancyRaised'; hero: HeroId; count: number }
   | { type: 'artifactsSeized'; hero: HeroId; artifacts: string[] }
-  | { type: 'spellsLearned'; hero: HeroId; spells: string[] };
+  | { type: 'spellsLearned'; hero: HeroId; spells: string[] }
+  | { type: 'buildingBuilt'; town: TownId; building: string }
+  | { type: 'guildSpellsRolled'; town: TownId; level: number; spells: string[] }
+  | {
+      type: 'creaturesRecruited';
+      creature: string;
+      count: number;
+      town: TownId | null;
+      object: ObjectId | null;
+    }
+  | { type: 'stackUpgraded'; town: TownId; from: string; to: string; count: number }
+  | {
+      type: 'resourcesTraded';
+      player: PlayerId;
+      gave: ResourceId;
+      gaveAmount: number;
+      received: ResourceId;
+      receivedAmount: number;
+    }
+  | { type: 'heroHired'; hero: HeroId; town: TownId; player: PlayerId }
+  | { type: 'tavernRefreshed'; town: TownId; heroes: string[] }
+  | { type: 'stackTransformed'; hero: HeroId; slot: number; from: string; count: number }
+  | { type: 'mysticPondYield'; town: TownId; resource: ResourceId; amount: number };
 
 export interface DispatchResult {
   state: GameState;
@@ -145,6 +193,27 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
       applyCombatAction(next, command.action, data, events, (s, hero, obj, evts) => {
         applyObjectReward(s, hero, obj, data, evts);
       });
+      break;
+    case 'build':
+      buildStructure(next, command, data, events);
+      break;
+    case 'recruit':
+      recruitCreatures(next, command, data, events);
+      break;
+    case 'recruitDwelling':
+      recruitFromDwelling(next, command, data, events);
+      break;
+    case 'upgradeStack':
+      upgradeArmyStack(next, command, data, events);
+      break;
+    case 'trade':
+      tradeResources(next, command, events);
+      break;
+    case 'hireHero':
+      hireHero(next, command, data, events);
+      break;
+    case 'transformToSkeletons':
+      transformToSkeletons(next, command, events);
       break;
   }
   return { state: next, events };

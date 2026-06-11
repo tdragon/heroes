@@ -1,8 +1,14 @@
 import type { GameData } from '../data';
-import type { Building } from '../data/schema';
 import type { GameEvent } from './commands';
 import { maxMovementPoints } from './hero';
 import { applyDailyObjectResets, applyWeeklyObjectResets } from './objects';
+import {
+  applyMysticPonds,
+  applyStablesBonus,
+  builtBuildings,
+  growthMultiplier,
+  refreshTaverns,
+} from './town';
 import {
   addResources,
   emptyResources,
@@ -15,31 +21,13 @@ import {
   type GameState,
   type PlayerId,
   type Resources,
-  type Town,
 } from './state';
-
-function townBuildings(town: Town, data: GameData): Building[] {
-  const faction = data.factions[town.faction];
-  const factionBuildings = new Map<string, Building>();
-  if (faction) {
-    for (const building of [...faction.dwellings, ...faction.specialBuildings]) {
-      factionBuildings.set(building.id, building);
-    }
-  }
-  return town.buildings.map((id) => {
-    const building = data.buildings[id] ?? factionBuildings.get(id);
-    if (!building) {
-      throw new Error(`town ${town.id}: unknown building ${id}`);
-    }
-    return building;
-  });
-}
 
 export function dailyIncome(state: GameState, playerId: PlayerId, data: GameData): Resources {
   const income = emptyResources();
   for (const town of Object.values(state.towns)) {
     if (town.owner !== playerId) continue;
-    for (const building of townBuildings(town, data)) {
+    for (const building of builtBuildings(town, data)) {
       if (building.income) {
         addResources(income, building.income);
       }
@@ -55,19 +43,9 @@ export function dailyIncome(state: GameState, playerId: PlayerId, data: GameData
   return income;
 }
 
-export function growthMultiplier(town: Town, data: GameData): number {
-  let multiplier = 1;
-  for (const building of townBuildings(town, data)) {
-    if (building.growthMultiplier !== undefined && building.growthMultiplier > multiplier) {
-      multiplier = building.growthMultiplier;
-    }
-  }
-  return multiplier;
-}
-
 function applyWeeklyGrowth(state: GameState, data: GameData, events: GameEvent[]): void {
   for (const town of Object.values(state.towns)) {
-    const buildings = townBuildings(town, data);
+    const buildings = builtBuildings(town, data);
     const builtIds = new Set(town.buildings);
     const multiplier = growthMultiplier(town, data);
     let grew = false;
@@ -81,6 +59,21 @@ function applyWeeklyGrowth(state: GameState, data: GameData, events: GameEvent[]
       }
       const gain = Math.floor(creature.growth * multiplier);
       town.availableCreatures[creature.id] = (town.availableCreatures[creature.id] ?? 0) + gain;
+      grew = true;
+    }
+    for (const building of buildings) {
+      if (building.growthBonus === undefined) continue;
+      // credit the upgraded creature when its dwelling has been upgraded
+      let creatureId = building.growthBonus.creature;
+      const baseDwelling = buildings.find(
+        (b) => b.kind === 'dwelling' && b.creature === creatureId && b.upgradeOf === undefined,
+      );
+      if (baseDwelling) {
+        const upgrade = buildings.find((b) => b.upgradeOf === baseDwelling.id);
+        if (upgrade?.creature !== undefined) creatureId = upgrade.creature;
+      }
+      town.availableCreatures[creatureId] =
+        (town.availableCreatures[creatureId] ?? 0) + building.growthBonus.amount;
       grew = true;
     }
     if (grew) {
@@ -103,6 +96,8 @@ function advanceDay(state: GameState, data: GameData, events: GameEvent[]): void
     events.push({ type: 'weekStarted', week: weekOf(state.day) });
     applyWeeklyGrowth(state, data, events);
     applyWeeklyObjectResets(state, data);
+    refreshTaverns(state, data, events);
+    applyMysticPonds(state, events);
   }
   applyDailyObjectResets(state, data);
   if (isMonthStart(state.day)) {
@@ -118,6 +113,7 @@ function advanceDay(state: GameState, data: GameData, events: GameEvent[]): void
   }
 
   regenerateHeroes(state, data);
+  applyStablesBonus(state);
 
   for (const town of Object.values(state.towns)) {
     town.builtToday = false;

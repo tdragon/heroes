@@ -112,6 +112,7 @@ function createTown(obj: MapObject, map: GameMap): Town {
     visitingHero: null,
     availableCreatures: {},
     guildSpells: [],
+    tavernHeroes: [],
   };
 }
 

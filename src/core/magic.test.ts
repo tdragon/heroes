@@ -8,12 +8,7 @@ import {
   type CombatArmyStack,
   type CombatEvent,
 } from './combat/engine';
-import {
-  getCombatStack,
-  noHero,
-  type CombatHeroInfo,
-  type CombatState,
-} from './combat/state';
+import { getCombatStack, noHero, type CombatHeroInfo, type CombatState } from './combat/state';
 import {
   buySpellbook,
   canLearnSpell,
@@ -26,13 +21,7 @@ import {
   spellCost,
 } from './magic';
 import { seedRng } from './rng';
-import {
-  ARMY_SLOTS,
-  emptyResources,
-  type GameState,
-  type Hero,
-  type Town,
-} from './state';
+import { ARMY_SLOTS, emptyResources, type GameState, type Hero, type Town } from './state';
 
 const data = loadGameData();
 
@@ -89,6 +78,7 @@ function makeTown(overrides: Partial<Town> = {}): Town {
     visitingHero: null,
     availableCreatures: {},
     guildSpells: ['magic_arrow', 'haste', 'fireball', 'chain_lightning', 'implosion'],
+    tavernHeroes: [],
     ...overrides,
   };
 }
@@ -149,16 +139,20 @@ describe('spell learning', () => {
     expect(player.resources.gold).toBe(1000 - SPELLBOOK_COST);
     expect(hero.spells).toEqual(['magic_arrow', 'haste']); // no wisdom: level <= 2
 
-    expect(() => { buySpellbook(state, hero, town, data); }).toThrow('already owns');
+    expect(() => {
+      buySpellbook(state, hero, town, data);
+    }).toThrow('already owns');
     const poorHero = makeHero({ id: 'h2', hasSpellbook: false });
     player.resources.gold = 100;
-    expect(() => { buySpellbook(state, poorHero, town, data); }).toThrow('gold');
-    expect(() =>
-      { buySpellbook(state, poorHero, makeTown({ owner: 'blue' }), data); },
-    ).toThrow('own town');
-    expect(() =>
-      { buySpellbook(state, poorHero, makeTown({ buildings: ['village_hall'] }), data); },
-    ).toThrow('mage guild');
+    expect(() => {
+      buySpellbook(state, poorHero, town, data);
+    }).toThrow('gold');
+    expect(() => {
+      buySpellbook(state, poorHero, makeTown({ owner: 'blue' }), data);
+    }).toThrow('own town');
+    expect(() => {
+      buySpellbook(state, poorHero, makeTown({ buildings: ['village_hall'] }), data);
+    }).toThrow('mage guild');
   });
 });
 
@@ -277,11 +271,7 @@ describe('cast validation', () => {
       attacker: [{ creature: 'pikeman', count: 5 }],
       defender: [{ creature: 'walking_dead', count: 30 }],
     });
-    const events = combatAct(
-      combat,
-      { type: 'cast', spell: 'magic_arrow', target: 'd0' },
-      data,
-    );
+    const events = combatAct(combat, { type: 'cast', spell: 'magic_arrow', target: 'd0' }, data);
     expect(events.some((e) => e.type === 'spellCast')).toBe(true);
     expect(combat.queue[0]).toBe('a0'); // still the pikemen's turn
   });
@@ -609,9 +599,7 @@ describe('immunities and resistances', () => {
         seed,
       });
       const events = cast(combat, 'slow', 'd0');
-      if (events.some((e) => e.type === 'spellResisted' && e.reason === 'resisted'))
-
-        resisted += 1;
+      if (events.some((e) => e.type === 'spellResisted' && e.reason === 'resisted')) resisted += 1;
       else if (events.some((e) => e.type === 'effectApplied' && e.kind === 'slow')) landed += 1;
     }
     expect(resisted + landed).toBe(samples);

@@ -68,6 +68,7 @@ export interface Town {
   visitingHero: HeroId | null;
   availableCreatures: Record<string, number>;
   guildSpells: string[];
+  tavernHeroes: string[];
 }
 
 export interface MapObjectState {

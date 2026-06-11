@@ -7,6 +7,7 @@ import type { Guard } from '../../maps/schema';
 import type { GameEvent } from '../commands';
 import { giveExperience } from '../hero';
 import { learnGuildSpells } from '../magic';
+import { defenderLuckBonus, NECROMANCY_AMPLIFIER_BONUS, tavernMoraleBonus } from '../town';
 import {
   getPlayer,
   revealCircle,
@@ -67,10 +68,7 @@ function requireObject(state: GameState, id: ObjectId): MapObjectState {
   return obj;
 }
 
-function pushCombatEvents(
-  events: GameEvent[],
-  combatEvents: ReturnType<typeof combatAct>,
-): void {
+function pushCombatEvents(events: GameEvent[], combatEvents: ReturnType<typeof combatAct>): void {
   for (const event of combatEvents) {
     events.push({ type: 'combat', event });
   }
@@ -186,6 +184,10 @@ export function startSiegeCombat(
   }
 
   const siegeLevel = siegeLevelFromBuildings(town.buildings);
+  // town buildings boost the defenders: tavern morale, fountain of fortune luck
+  const defenderHeroInfo = visiting ? heroCombatInfo(visiting, data) : noHero();
+  defenderHeroInfo.morale += tavernMoraleBonus(town);
+  defenderHeroInfo.luck += defenderLuckBonus(town);
   beginCombat(
     state,
     {
@@ -200,7 +202,7 @@ export function startSiegeCombat(
     {
       attacker: { hero: heroCombatInfo(hero, data), stacks: attacker.stacks },
       defender: {
-        hero: visiting ? heroCombatInfo(visiting, data) : noHero(),
+        hero: defenderHeroInfo,
         stacks: defenderStacks,
       },
       rng: state.rngState,
@@ -221,7 +223,8 @@ function syncAttackerArmy(hero: Hero, active: ActiveCombat): void {
     if (armyIndex === undefined) {
       throw new Error(`no army slot mapping for combat slot ${String(stack.slot)}`);
     }
-    hero.army[armyIndex] = stack.count > 0 ? { creature: stack.creature, count: stack.count } : null;
+    hero.army[armyIndex] =
+      stack.count > 0 ? { creature: stack.creature, count: stack.count } : null;
   }
 }
 
@@ -300,9 +303,7 @@ function removeHero(
       town.visitingHero = null;
     }
   }
-  state.heroes = Object.fromEntries(
-    Object.entries(state.heroes).filter(([id]) => id !== hero.id),
-  );
+  state.heroes = Object.fromEntries(Object.entries(state.heroes).filter(([id]) => id !== hero.id));
   state.tavernPool.push(hero.template);
   events.push({
     type: outcome === 'fled' ? 'heroFled' : 'heroDefeated',
@@ -313,13 +314,22 @@ function removeHero(
 
 export const NECROMANCY_CREATURE = 'skeleton';
 
+// necromancy skill plus +10% per own town with a Necromancy Amplifier
+export function necromancyPercent(state: GameState, hero: Hero, data: GameData): number {
+  const amplifiers = Object.values(state.towns).filter(
+    (town) => town.owner === hero.owner && town.buildings.includes('necromancy_amplifier'),
+  ).length;
+  return skillValue(hero, 'necromancy', data) + NECROMANCY_AMPLIFIER_BONUS * amplifiers;
+}
+
 function applyNecromancy(
+  state: GameState,
   hero: Hero,
   enemyHpLost: number,
   data: GameData,
   events: GameEvent[],
 ): void {
-  const pct = skillValue(hero, 'necromancy', data);
+  const pct = necromancyPercent(state, hero, data);
   if (pct <= 0 || enemyHpLost <= 0) return;
   const skeleton = requireCreature(data, NECROMANCY_CREATURE);
   const count = Math.floor(((pct / 100) * enemyHpLost) / skeleton.hp);
@@ -387,7 +397,7 @@ function finishCombat(
       transferArtifacts(defenderHero, attacker, events);
       removeHero(state, defenderHero, 'defeated', events);
     }
-    applyNecromancy(attacker, losses.hpLost, data, events);
+    applyNecromancy(state, attacker, losses.hpLost, data, events);
     giveExperience(state, attacker.id, losses.xp, data, events);
     if (active.reason === 'siege') {
       const town = active.defenderTown === null ? null : state.towns[active.defenderTown];
@@ -403,7 +413,7 @@ function finishCombat(
     const losses = sideLosses(battle, 'attacker', data);
     if (defenderHero) {
       transferArtifacts(attacker, defenderHero, events);
-      applyNecromancy(defenderHero, losses.hpLost, data, events);
+      applyNecromancy(state, defenderHero, losses.hpLost, data, events);
       giveExperience(state, defenderHero.id, losses.xp, data, events);
     }
     removeHero(state, attacker, 'defeated', events);

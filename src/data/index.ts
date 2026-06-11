@@ -135,6 +135,14 @@ export function validateCrossReferences(data: GameData): string[] {
       if (building.creature !== undefined && !(building.creature in data.creatures)) {
         errors.push(`building ${building.id}: creature ${building.creature} does not exist`);
       }
+      if (
+        building.growthBonus !== undefined &&
+        !(building.growthBonus.creature in data.creatures)
+      ) {
+        errors.push(
+          `building ${building.id}: growth bonus creature ${building.growthBonus.creature} does not exist`,
+        );
+      }
       if (building.upgradeOf !== undefined && !(building.upgradeOf in localBuildings)) {
         errors.push(`building ${building.id}: upgradeOf ${building.upgradeOf} does not exist`);
       }

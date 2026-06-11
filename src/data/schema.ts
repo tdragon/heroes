@@ -192,6 +192,9 @@ export const BuildingSchema = z.object({
   growthMultiplier: z.number().optional(),
   guildLevel: z.number().int().min(1).max(5).optional(),
   creature: z.string().optional(),
+  growthBonus: z
+    .object({ creature: z.string().min(1), amount: z.number().int().positive() })
+    .optional(),
   upgradeOf: z.string().optional(),
   uniquePerPlayer: z.boolean().optional(),
   special: z.string().optional(),

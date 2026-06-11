@@ -606,12 +606,13 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/town.ts`, `src/core/town.test.ts`
 - Modify: `src/core/commands.ts`
 
-- [ ] implement build command: prereq/cost/once-per-day validation, effects (income, growth multipliers, guild spell roll from faction pool via rng, special buildings §5.3)
-- [ ] implement recruit command (pool/cost/slot checks, garrison or visiting hero), creature upgrade-for-difference, external dwellings reuse same code
-- [ ] implement marketplace trade rates (10/7/5/4:1 by marketplace count) + trade command; Skeleton Transformer; tavern hero pool + hire command (2500g, weekly refresh, 8-hero cap)
-- [ ] implement town capture (garrison defense battle first if non-empty)
-- [ ] write tests: build tree validation (each prereq edge, one-per-day, capitol uniqueness), income deltas, guild rolls deterministic per seed and never duplicate spells, recruit/upgrade math, trade rates, hire flow and cap, capture with/without garrison
-- [ ] run tests — must pass before task 11
+- [x] implement build command: prereq/cost/once-per-day validation, effects (income, growth multipliers, guild spell roll from faction pool via rng, special buildings §5.3)
+- [x] implement recruit command (pool/cost/slot checks, garrison or visiting hero), creature upgrade-for-difference, external dwellings reuse same code
+- [x] implement marketplace trade rates (10/7/5/4:1 by marketplace count) + trade command; Skeleton Transformer; tavern hero pool + hire command (2500g, weekly refresh, 8-hero cap)
+- [x] implement town capture (garrison defense battle first if non-empty)
+- [x] write tests: build tree validation (each prereq edge, one-per-day, capitol uniqueness), income deltas, guild rolls deterministic per seed and never duplicate spells, recruit/upgrade math, trade rates, hire flow and cap, capture with/without garrison
+- [x] run tests — must pass before task 11
+- ➕ note: halls replace each other on build (income is absolute per spec table, not additive); stables bonus simplified to dawn-while-visiting + on-build; per-town tavern offers live in `Town.tavernHeroes` (save version bumped to 3); special-building effects: treasury income (data), mystic pond weekly rare, griffin bastion `growthBonus` (new data field), tavern/brotherhood siege defender morale, fountain of fortune defender luck, necromancy amplifier +10%/town
 
 ### Task 11: Fog of war and victory conditions
 
