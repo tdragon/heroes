@@ -1,0 +1,98 @@
+[
+  {
+    "id": "logistics",
+    "name": "Logistics",
+    "description": "+10/20/30% movement points on land",
+    "values": [10, 20, 30]
+  },
+  {
+    "id": "pathfinding",
+    "name": "Pathfinding",
+    "description": "reduce terrain penalty by 25/50/75%",
+    "values": [25, 50, 75]
+  },
+  {
+    "id": "scouting",
+    "name": "Scouting",
+    "description": "+1/2/3 sight radius",
+    "values": [1, 2, 3]
+  },
+  {
+    "id": "archery",
+    "name": "Archery",
+    "description": "ranged damage +10/25/50%",
+    "values": [10, 25, 50]
+  },
+  {
+    "id": "offense",
+    "name": "Offense",
+    "description": "melee damage +10/20/30%",
+    "values": [10, 20, 30]
+  },
+  {
+    "id": "armorer",
+    "name": "Armorer",
+    "description": "damage taken -5/-10/-15%",
+    "values": [5, 10, 15]
+  },
+  {
+    "id": "leadership",
+    "name": "Leadership",
+    "description": "morale +1/2/3",
+    "values": [1, 2, 3]
+  },
+  {
+    "id": "luck",
+    "name": "Luck",
+    "description": "luck +1/2/3",
+    "values": [1, 2, 3]
+  },
+  {
+    "id": "wisdom",
+    "name": "Wisdom",
+    "description": "can learn spells of level 3/4/5 (without it: max level 2)",
+    "values": [3, 4, 5]
+  },
+  {
+    "id": "intelligence",
+    "name": "Intelligence",
+    "description": "max mana +25/50/100%",
+    "values": [25, 50, 100]
+  },
+  {
+    "id": "mysticism",
+    "name": "Mysticism",
+    "description": "mana regen 2/3/4 per day (base 1)",
+    "values": [2, 3, 4]
+  },
+  {
+    "id": "air_magic",
+    "name": "Air Magic",
+    "description": "air spells cast at basic/advanced/expert school tier",
+    "values": [1, 2, 3]
+  },
+  {
+    "id": "earth_magic",
+    "name": "Earth Magic",
+    "description": "earth spells cast at basic/advanced/expert school tier",
+    "values": [1, 2, 3]
+  },
+  {
+    "id": "fire_magic",
+    "name": "Fire Magic",
+    "description": "fire spells cast at basic/advanced/expert school tier",
+    "values": [1, 2, 3]
+  },
+  {
+    "id": "water_magic",
+    "name": "Water Magic",
+    "description": "water spells cast at basic/advanced/expert school tier",
+    "values": [1, 2, 3]
+  },
+  {
+    "id": "necromancy",
+    "name": "Necromancy",
+    "description": "after victory, raise 10/20/30% of enemy losses (by HP) as Skeletons",
+    "values": [10, 20, 30]
+  }
+]

@@ -1,0 +1,189 @@
+{
+  "id": "castle",
+  "name": "Castle",
+  "color": "#2b6cb0",
+  "alignment": "good",
+  "creatures": [
+    { "tier": 1, "base": "pikeman", "upgrade": "halberdier" },
+    { "tier": 2, "base": "archer", "upgrade": "marksman" },
+    { "tier": 3, "base": "griffin", "upgrade": "royal_griffin" },
+    { "tier": 4, "base": "swordsman", "upgrade": "crusader" },
+    { "tier": 5, "base": "monk", "upgrade": "zealot" },
+    { "tier": 6, "base": "cavalier", "upgrade": "champion" },
+    { "tier": 7, "base": "angel", "upgrade": "archangel" }
+  ],
+  "dwellings": [
+    {
+      "id": "castle_dwelling_1",
+      "name": "Pike Yard",
+      "kind": "dwelling",
+      "cost": { "gold": 400, "wood": 5 },
+      "prereqs": ["fort"],
+      "creature": "pikeman"
+    },
+    {
+      "id": "castle_dwelling_1u",
+      "name": "Upg. Pike Yard",
+      "kind": "dwelling",
+      "cost": { "gold": 400, "wood": 3 },
+      "prereqs": ["castle_dwelling_1"],
+      "creature": "halberdier",
+      "upgradeOf": "castle_dwelling_1"
+    },
+    {
+      "id": "castle_dwelling_2",
+      "name": "Archery Range",
+      "kind": "dwelling",
+      "cost": { "gold": 1000, "ore": 5 },
+      "prereqs": ["castle_dwelling_1"],
+      "creature": "archer"
+    },
+    {
+      "id": "castle_dwelling_2u",
+      "name": "Upg. Archery Range",
+      "kind": "dwelling",
+      "cost": { "gold": 1000, "ore": 3 },
+      "prereqs": ["castle_dwelling_2"],
+      "creature": "marksman",
+      "upgradeOf": "castle_dwelling_2"
+    },
+    {
+      "id": "castle_dwelling_3",
+      "name": "Griffin Roost",
+      "kind": "dwelling",
+      "cost": { "gold": 1500, "wood": 5, "ore": 5 },
+      "prereqs": ["castle_dwelling_2"],
+      "creature": "griffin"
+    },
+    {
+      "id": "castle_dwelling_3u",
+      "name": "Upg. Griffin Roost",
+      "kind": "dwelling",
+      "cost": { "gold": 1500, "wood": 3, "ore": 3 },
+      "prereqs": ["castle_dwelling_3"],
+      "creature": "royal_griffin",
+      "upgradeOf": "castle_dwelling_3"
+    },
+    {
+      "id": "castle_dwelling_4",
+      "name": "Sword Barracks",
+      "kind": "dwelling",
+      "cost": { "gold": 2000, "wood": 10, "ore": 10 },
+      "prereqs": ["castle_dwelling_3"],
+      "creature": "swordsman"
+    },
+    {
+      "id": "castle_dwelling_4u",
+      "name": "Upg. Sword Barracks",
+      "kind": "dwelling",
+      "cost": { "gold": 2000, "wood": 5, "ore": 5 },
+      "prereqs": ["castle_dwelling_4"],
+      "creature": "crusader",
+      "upgradeOf": "castle_dwelling_4"
+    },
+    {
+      "id": "castle_dwelling_5",
+      "name": "Temple",
+      "kind": "dwelling",
+      "cost": { "gold": 3000, "gems": 5 },
+      "prereqs": ["castle_dwelling_4"],
+      "creature": "monk"
+    },
+    {
+      "id": "castle_dwelling_5u",
+      "name": "Upg. Temple",
+      "kind": "dwelling",
+      "cost": { "gold": 3000, "gems": 3 },
+      "prereqs": ["castle_dwelling_5"],
+      "creature": "zealot",
+      "upgradeOf": "castle_dwelling_5"
+    },
+    {
+      "id": "castle_dwelling_6",
+      "name": "Jousting Arena",
+      "kind": "dwelling",
+      "cost": { "gold": 4000, "wood": 10, "ore": 10, "gems": 5 },
+      "prereqs": ["castle_dwelling_5"],
+      "creature": "cavalier"
+    },
+    {
+      "id": "castle_dwelling_6u",
+      "name": "Upg. Jousting Arena",
+      "kind": "dwelling",
+      "cost": { "gold": 4000, "wood": 5, "ore": 5, "gems": 3 },
+      "prereqs": ["castle_dwelling_6"],
+      "creature": "champion",
+      "upgradeOf": "castle_dwelling_6"
+    },
+    {
+      "id": "castle_dwelling_7",
+      "name": "Celestial Gate",
+      "kind": "dwelling",
+      "cost": { "gold": 8000, "wood": 20, "ore": 20, "gems": 10 },
+      "prereqs": ["castle_dwelling_6"],
+      "creature": "angel"
+    },
+    {
+      "id": "castle_dwelling_7u",
+      "name": "Upg. Celestial Gate",
+      "kind": "dwelling",
+      "cost": { "gold": 8000, "wood": 10, "ore": 10, "gems": 10 },
+      "prereqs": ["castle_dwelling_7"],
+      "creature": "archangel",
+      "upgradeOf": "castle_dwelling_7"
+    }
+  ],
+  "specialBuildings": [
+    {
+      "id": "stables",
+      "name": "Stables",
+      "kind": "special",
+      "cost": { "gold": 2000, "wood": 10 },
+      "prereqs": [],
+      "special": "visiting heroes gain +400 movement points this week"
+    },
+    {
+      "id": "brotherhood_of_the_sword",
+      "name": "Brotherhood of the Sword",
+      "kind": "special",
+      "cost": { "gold": 1500, "wood": 5 },
+      "prereqs": ["tavern"],
+      "special": "tavern morale bonus becomes +2 instead of +1"
+    },
+    {
+      "id": "griffin_bastion",
+      "name": "Griffin Bastion",
+      "kind": "special",
+      "cost": { "gold": 1000, "ore": 5 },
+      "prereqs": ["castle_dwelling_3"],
+      "special": "+3 griffin growth per week"
+    }
+  ],
+  "heroClasses": ["knight", "cleric"],
+  "spellPool": [
+    "magic_arrow",
+    "haste",
+    "slow",
+    "shield",
+    "stone_skin",
+    "bless",
+    "curse",
+    "bloodlust",
+    "cure",
+    "dispel",
+    "lightning_bolt",
+    "ice_bolt",
+    "blind",
+    "weakness",
+    "fireball",
+    "forgetfulness",
+    "chain_lightning",
+    "meteor_shower",
+    "resurrection",
+    "town_portal",
+    "implosion",
+    "dimension_door"
+  ],
+  "siloResource": "gems",
+  "maxGuildLevel": 4
+}

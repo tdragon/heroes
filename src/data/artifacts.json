@@ -1,0 +1,156 @@
+[
+  {
+    "id": "iron_sword",
+    "name": "Iron Sword",
+    "slot": "weapon",
+    "rarity": "treasure",
+    "bonuses": { "attack": 1 }
+  },
+  {
+    "id": "oak_shield",
+    "name": "Oak Shield",
+    "slot": "shield",
+    "rarity": "treasure",
+    "bonuses": { "defense": 1 }
+  },
+  {
+    "id": "apprentice_wand",
+    "name": "Apprentice Wand",
+    "slot": "weapon",
+    "rarity": "treasure",
+    "bonuses": { "spellPower": 1 }
+  },
+  {
+    "id": "tome_of_basics",
+    "name": "Tome of Basics",
+    "slot": "misc",
+    "rarity": "treasure",
+    "bonuses": { "knowledge": 1 }
+  },
+  {
+    "id": "lucky_coin",
+    "name": "Lucky Coin",
+    "slot": "misc",
+    "rarity": "treasure",
+    "bonuses": { "luck": 1 }
+  },
+  {
+    "id": "banner_of_courage",
+    "name": "Banner of Courage",
+    "slot": "misc",
+    "rarity": "treasure",
+    "bonuses": { "morale": 1 }
+  },
+  {
+    "id": "steel_sabre",
+    "name": "Steel Sabre",
+    "slot": "weapon",
+    "rarity": "minor",
+    "bonuses": { "attack": 2 }
+  },
+  {
+    "id": "tower_shield",
+    "name": "Tower Shield",
+    "slot": "shield",
+    "rarity": "minor",
+    "bonuses": { "defense": 2 }
+  },
+  {
+    "id": "mystic_orb",
+    "name": "Mystic Orb",
+    "slot": "misc",
+    "rarity": "minor",
+    "bonuses": { "spellPower": 2 }
+  },
+  {
+    "id": "scholars_cap",
+    "name": "Scholar's Cap",
+    "slot": "head",
+    "rarity": "minor",
+    "bonuses": { "knowledge": 2 }
+  },
+  {
+    "id": "travelers_boots",
+    "name": "Traveler's Boots",
+    "slot": "feet",
+    "rarity": "minor",
+    "bonuses": { "movement": 300 }
+  },
+  {
+    "id": "spyglass",
+    "name": "Spyglass",
+    "slot": "misc",
+    "rarity": "minor",
+    "bonuses": { "sightRadius": 1 }
+  },
+  {
+    "id": "dragonbone_blade",
+    "name": "Dragonbone Blade",
+    "slot": "weapon",
+    "rarity": "major",
+    "bonuses": { "attack": 3 }
+  },
+  {
+    "id": "aegis_plate",
+    "name": "Aegis Plate",
+    "slot": "torso",
+    "rarity": "major",
+    "bonuses": { "defense": 3 }
+  },
+  {
+    "id": "stormcaller_staff",
+    "name": "Stormcaller Staff",
+    "slot": "weapon",
+    "rarity": "major",
+    "bonuses": { "spellPower": 3 }
+  },
+  {
+    "id": "crown_of_insight",
+    "name": "Crown of Insight",
+    "slot": "head",
+    "rarity": "major",
+    "bonuses": { "knowledge": 3 }
+  },
+  {
+    "id": "ring_of_vitality",
+    "name": "Ring of Vitality",
+    "slot": "ring",
+    "rarity": "major",
+    "bonuses": { "morale": 1, "luck": 1 }
+  },
+  {
+    "id": "amulet_of_mana",
+    "name": "Amulet of Mana",
+    "slot": "neck",
+    "rarity": "major",
+    "bonuses": { "manaRegen": 2 }
+  },
+  {
+    "id": "crown_of_the_archmage",
+    "name": "Crown of the Archmage",
+    "slot": "head",
+    "rarity": "relic",
+    "bonuses": { "knowledge": 4, "spellPower": 2 }
+  },
+  {
+    "id": "blade_of_kings",
+    "name": "Blade of Kings",
+    "slot": "weapon",
+    "rarity": "relic",
+    "bonuses": { "attack": 4, "defense": 2 }
+  },
+  {
+    "id": "heart_of_the_phoenix",
+    "name": "Heart of the Phoenix",
+    "slot": "neck",
+    "rarity": "relic",
+    "bonuses": { "morale": 2, "luck": 2 }
+  },
+  {
+    "id": "seven_league_boots",
+    "name": "Seven League Boots",
+    "slot": "feet",
+    "rarity": "relic",
+    "bonuses": { "movement": 600 }
+  }
+]

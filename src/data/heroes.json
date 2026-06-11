@@ -1,0 +1,398 @@
+{
+  "xpThresholds": [
+    1000, 2000, 3200, 4600, 6200, 8000, 10000, 12200, 14700, 17500, 20900, 25000, 29900, 35800,
+    42900, 51400, 61600, 73800, 88400, 105900, 126900, 152100, 182300, 218500, 261900, 314000,
+    376500, 451500, 541500
+  ],
+  "classes": [
+    {
+      "id": "knight",
+      "name": "Knight",
+      "faction": "castle",
+      "startStats": { "attack": 2, "defense": 2, "spellPower": 1, "knowledge": 1 },
+      "levelUpChancesEarly": [35, 45, 10, 10],
+      "levelUpChancesLate": [30, 30, 20, 20],
+      "hasSpellbook": false,
+      "skillWeights": {
+        "leadership": 8,
+        "offense": 6,
+        "armorer": 6,
+        "logistics": 5,
+        "archery": 4,
+        "luck": 3,
+        "pathfinding": 3,
+        "scouting": 3,
+        "wisdom": 2,
+        "intelligence": 1,
+        "mysticism": 1,
+        "air_magic": 1,
+        "earth_magic": 1,
+        "fire_magic": 1,
+        "water_magic": 1
+      }
+    },
+    {
+      "id": "cleric",
+      "name": "Cleric",
+      "faction": "castle",
+      "startStats": { "attack": 1, "defense": 0, "spellPower": 2, "knowledge": 2 },
+      "levelUpChancesEarly": [20, 15, 30, 35],
+      "levelUpChancesLate": [20, 20, 30, 30],
+      "hasSpellbook": true,
+      "skillWeights": {
+        "wisdom": 8,
+        "water_magic": 6,
+        "intelligence": 5,
+        "mysticism": 5,
+        "air_magic": 4,
+        "earth_magic": 4,
+        "fire_magic": 3,
+        "leadership": 3,
+        "luck": 2,
+        "scouting": 2,
+        "logistics": 2,
+        "pathfinding": 2,
+        "archery": 1,
+        "offense": 1,
+        "armorer": 1
+      }
+    },
+    {
+      "id": "ranger",
+      "name": "Ranger",
+      "faction": "rampart",
+      "startStats": { "attack": 1, "defense": 3, "spellPower": 1, "knowledge": 1 },
+      "levelUpChancesEarly": [35, 45, 10, 10],
+      "levelUpChancesLate": [30, 30, 20, 20],
+      "hasSpellbook": false,
+      "skillWeights": {
+        "armorer": 7,
+        "archery": 7,
+        "offense": 5,
+        "logistics": 5,
+        "luck": 5,
+        "leadership": 3,
+        "pathfinding": 3,
+        "scouting": 3,
+        "wisdom": 2,
+        "earth_magic": 2,
+        "intelligence": 1,
+        "mysticism": 1,
+        "air_magic": 1,
+        "fire_magic": 1,
+        "water_magic": 1
+      }
+    },
+    {
+      "id": "druid",
+      "name": "Druid",
+      "faction": "rampart",
+      "startStats": { "attack": 0, "defense": 2, "spellPower": 1, "knowledge": 2 },
+      "levelUpChancesEarly": [15, 20, 30, 35],
+      "levelUpChancesLate": [20, 20, 30, 30],
+      "hasSpellbook": true,
+      "skillWeights": {
+        "wisdom": 8,
+        "earth_magic": 7,
+        "intelligence": 5,
+        "mysticism": 5,
+        "water_magic": 4,
+        "air_magic": 3,
+        "luck": 3,
+        "scouting": 3,
+        "fire_magic": 2,
+        "pathfinding": 2,
+        "logistics": 2,
+        "leadership": 1,
+        "archery": 1,
+        "offense": 1,
+        "armorer": 1
+      }
+    },
+    {
+      "id": "death_knight",
+      "name": "Death Knight",
+      "faction": "necropolis",
+      "startStats": { "attack": 1, "defense": 2, "spellPower": 2, "knowledge": 1 },
+      "levelUpChancesEarly": [30, 30, 20, 20],
+      "levelUpChancesLate": [25, 25, 25, 25],
+      "hasSpellbook": false,
+      "skillWeights": {
+        "necromancy": 8,
+        "offense": 6,
+        "armorer": 5,
+        "logistics": 4,
+        "earth_magic": 3,
+        "wisdom": 3,
+        "pathfinding": 3,
+        "intelligence": 2,
+        "mysticism": 2,
+        "scouting": 2,
+        "archery": 2,
+        "fire_magic": 2,
+        "luck": 1,
+        "air_magic": 1,
+        "water_magic": 1
+      }
+    },
+    {
+      "id": "necromancer",
+      "name": "Necromancer",
+      "faction": "necropolis",
+      "startStats": { "attack": 1, "defense": 0, "spellPower": 2, "knowledge": 2 },
+      "levelUpChancesEarly": [15, 15, 35, 35],
+      "levelUpChancesLate": [25, 25, 25, 25],
+      "hasSpellbook": true,
+      "skillWeights": {
+        "necromancy": 10,
+        "wisdom": 7,
+        "earth_magic": 6,
+        "intelligence": 5,
+        "mysticism": 5,
+        "air_magic": 3,
+        "fire_magic": 3,
+        "water_magic": 2,
+        "scouting": 2,
+        "pathfinding": 2,
+        "logistics": 2,
+        "archery": 1,
+        "offense": 1,
+        "armorer": 1,
+        "luck": 1
+      }
+    }
+  ],
+  "heroes": [
+    {
+      "id": "edric",
+      "name": "Edric",
+      "class": "knight",
+      "startSkills": [
+        { "skill": "leadership", "rank": "basic" },
+        { "skill": "armorer", "rank": "basic" }
+      ],
+      "startArmy": [
+        { "creature": "pikeman", "min": 10, "max": 20 },
+        { "creature": "archer", "min": 4, "max": 7 }
+      ]
+    },
+    {
+      "id": "marcus",
+      "name": "Marcus",
+      "class": "knight",
+      "startSkills": [{ "skill": "offense", "rank": "basic" }],
+      "startArmy": [{ "creature": "pikeman", "min": 15, "max": 25 }]
+    },
+    {
+      "id": "helena",
+      "name": "Helena",
+      "class": "knight",
+      "startSkills": [{ "skill": "logistics", "rank": "basic" }],
+      "startArmy": [
+        { "creature": "pikeman", "min": 10, "max": 20 },
+        { "creature": "archer", "min": 3, "max": 6 }
+      ]
+    },
+    {
+      "id": "gareth",
+      "name": "Gareth",
+      "class": "knight",
+      "startSkills": [
+        { "skill": "archery", "rank": "basic" },
+        { "skill": "armorer", "rank": "basic" }
+      ],
+      "startArmy": [
+        { "creature": "pikeman", "min": 8, "max": 15 },
+        { "creature": "archer", "min": 5, "max": 8 }
+      ]
+    },
+    {
+      "id": "beatrice",
+      "name": "Beatrice",
+      "class": "cleric",
+      "startSkills": [{ "skill": "wisdom", "rank": "basic" }],
+      "startArmy": [{ "creature": "pikeman", "min": 8, "max": 14 }],
+      "startSpell": "magic_arrow"
+    },
+    {
+      "id": "anselm",
+      "name": "Anselm",
+      "class": "cleric",
+      "startSkills": [{ "skill": "mysticism", "rank": "basic" }],
+      "startArmy": [
+        { "creature": "pikeman", "min": 6, "max": 12 },
+        { "creature": "archer", "min": 2, "max": 4 }
+      ],
+      "startSpell": "bless"
+    },
+    {
+      "id": "mirielle",
+      "name": "Mirielle",
+      "class": "cleric",
+      "startSkills": [{ "skill": "water_magic", "rank": "basic" }],
+      "startArmy": [{ "creature": "pikeman", "min": 8, "max": 14 }],
+      "startSpell": "cure"
+    },
+    {
+      "id": "tobias",
+      "name": "Tobias",
+      "class": "cleric",
+      "startSkills": [{ "skill": "intelligence", "rank": "basic" }],
+      "startArmy": [{ "creature": "pikeman", "min": 10, "max": 16 }],
+      "startSpell": "stone_skin"
+    },
+    {
+      "id": "faelan",
+      "name": "Faelan",
+      "class": "ranger",
+      "startSkills": [{ "skill": "archery", "rank": "basic" }],
+      "startArmy": [
+        { "creature": "centaur", "min": 10, "max": 20 },
+        { "creature": "wood_elf", "min": 3, "max": 6 }
+      ]
+    },
+    {
+      "id": "bryony",
+      "name": "Bryony",
+      "class": "ranger",
+      "startSkills": [
+        { "skill": "luck", "rank": "basic" },
+        { "skill": "armorer", "rank": "basic" }
+      ],
+      "startArmy": [{ "creature": "centaur", "min": 12, "max": 22 }]
+    },
+    {
+      "id": "thorn",
+      "name": "Thorn",
+      "class": "ranger",
+      "startSkills": [{ "skill": "offense", "rank": "basic" }],
+      "startArmy": [
+        { "creature": "centaur", "min": 10, "max": 18 },
+        { "creature": "dwarf", "min": 4, "max": 8 }
+      ]
+    },
+    {
+      "id": "sylva",
+      "name": "Sylva",
+      "class": "ranger",
+      "startSkills": [
+        { "skill": "scouting", "rank": "basic" },
+        { "skill": "pathfinding", "rank": "basic" }
+      ],
+      "startArmy": [
+        { "creature": "centaur", "min": 8, "max": 16 },
+        { "creature": "wood_elf", "min": 2, "max": 5 }
+      ]
+    },
+    {
+      "id": "maeve",
+      "name": "Maeve",
+      "class": "druid",
+      "startSkills": [{ "skill": "wisdom", "rank": "basic" }],
+      "startArmy": [{ "creature": "centaur", "min": 8, "max": 14 }],
+      "startSpell": "magic_arrow"
+    },
+    {
+      "id": "orin",
+      "name": "Orin",
+      "class": "druid",
+      "startSkills": [{ "skill": "earth_magic", "rank": "basic" }],
+      "startArmy": [
+        { "creature": "centaur", "min": 6, "max": 12 },
+        { "creature": "dwarf", "min": 3, "max": 6 }
+      ],
+      "startSpell": "slow"
+    },
+    {
+      "id": "willow",
+      "name": "Willow",
+      "class": "druid",
+      "startSkills": [{ "skill": "mysticism", "rank": "basic" }],
+      "startArmy": [{ "creature": "centaur", "min": 8, "max": 14 }],
+      "startSpell": "cure"
+    },
+    {
+      "id": "cedric",
+      "name": "Cedric",
+      "class": "druid",
+      "startSkills": [{ "skill": "intelligence", "rank": "basic" }],
+      "startArmy": [{ "creature": "centaur", "min": 10, "max": 16 }],
+      "startSpell": "stone_skin"
+    },
+    {
+      "id": "mortus",
+      "name": "Mortus",
+      "class": "death_knight",
+      "startSkills": [{ "skill": "necromancy", "rank": "basic" }],
+      "startArmy": [
+        { "creature": "skeleton", "min": 12, "max": 24 },
+        { "creature": "walking_dead", "min": 4, "max": 8 }
+      ]
+    },
+    {
+      "id": "ravenna",
+      "name": "Ravenna",
+      "class": "death_knight",
+      "startSkills": [
+        { "skill": "offense", "rank": "basic" },
+        { "skill": "necromancy", "rank": "basic" }
+      ],
+      "startArmy": [{ "creature": "skeleton", "min": 15, "max": 25 }]
+    },
+    {
+      "id": "drogan",
+      "name": "Drogan",
+      "class": "death_knight",
+      "startSkills": [{ "skill": "armorer", "rank": "basic" }],
+      "startArmy": [
+        { "creature": "skeleton", "min": 10, "max": 20 },
+        { "creature": "walking_dead", "min": 5, "max": 9 }
+      ]
+    },
+    {
+      "id": "vexa",
+      "name": "Vexa",
+      "class": "death_knight",
+      "startSkills": [{ "skill": "logistics", "rank": "basic" }],
+      "startArmy": [{ "creature": "skeleton", "min": 12, "max": 20 }]
+    },
+    {
+      "id": "malachi",
+      "name": "Malachi",
+      "class": "necromancer",
+      "startSkills": [
+        { "skill": "necromancy", "rank": "basic" },
+        { "skill": "wisdom", "rank": "basic" }
+      ],
+      "startArmy": [{ "creature": "skeleton", "min": 10, "max": 18 }],
+      "startSpell": "magic_arrow"
+    },
+    {
+      "id": "selene",
+      "name": "Selene",
+      "class": "necromancer",
+      "startSkills": [{ "skill": "earth_magic", "rank": "basic" }],
+      "startArmy": [
+        { "creature": "skeleton", "min": 8, "max": 16 },
+        { "creature": "walking_dead", "min": 3, "max": 6 }
+      ],
+      "startSpell": "slow"
+    },
+    {
+      "id": "corvus",
+      "name": "Corvus",
+      "class": "necromancer",
+      "startSkills": [{ "skill": "mysticism", "rank": "basic" }],
+      "startArmy": [{ "creature": "skeleton", "min": 10, "max": 18 }],
+      "startSpell": "curse"
+    },
+    {
+      "id": "lilith",
+      "name": "Lilith",
+      "class": "necromancer",
+      "startSkills": [{ "skill": "intelligence", "rank": "basic" }],
+      "startArmy": [{ "creature": "skeleton", "min": 12, "max": 20 }],
+      "startSpell": "haste"
+    }
+  ]
+}

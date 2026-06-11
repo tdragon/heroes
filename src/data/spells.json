@@ -1,0 +1,403 @@
+[
+  {
+    "id": "magic_arrow",
+    "name": "Magic Arrow",
+    "level": 1,
+    "school": "all",
+    "manaCost": 5,
+    "target": "enemyStack",
+    "kind": "damage",
+    "tiers": [
+      { "base": 10, "spCoef": 10, "description": "deals 10+10xSP damage" },
+      { "base": 10, "spCoef": 10, "description": "deals 10+10xSP damage" },
+      { "base": 20, "spCoef": 10, "description": "deals 20+10xSP damage" },
+      { "base": 30, "spCoef": 10, "description": "deals 30+10xSP damage" }
+    ]
+  },
+  {
+    "id": "haste",
+    "name": "Haste",
+    "level": 1,
+    "school": "air",
+    "manaCost": 6,
+    "target": "friendlyStack",
+    "kind": "buff",
+    "tiers": [
+      { "base": 3, "description": "target +3 speed" },
+      { "base": 3, "description": "target +3 speed" },
+      { "base": 5, "description": "target +5 speed" },
+      { "base": 5, "mass": true, "description": "all friendlies +5 speed" }
+    ]
+  },
+  {
+    "id": "slow",
+    "name": "Slow",
+    "level": 1,
+    "school": "earth",
+    "manaCost": 6,
+    "target": "enemyStack",
+    "kind": "debuff",
+    "tiers": [
+      { "base": 25, "description": "target -25% speed" },
+      { "base": 25, "description": "target -25% speed" },
+      { "base": 50, "description": "target -50% speed" },
+      { "base": 50, "mass": true, "description": "all enemies -50% speed" }
+    ]
+  },
+  {
+    "id": "shield",
+    "name": "Shield",
+    "level": 1,
+    "school": "earth",
+    "manaCost": 5,
+    "target": "friendlyStack",
+    "kind": "buff",
+    "tiers": [
+      { "base": 15, "description": "melee damage taken -15%" },
+      { "base": 15, "description": "melee damage taken -15%" },
+      { "base": 30, "description": "melee damage taken -30%" },
+      { "base": 30, "mass": true, "description": "all friendlies take -30% melee damage" }
+    ]
+  },
+  {
+    "id": "stone_skin",
+    "name": "Stone Skin",
+    "level": 1,
+    "school": "earth",
+    "manaCost": 5,
+    "target": "friendlyStack",
+    "kind": "buff",
+    "tiers": [
+      { "base": 3, "description": "target +3 defense" },
+      { "base": 3, "description": "target +3 defense" },
+      { "base": 6, "description": "target +6 defense" },
+      { "base": 6, "mass": true, "description": "all friendlies +6 defense" }
+    ]
+  },
+  {
+    "id": "bless",
+    "name": "Bless",
+    "level": 1,
+    "school": "water",
+    "manaCost": 5,
+    "target": "friendlyStack",
+    "kind": "buff",
+    "tiers": [
+      { "base": 0, "description": "target deals maximum damage" },
+      { "base": 0, "description": "target deals maximum damage" },
+      { "base": 1, "description": "target deals maximum+1 damage" },
+      { "base": 1, "mass": true, "description": "all friendlies deal maximum+1 damage" }
+    ]
+  },
+  {
+    "id": "curse",
+    "name": "Curse",
+    "level": 1,
+    "school": "fire",
+    "manaCost": 6,
+    "target": "enemyStack",
+    "kind": "debuff",
+    "tiers": [
+      { "base": 0, "description": "target deals minimum damage" },
+      { "base": 0, "description": "target deals minimum damage" },
+      { "base": 20, "description": "target deals minimum damage -20%" },
+      { "base": 20, "mass": true, "description": "all enemies deal minimum damage -20%" }
+    ]
+  },
+  {
+    "id": "bloodlust",
+    "name": "Bloodlust",
+    "level": 1,
+    "school": "fire",
+    "manaCost": 5,
+    "target": "friendlyStack",
+    "kind": "buff",
+    "tiers": [
+      { "base": 3, "description": "target +3 attack (melee)" },
+      { "base": 3, "description": "target +3 attack (melee)" },
+      { "base": 6, "description": "target +6 attack (melee)" },
+      { "base": 6, "mass": true, "description": "all friendlies +6 attack (melee)" }
+    ]
+  },
+  {
+    "id": "cure",
+    "name": "Cure",
+    "level": 1,
+    "school": "water",
+    "manaCost": 6,
+    "target": "friendlyStack",
+    "kind": "heal",
+    "tiers": [
+      { "base": 10, "spCoef": 5, "description": "heal 10+5xSP HP, remove debuffs" },
+      { "base": 10, "spCoef": 5, "description": "heal 10+5xSP HP, remove debuffs" },
+      { "base": 20, "spCoef": 5, "description": "heal 20+5xSP HP, remove debuffs" },
+      {
+        "base": 30,
+        "spCoef": 5,
+        "mass": true,
+        "description": "heal all friendlies, remove debuffs"
+      }
+    ]
+  },
+  {
+    "id": "dispel",
+    "name": "Dispel",
+    "level": 1,
+    "school": "water",
+    "manaCost": 5,
+    "target": "anyStack",
+    "kind": "dispel",
+    "tiers": [
+      { "description": "remove buffs/debuffs from target" },
+      { "description": "remove buffs/debuffs from target" },
+      { "description": "remove target effects including enemy casts" },
+      { "mass": true, "description": "remove all effects on the whole battlefield" }
+    ]
+  },
+  {
+    "id": "lightning_bolt",
+    "name": "Lightning Bolt",
+    "level": 2,
+    "school": "air",
+    "manaCost": 10,
+    "target": "enemyStack",
+    "kind": "damage",
+    "tiers": [
+      { "base": 10, "spCoef": 25, "description": "deals 10+25xSP damage" },
+      { "base": 10, "spCoef": 25, "description": "deals 10+25xSP damage" },
+      { "base": 20, "spCoef": 25, "description": "deals 20+25xSP damage" },
+      { "base": 50, "spCoef": 25, "description": "deals 50+25xSP damage" }
+    ]
+  },
+  {
+    "id": "ice_bolt",
+    "name": "Ice Bolt",
+    "level": 2,
+    "school": "water",
+    "manaCost": 8,
+    "target": "enemyStack",
+    "kind": "damage",
+    "tiers": [
+      { "base": 10, "spCoef": 20, "description": "deals 10+20xSP damage" },
+      { "base": 10, "spCoef": 20, "description": "deals 10+20xSP damage" },
+      { "base": 20, "spCoef": 20, "description": "deals 20+20xSP damage" },
+      { "base": 50, "spCoef": 20, "description": "deals 50+20xSP damage" }
+    ]
+  },
+  {
+    "id": "blind",
+    "name": "Blind",
+    "level": 2,
+    "school": "fire",
+    "manaCost": 10,
+    "target": "enemyStack",
+    "kind": "disable",
+    "tiers": [
+      { "base": 50, "description": "target cannot act until damaged; retaliation -50%" },
+      { "base": 50, "description": "target cannot act until damaged; retaliation -50%" },
+      { "base": 75, "description": "target cannot act until damaged; retaliation -75%" },
+      { "base": 100, "description": "target cannot act until damaged; no retaliation" }
+    ]
+  },
+  {
+    "id": "weakness",
+    "name": "Weakness",
+    "level": 2,
+    "school": "water",
+    "manaCost": 8,
+    "target": "enemyStack",
+    "kind": "debuff",
+    "tiers": [
+      { "base": 3, "description": "target -3 attack" },
+      { "base": 3, "description": "target -3 attack" },
+      { "base": 6, "description": "target -6 attack" },
+      { "base": 6, "mass": true, "description": "all enemies -6 attack" }
+    ]
+  },
+  {
+    "id": "death_ripple",
+    "name": "Death Ripple",
+    "level": 2,
+    "school": "earth",
+    "manaCost": 10,
+    "target": "battlefield",
+    "kind": "damage",
+    "tiers": [
+      { "base": 10, "spCoef": 5, "description": "deals 10+5xSP damage to all living stacks" },
+      { "base": 10, "spCoef": 5, "description": "deals 10+5xSP damage to all living stacks" },
+      { "base": 10, "spCoef": 5, "description": "deals 10+5xSP damage to all living stacks" },
+      { "base": 10, "spCoef": 5, "description": "deals 10+5xSP damage to all living stacks" }
+    ]
+  },
+  {
+    "id": "fireball",
+    "name": "Fireball",
+    "level": 3,
+    "school": "fire",
+    "manaCost": 15,
+    "target": "area",
+    "kind": "damage",
+    "tiers": [
+      {
+        "base": 15,
+        "spCoef": 10,
+        "description": "deals 15+10xSP damage to target hex + 6 adjacent"
+      },
+      {
+        "base": 15,
+        "spCoef": 10,
+        "description": "deals 15+10xSP damage to target hex + 6 adjacent"
+      },
+      {
+        "base": 30,
+        "spCoef": 10,
+        "description": "deals 30+10xSP damage to target hex + 6 adjacent"
+      },
+      {
+        "base": 60,
+        "spCoef": 10,
+        "description": "deals 60+10xSP damage to target hex + 6 adjacent"
+      }
+    ]
+  },
+  {
+    "id": "animate_dead",
+    "name": "Animate Dead",
+    "level": 3,
+    "school": "earth",
+    "manaCost": 15,
+    "target": "friendlyStack",
+    "kind": "resurrect",
+    "tiers": [
+      { "base": 30, "spCoef": 50, "description": "resurrect undead stack 30+50xSP HP" },
+      { "base": 30, "spCoef": 50, "description": "resurrect undead stack 30+50xSP HP" },
+      { "base": 60, "spCoef": 50, "description": "resurrect undead stack 60+50xSP HP" },
+      { "base": 160, "spCoef": 50, "description": "resurrect undead stack 160+50xSP HP" }
+    ]
+  },
+  {
+    "id": "forgetfulness",
+    "name": "Forgetfulness",
+    "level": 3,
+    "school": "water",
+    "manaCost": 12,
+    "target": "enemyStack",
+    "kind": "disable",
+    "tiers": [
+      { "base": 50, "description": "enemy ranged stack shoots at half strength" },
+      { "base": 50, "description": "enemy ranged stack shoots at half strength" },
+      { "base": 100, "description": "enemy ranged stack cannot shoot" },
+      { "base": 100, "mass": true, "description": "all enemy shooters cannot shoot" }
+    ]
+  },
+  {
+    "id": "chain_lightning",
+    "name": "Chain Lightning",
+    "level": 4,
+    "school": "air",
+    "manaCost": 24,
+    "target": "anyStack",
+    "kind": "damage",
+    "tiers": [
+      {
+        "base": 25,
+        "spCoef": 40,
+        "jumps": 3,
+        "description": "deals 25+40xSP, jumps to 3 nearest stacks halving"
+      },
+      {
+        "base": 25,
+        "spCoef": 40,
+        "jumps": 3,
+        "description": "deals 25+40xSP, jumps to 3 nearest stacks halving"
+      },
+      {
+        "base": 25,
+        "spCoef": 40,
+        "jumps": 4,
+        "description": "deals 25+40xSP, jumps to 4 nearest stacks halving"
+      },
+      {
+        "base": 25,
+        "spCoef": 40,
+        "jumps": 5,
+        "description": "deals 25+40xSP, jumps to 5 nearest stacks halving"
+      }
+    ]
+  },
+  {
+    "id": "meteor_shower",
+    "name": "Meteor Shower",
+    "level": 4,
+    "school": "earth",
+    "manaCost": 24,
+    "target": "area",
+    "kind": "damage",
+    "tiers": [
+      { "base": 25, "spCoef": 25, "description": "deals 25+25xSP damage in 3x3 hex area" },
+      { "base": 25, "spCoef": 25, "description": "deals 25+25xSP damage in 3x3 hex area" },
+      { "base": 50, "spCoef": 25, "description": "deals 50+25xSP damage in 3x3 hex area" },
+      { "base": 100, "spCoef": 25, "description": "deals 100+25xSP damage in 3x3 hex area" }
+    ]
+  },
+  {
+    "id": "resurrection",
+    "name": "Resurrection",
+    "level": 4,
+    "school": "earth",
+    "manaCost": 20,
+    "target": "friendlyStack",
+    "kind": "resurrect",
+    "tiers": [
+      { "base": 40, "spCoef": 50, "description": "resurrect living stack 40+50xSP HP" },
+      { "base": 40, "spCoef": 50, "description": "resurrect living stack 40+50xSP HP" },
+      { "base": 80, "spCoef": 50, "description": "resurrect living stack 80+50xSP HP" },
+      { "base": 160, "spCoef": 50, "description": "resurrect living stack 160+50xSP HP" }
+    ]
+  },
+  {
+    "id": "town_portal",
+    "name": "Town Portal",
+    "level": 4,
+    "school": "earth",
+    "manaCost": 16,
+    "target": "adventure",
+    "kind": "adventure",
+    "tiers": [
+      { "description": "teleport hero to nearest own town (costs 300 MP)" },
+      { "description": "teleport hero to nearest own town (costs 300 MP)" },
+      { "description": "teleport hero to a chosen own town (costs 300 MP)" },
+      { "description": "teleport hero to a chosen own town (costs 300 MP)" }
+    ]
+  },
+  {
+    "id": "implosion",
+    "name": "Implosion",
+    "level": 5,
+    "school": "earth",
+    "manaCost": 30,
+    "target": "enemyStack",
+    "kind": "damage",
+    "tiers": [
+      { "base": 100, "spCoef": 75, "description": "deals 100+75xSP damage to a single target" },
+      { "base": 100, "spCoef": 75, "description": "deals 100+75xSP damage to a single target" },
+      { "base": 100, "spCoef": 75, "description": "deals 100+75xSP damage to a single target" },
+      { "base": 100, "spCoef": 75, "description": "deals 100+75xSP damage to a single target" }
+    ]
+  },
+  {
+    "id": "dimension_door",
+    "name": "Dimension Door",
+    "level": 5,
+    "school": "air",
+    "manaCost": 25,
+    "target": "adventure",
+    "kind": "adventure",
+    "tiers": [
+      { "description": "teleport to a visible passable tile in radius 8; max 2/day; costs 300 MP" },
+      { "description": "teleport to a visible passable tile in radius 8; max 2/day; costs 300 MP" },
+      { "description": "teleport to a visible passable tile in radius 8; max 2/day; costs 300 MP" },
+      { "description": "teleport to a visible passable tile in radius 8; max 2/day; costs 300 MP" }
+    ]
+  }
+]

@@ -1,0 +1,158 @@
+[
+  {
+    "id": "village_hall",
+    "name": "Village Hall",
+    "kind": "hall",
+    "cost": {},
+    "prereqs": [],
+    "income": { "gold": 500 }
+  },
+  {
+    "id": "town_hall",
+    "name": "Town Hall",
+    "kind": "hall",
+    "cost": { "gold": 2500 },
+    "prereqs": ["tavern"],
+    "income": { "gold": 1000 }
+  },
+  {
+    "id": "city_hall",
+    "name": "City Hall",
+    "kind": "hall",
+    "cost": { "gold": 5000 },
+    "prereqs": ["town_hall", "mage_guild_1", "marketplace", "blacksmith"],
+    "income": { "gold": 2000 }
+  },
+  {
+    "id": "capitol",
+    "name": "Capitol",
+    "kind": "hall",
+    "cost": { "gold": 10000, "wood": 10, "ore": 10 },
+    "prereqs": ["city_hall", "castle"],
+    "income": { "gold": 4000 },
+    "uniquePerPlayer": true
+  },
+  {
+    "id": "fort",
+    "name": "Fort",
+    "kind": "fort",
+    "cost": { "gold": 5000, "wood": 20, "ore": 20 },
+    "prereqs": []
+  },
+  {
+    "id": "citadel",
+    "name": "Citadel",
+    "kind": "fort",
+    "cost": { "gold": 2500, "ore": 5 },
+    "prereqs": ["fort"],
+    "growthMultiplier": 1.5
+  },
+  {
+    "id": "castle",
+    "name": "Castle",
+    "kind": "fort",
+    "cost": { "gold": 5000, "wood": 10, "ore": 10 },
+    "prereqs": ["citadel"],
+    "growthMultiplier": 2
+  },
+  {
+    "id": "tavern",
+    "name": "Tavern",
+    "kind": "tavern",
+    "cost": { "gold": 500, "wood": 5 },
+    "prereqs": []
+  },
+  {
+    "id": "marketplace",
+    "name": "Marketplace",
+    "kind": "marketplace",
+    "cost": { "gold": 500, "wood": 5 },
+    "prereqs": []
+  },
+  {
+    "id": "resource_silo",
+    "name": "Resource Silo",
+    "kind": "silo",
+    "cost": { "gold": 5000, "ore": 5 },
+    "prereqs": ["marketplace"]
+  },
+  {
+    "id": "blacksmith",
+    "name": "Blacksmith",
+    "kind": "blacksmith",
+    "cost": { "gold": 1000, "wood": 5 },
+    "prereqs": []
+  },
+  {
+    "id": "mage_guild_1",
+    "name": "Mage Guild Level 1",
+    "kind": "mageGuild",
+    "cost": { "gold": 2000, "wood": 5, "ore": 5 },
+    "prereqs": [],
+    "guildLevel": 1
+  },
+  {
+    "id": "mage_guild_2",
+    "name": "Mage Guild Level 2",
+    "kind": "mageGuild",
+    "cost": {
+      "gold": 1000,
+      "wood": 5,
+      "ore": 5,
+      "mercury": 5,
+      "sulfur": 5,
+      "crystal": 5,
+      "gems": 5
+    },
+    "prereqs": ["mage_guild_1"],
+    "guildLevel": 2
+  },
+  {
+    "id": "mage_guild_3",
+    "name": "Mage Guild Level 3",
+    "kind": "mageGuild",
+    "cost": {
+      "gold": 1000,
+      "wood": 5,
+      "ore": 5,
+      "mercury": 5,
+      "sulfur": 5,
+      "crystal": 5,
+      "gems": 5
+    },
+    "prereqs": ["mage_guild_2"],
+    "guildLevel": 3
+  },
+  {
+    "id": "mage_guild_4",
+    "name": "Mage Guild Level 4",
+    "kind": "mageGuild",
+    "cost": {
+      "gold": 1000,
+      "wood": 5,
+      "ore": 5,
+      "mercury": 7,
+      "sulfur": 7,
+      "crystal": 7,
+      "gems": 7
+    },
+    "prereqs": ["mage_guild_3"],
+    "guildLevel": 4
+  },
+  {
+    "id": "mage_guild_5",
+    "name": "Mage Guild Level 5",
+    "kind": "mageGuild",
+    "cost": {
+      "gold": 1000,
+      "wood": 5,
+      "ore": 5,
+      "mercury": 10,
+      "sulfur": 10,
+      "crystal": 10,
+      "gems": 10
+    },
+    "prereqs": ["mage_guild_4"],
+    "guildLevel": 5
+  }
+]

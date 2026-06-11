@@ -1,0 +1,17 @@
+{
+  "terrains": [
+    { "id": "grass", "name": "Grass", "char": "g", "moveCost": 100, "color": "#4a7c2f" },
+    { "id": "dirt", "name": "Dirt", "char": "d", "moveCost": 100, "color": "#8b6b47" },
+    { "id": "sand", "name": "Sand", "char": "s", "moveCost": 150, "color": "#d9c37e" },
+    { "id": "snow", "name": "Snow", "char": "n", "moveCost": 150, "color": "#e8edf2" },
+    { "id": "swamp", "name": "Swamp", "char": "S", "moveCost": 175, "color": "#4f6b4a" },
+    { "id": "rough", "name": "Rough", "char": "r", "moveCost": 125, "color": "#9c8a6e" },
+    { "id": "lava", "name": "Lava", "char": "l", "moveCost": 100, "color": "#3a3236" },
+    { "id": "water", "name": "Water", "char": "w", "moveCost": null, "color": "#2a5d9c" }
+  ],
+  "roads": [
+    { "id": "dirt_road", "name": "Dirt Road", "char": "D", "moveCost": 75 },
+    { "id": "gravel_road", "name": "Gravel Road", "char": "G", "moveCost": 65 },
+    { "id": "cobblestone_road", "name": "Cobblestone Road", "char": "C", "moveCost": 50 }
+  ]
+}

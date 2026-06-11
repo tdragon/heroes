@@ -502,11 +502,11 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/data/creatures.json`, `src/data/skills.json`, `src/data/spells.json`, `src/data/artifacts.json`, `src/data/buildings.json`, `src/data/terrain.json`, `src/data/heroes.json`, `src/data/objects.json`, `src/data/factions/{castle,rampart,necropolis}.json`
 - Create: `src/data/index.ts` (loader, cross-reference validation), `src/data/data.test.ts`
 
-- [ ] define zod schemas for creature, skill, spell, artifact, building, terrain, hero template, faction, map object type (fields per spec §2–§8)
-- [ ] author all JSON content from the spec tables: 42 faction creatures (§4.1–4.3) + 8 neutrals, 16 skills, 24 spells, ~20 artifacts (simple stat/skill bonuses across 4 rarity classes), common+faction buildings with prereq edges, 6 hero classes + 4 named heroes each, terrain costs, 20 object types
-- [ ] implement loader: parse all files, build typed `GameData` registry, validate cross-references (dangling ids, prereq cycles)
-- [ ] write tests: every file parses against schema; cross-reference check catches a deliberately broken fixture; spot-check loaded values (e.g. Archangel cost, Slow is earth L1)
-- [ ] run tests — must pass before task 3
+- [x] define zod schemas for creature, skill, spell, artifact, building, terrain, hero template, faction, map object type (fields per spec §2–§8)
+- [x] author all JSON content from the spec tables: 42 faction creatures (§4.1–4.3) + 8 neutrals, 16 skills, 24 spells, ~20 artifacts (simple stat/skill bonuses across 4 rarity classes), common+faction buildings with prereq edges, 6 hero classes + 4 named heroes each, terrain costs, 20 object types
+- [x] implement loader: parse all files, build typed `GameData` registry, validate cross-references (dangling ids, prereq cycles)
+- [x] write tests: every file parses against schema; cross-reference check catches a deliberately broken fixture; spot-check loaded values (e.g. Archangel cost, Slow is earth L1)
+- [x] run tests — must pass before task 3
 
 ### Task 3: Map format, ASCII DSL compiler, and sample maps
 
