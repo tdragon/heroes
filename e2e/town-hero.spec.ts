@@ -28,7 +28,7 @@ async function moveHeroTo(page: Page, tileX: number, tileY: number): Promise<voi
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?map=tutorial-valley&seed=42');
   await expect(page.getByTestId('adventure-canvas')).toBeVisible();
 });
 

@@ -704,12 +704,13 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Modify: `src/app/main.ts`, `src/app/screens.ts`
 - Create: `e2e/shell.spec.ts`, `src/app/saveload.test.ts`
 
-- [ ] implement main menu + new-game setup (map list with player counts, faction/color/difficulty pick, hotseat toggle making 2 humans alternate with a "pass device" screen)
-- [ ] implement save/load: 5 localStorage slots + export/import JSON file, version check + migration hook, mid-combat save support, autosave each day
-- [ ] implement game-over flow (victory/defeat screen → menu)
-- [ ] write unit tests: save/load round-trip mid-combat; version mismatch rejected gracefully; autosave rotation
-- [ ] write e2e: full happy path — menu → new game on tiny map → play 2 days → save → reload page → load → state intact (day counter, hero position); hotseat pass screen appears
-- [ ] run tests + e2e — must pass before task 18
+- [x] implement main menu + new-game setup (map list with player counts, faction/color/difficulty pick, hotseat toggle making 2 humans alternate with a "pass device" screen)
+- [x] implement save/load: 5 localStorage slots + export/import JSON file, version check + migration hook, mid-combat save support, autosave each day
+- [x] implement game-over flow (victory/defeat screen → menu)
+- [x] write unit tests: save/load round-trip mid-combat; version mismatch rejected gracefully; autosave rotation
+- [x] write e2e: full happy path — menu → new game on tiny map → play 2 days → save → reload page → load → state intact (day counter, hero position); hotseat pass screen appears
+- [x] run tests + e2e — must pass before task 18
+- ➕ note: plain `/` now boots the main menu; `?map=<id>&seed=<n>` keeps direct-booting for dev/e2e (existing specs updated; fixture maps are listed in the setup screen so e2e can start `tiny` through the menu). Faction pick swaps the player's start hero to a free template of that faction (`configureMap` in `newGameSetup.ts`); difficulty presets (easy/normal/hard starting resources) landed here, the AI resource handicap stays in Task 18. Save plumbing: `serialize.ts` gained a chained `SAVE_MIGRATIONS` hook (old version → +1 steps); slots/autosaves live under `heroes.save.<n>` / `heroes.autosave.<n>` with a 3-slot autosave ring (counter key) written at every dawn; autosaves are loadable from the menu and the in-game System panel. Hotseat: the adventure screen renders one `viewPlayerId` perspective and an opaque pass-device overlay gates the switch; defeat overlay is suppressed while another human is still alive. Combat-result dialogs are now shown only for battles the viewing player fought (off-screen AI battles no longer interrupt with modals)
 
 ### Task 18: Balance pass, difficulty, and polish
 

@@ -39,7 +39,16 @@ function isGameState(value: unknown): value is GameState {
   );
 }
 
-export function deserializeGame(json: string): GameState {
+// migration hook: SAVE_MIGRATIONS[n] upgrades a raw version-n state to n+1;
+// deserializeGame chains migrations until the state reaches SAVE_VERSION
+export type SaveMigration = (state: unknown) => unknown;
+
+export const SAVE_MIGRATIONS: Record<number, SaveMigration> = {};
+
+export function deserializeGame(
+  json: string,
+  migrations: Record<number, SaveMigration> = SAVE_MIGRATIONS,
+): GameState {
   let parsed: unknown;
   try {
     parsed = JSON.parse(json);
@@ -49,12 +58,21 @@ export function deserializeGame(json: string): GameState {
   if (!isRecord(parsed) || typeof parsed.version !== 'number') {
     throw new Error('save file has no version field');
   }
-  if (parsed.version !== SAVE_VERSION) {
+  if (parsed.version > SAVE_VERSION) {
     throw new Error(
-      `save version ${String(parsed.version)} is not supported (expected ${String(SAVE_VERSION)})`,
+      `save version ${String(parsed.version)} is not supported (newer than ${String(SAVE_VERSION)})`,
     );
   }
-  const state = parsed.state;
+  let state = parsed.state;
+  for (let v = parsed.version; v < SAVE_VERSION; v++) {
+    const step = migrations[v];
+    if (!step) {
+      throw new Error(
+        `save version ${String(parsed.version)} is not supported (no migration from ${String(v)} to ${String(v + 1)})`,
+      );
+    }
+    state = step(state);
+  }
   if (!isGameState(state)) {
     throw new Error('save file state is malformed');
   }

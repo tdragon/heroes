@@ -10,6 +10,7 @@ export interface HudCallbacks {
   onSelectTown: (id: string) => void;
   onOpenHeroScreen: () => void;
   onMinimapClick: (px: number, py: number) => void;
+  onOpenSystem: () => void;
 }
 
 export const MINIMAP_PX = 200;
@@ -77,7 +78,12 @@ export class Hud {
     endTurn.addEventListener('click', () => {
       this.callbacks.onEndTurn();
     });
-    buttons.append(nextHero, endTurn);
+    const system = el('button', 'hud-button', 'system-button');
+    system.textContent = 'System';
+    system.addEventListener('click', () => {
+      this.callbacks.onOpenSystem();
+    });
+    buttons.append(nextHero, endTurn, system);
     this.sidebar.appendChild(buttons);
 
     this.statusLine = el('div', 'status-line', 'status-line');

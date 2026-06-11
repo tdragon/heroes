@@ -46,7 +46,7 @@ async function stackHex(stack: Locator): Promise<[number, number]> {
 }
 
 test('guard fight on the tutorial map: win via attacks, result shows XP', async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/?map=tutorial-valley&seed=42');
   await expect(page.getByTestId('adventure-canvas')).toBeVisible();
   await page.getByTestId('hero-item-edric').click();
 

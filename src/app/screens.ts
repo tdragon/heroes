@@ -10,9 +10,14 @@ export class ScreenRouter {
 
   constructor(private readonly container: HTMLElement) {}
 
+  // re-registering a name replaces the previous screen (a new game replaces
+  // the old adventure screen); the active screen is hidden first if replaced
   register(name: string, screen: Screen): void {
-    if (this.screens.has(name)) {
-      throw new Error(`screen '${name}' is already registered`);
+    const previous = this.screens.get(name);
+    if (previous && previous === this.active) {
+      previous.onHide?.();
+      previous.root.remove();
+      this.active = null;
     }
     this.screens.set(name, screen);
   }

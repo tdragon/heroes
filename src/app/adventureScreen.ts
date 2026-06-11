@@ -6,7 +6,7 @@ import { CombatRuleError } from '../core/combat/state';
 import { visibleTiles } from '../core/fog';
 import { maxMovementPoints } from '../core/hero';
 import { buildMoveContext, findPath, stepCost } from '../core/movement';
-import type { GameState, Hero, Player } from '../core/state';
+import type { GameState, Hero, Player, PlayerId } from '../core/state';
 import { centerCameraOn, panCamera, tileAtScreen, TILE_PX, type Camera } from '../render/camera';
 import {
   AdventureRenderer,
@@ -17,12 +17,30 @@ import {
 import { TokenPainter } from '../render/painter';
 import { splitPathByDays, type PathStepPreview } from '../render/pathPreview';
 import { CombatScreen } from '../ui/combatScreen';
-import type { UiContext } from '../ui/components';
+import { button, el, type UiContext } from '../ui/components';
 import { DialogQueue } from '../ui/dialogs';
 import { HeroScreen } from '../ui/heroScreen';
 import { Hud, InfoPopup, MINIMAP_PX } from '../ui/hud';
 import { TownScreen } from '../ui/townScreen';
+import {
+  autosave,
+  buildExportFile,
+  describeSlot,
+  importSave,
+  listAutosaves,
+  listSlots,
+  loadAutosave,
+  loadFromSlot,
+  saveToSlot,
+  type SaveStorage,
+} from './saveload';
 import type { Screen } from './screens';
+
+export interface ShellCallbacks {
+  onExit: () => void;
+  onLoad: (state: GameState) => void;
+  storage: SaveStorage;
+}
 
 export const CANVAS_W = 1000;
 export const CANVAS_H = 760;
@@ -58,12 +76,25 @@ export class AdventureScreen implements Screen {
   private dragFrom: [number, number] | null = null;
   private running = false;
   private aiTurnRunning = false;
+  // hotseat: the human player whose perspective is rendered; a "pass device"
+  // overlay gates the switch when another human's turn starts
+  private viewPlayerId: string;
+  private readonly passOverlay: HTMLElement;
+  private readonly gameOverOverlay: HTMLElement;
+  private systemPanel: HTMLElement | null = null;
 
   constructor(
     private readonly data: GameData,
     initialState: GameState,
+    private readonly shell: ShellCallbacks,
   ) {
     this.state = initialState;
+    const current = initialState.players.find((p) => p.id === initialState.currentPlayer);
+    const firstHuman = initialState.players.find((p) => p.isHuman);
+    this.viewPlayerId =
+      (current?.isHuman === true ? current.id : firstHuman?.id) ??
+      initialState.players[0]?.id ??
+      'red';
 
     this.root = document.createElement('div');
     this.root.className = 'adventure-screen';
@@ -111,13 +142,32 @@ export class AdventureScreen implements Screen {
       onMinimapClick: (px, py) => {
         this.jumpToMinimap(px, py);
       },
+      onOpenSystem: () => {
+        this.openSystemPanel();
+      },
     });
     const minimapCtx = this.hud.minimapCanvas.getContext('2d');
     if (!minimapCtx) throw new Error('minimap 2d context unavailable');
     this.minimapCtx = minimapCtx;
 
+    this.passOverlay = document.createElement('div');
+    this.passOverlay.className = 'pass-overlay';
+    this.passOverlay.dataset.testid = 'pass-device';
+    this.passOverlay.style.display = 'none';
+
+    this.gameOverOverlay = document.createElement('div');
+    this.gameOverOverlay.className = 'game-over-overlay';
+    this.gameOverOverlay.dataset.testid = 'game-over';
+    this.gameOverOverlay.style.display = 'none';
+
     main.append(canvasWrap, this.hud.sidebar);
-    this.root.append(main, this.hud.bottomBar, this.dialogs.root);
+    this.root.append(
+      main,
+      this.hud.bottomBar,
+      this.dialogs.root,
+      this.passOverlay,
+      this.gameOverOverlay,
+    );
 
     const startHero = this.viewPlayer().heroes[0];
     this.camera = { x: 0, y: 0, width: CANVAS_W, height: CANVAS_H };
@@ -145,15 +195,22 @@ export class AdventureScreen implements Screen {
   // --- state / commands ---
 
   private viewPlayer(): Player {
-    const player = this.state.players.find((p) => p.isHuman) ?? this.state.players[0];
+    const player =
+      this.state.players.find((p) => p.id === this.viewPlayerId) ??
+      this.state.players.find((p) => p.isHuman) ??
+      this.state.players[0];
     if (!player) throw new Error('no players in game state');
     return player;
   }
 
   private uiContext(): UiContext {
+    const viewId = (): PlayerId => this.viewPlayer().id;
     return {
       data: this.data,
-      playerId: this.viewPlayer().id,
+      // dynamic: in hotseat the viewing player changes between turns
+      get playerId() {
+        return viewId();
+      },
       getState: () => this.state,
       run: (command) => this.runForUi(command),
     };
@@ -193,12 +250,17 @@ export class AdventureScreen implements Screen {
           break;
         case 'dayStarted':
           this.hud.setStatus(`Day ${String(event.day)}`);
+          autosave(this.shell.storage, this.state);
           break;
         case 'messageShown':
           this.dialogs.enqueueInfo(event.message);
           break;
         case 'combatResolved':
-          this.dialogs.enqueueInfo(this.combatResultText(event, xpGained));
+          // the combat panel is still open here iff the viewing player fought;
+          // off-screen AI battles must not interrupt the player with dialogs
+          if (this.combatPanel) {
+            this.dialogs.enqueueInfo(this.combatResultText(event, xpGained));
+          }
           break;
         case 'heroLevelUp':
           this.hud.setStatus(`Level up: +1 ${event.stat}`);
@@ -216,6 +278,83 @@ export class AdventureScreen implements Screen {
       this.combatPanel.ensureAiActs();
     }
     this.maybeResumeAiTurns();
+    this.checkPassDevice();
+  }
+
+  // --- hotseat pass-device flow ---
+
+  private checkPassDevice(): void {
+    if (this.state.status !== 'running') return;
+    const current = this.state.players.find((p) => p.id === this.state.currentPlayer);
+    if (!current || !current.isHuman || current.defeated || current.id === this.viewPlayerId) {
+      return;
+    }
+    this.passOverlay.replaceChildren();
+    const box = document.createElement('div');
+    box.className = 'menu-box';
+    const message = document.createElement('div');
+    message.className = 'menu-title';
+    message.dataset.testid = 'pass-device-message';
+    message.textContent = `Pass the device to ${current.id}`;
+    const confirm = document.createElement('button');
+    confirm.className = 'menu-button';
+    confirm.dataset.testid = 'pass-device-confirm';
+    confirm.textContent = `Start ${current.id}'s turn`;
+    confirm.addEventListener('click', () => {
+      this.switchViewTo(current.id);
+    });
+    box.append(message, confirm);
+    this.passOverlay.appendChild(box);
+    this.passOverlay.style.display = 'flex';
+  }
+
+  private switchViewTo(playerId: string): void {
+    this.viewPlayerId = playerId;
+    this.passOverlay.style.display = 'none';
+    this.selectedHero = null;
+    this.pendingPath = null;
+    this.closePanel();
+    const firstHero = this.viewPlayer().heroes[0];
+    if (firstHero !== undefined) this.selectHero(firstHero, true);
+    this.syncCombatPanel();
+    this.markDirty();
+  }
+
+  // --- game over ---
+
+  private updateGameOver(): void {
+    const player = this.viewPlayer();
+    const finished = this.state.status !== 'running';
+    // while the game runs, only declare defeat if no human is left to play on
+    // (in hotseat the device passes to the surviving human instead)
+    const otherHumanAlive = this.state.players.some(
+      (p) => p.isHuman && !p.defeated && p.id !== player.id,
+    );
+    if (!finished && (!player.defeated || otherHumanAlive)) {
+      this.gameOverOverlay.style.display = 'none';
+      return;
+    }
+    if (this.gameOverOverlay.style.display !== 'none') return;
+    const won = this.state.status !== 'running' && this.state.status.winner === player.id;
+    this.gameOverOverlay.replaceChildren();
+    const box = document.createElement('div');
+    box.className = 'menu-box';
+    const message = document.createElement('div');
+    message.className = 'menu-title';
+    message.dataset.testid = 'game-over-message';
+    message.textContent = won
+      ? 'Victory! All enemies have been vanquished.'
+      : `Defeat — ${this.state.status !== 'running' ? this.state.status.winner : 'the enemy'} prevails.`;
+    const toMenu = document.createElement('button');
+    toMenu.className = 'menu-button';
+    toMenu.dataset.testid = 'game-over-menu';
+    toMenu.textContent = 'Return to Menu';
+    toMenu.addEventListener('click', () => {
+      this.shell.onExit();
+    });
+    box.append(message, toMenu);
+    this.gameOverOverlay.appendChild(box);
+    this.gameOverOverlay.style.display = 'flex';
   }
 
   // create/destroy the combat overlay so it always mirrors state.combat;
@@ -318,6 +457,120 @@ export class AdventureScreen implements Screen {
     });
     this.root.appendChild(this.activePanel.root);
     this.markDirty();
+  }
+
+  // --- system panel (save / load / export / import / quit) ---
+
+  private closeSystemPanel(): void {
+    this.systemPanel?.remove();
+    this.systemPanel = null;
+  }
+
+  private openSystemPanel(): void {
+    this.closeSystemPanel();
+    const overlay = el('div', 'panel-overlay', 'system-panel');
+    const panel = el('div', 'panel system-panel-box');
+
+    const header = el('div', 'panel-header');
+    const title = el('div', 'panel-title');
+    title.textContent = 'System';
+    const close = button('Close', 'system-close', () => {
+      this.closeSystemPanel();
+    });
+    header.append(title, close);
+    panel.appendChild(header);
+
+    const status = el('div', 'panel-status', 'system-status');
+
+    const slots = el('div', 'panel-section');
+    const renderSlots = (): void => {
+      slots.replaceChildren();
+      const sectionTitle = el('div', 'section-title');
+      sectionTitle.textContent = 'Save Slots';
+      slots.appendChild(sectionTitle);
+      listSlots(this.shell.storage).forEach((meta, i) => {
+        const slot = i + 1;
+        const row = el('div', 'slot-row');
+        const label = el('span', 'slot-label', `slot-info-${String(slot)}`);
+        label.textContent = `Slot ${String(slot)}: ${describeSlot(meta)}`;
+        const save = button('Save', `save-slot-${String(slot)}`, () => {
+          saveToSlot(this.shell.storage, slot, this.state);
+          status.textContent = `Saved to slot ${String(slot)}`;
+          renderSlots();
+        });
+        const load = button('Load', `load-slot-${String(slot)}`, () => {
+          this.tryLoad(status, () => loadFromSlot(this.shell.storage, slot));
+        });
+        load.disabled = meta === null;
+        row.append(label, save, load);
+        slots.appendChild(row);
+      });
+      for (const { slot, meta } of listAutosaves(this.shell.storage)) {
+        const row = el('div', 'slot-row');
+        const label = el('span', 'slot-label');
+        label.textContent = `Autosave: ${describeSlot(meta)}`;
+        const load = button('Load', `load-autosave-${String(slot)}`, () => {
+          this.tryLoad(status, () => loadAutosave(this.shell.storage, slot));
+        });
+        row.append(label, load);
+        slots.appendChild(row);
+      }
+    };
+    renderSlots();
+    panel.appendChild(slots);
+
+    const fileSection = el('div', 'panel-section');
+    const fileTitle = el('div', 'section-title');
+    fileTitle.textContent = 'Export / Import';
+    const fileRow = el('div', 'slot-row');
+    const exportButton = button('Export Save', 'export-save', () => {
+      const file = buildExportFile(this.state);
+      const url = URL.createObjectURL(new Blob([file.json], { type: 'application/json' }));
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = file.filename;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    });
+    const importInput = el('input', 'import-input', 'import-save-input');
+    importInput.type = 'file';
+    importInput.accept = 'application/json';
+    importInput.addEventListener('change', () => {
+      const file = importInput.files?.[0];
+      if (!file) return;
+      file.text().then(
+        (text) => {
+          this.tryLoad(status, () => importSave(text));
+        },
+        () => {
+          status.textContent = 'Could not read the selected file';
+        },
+      );
+    });
+    fileRow.append(exportButton, importInput);
+    fileSection.append(fileTitle, fileRow);
+    panel.appendChild(fileSection);
+
+    const quitRow = el('div', 'panel-section');
+    quitRow.appendChild(
+      button('Quit to Menu', 'quit-to-menu', () => {
+        this.shell.onExit();
+      }),
+    );
+    panel.appendChild(quitRow);
+
+    panel.appendChild(status);
+    overlay.appendChild(panel);
+    this.systemPanel = overlay;
+    this.root.appendChild(overlay);
+  }
+
+  private tryLoad(status: HTMLElement, load: () => GameState): void {
+    try {
+      this.shell.onLoad(load());
+    } catch (err) {
+      status.textContent = err instanceof Error ? err.message : String(err);
+    }
   }
 
   private endTurn(): void {
@@ -596,5 +849,6 @@ export class AdventureScreen implements Screen {
     this.activePanel?.update();
     this.combatPanel?.update();
     this.dialogs.update(this.state);
+    this.updateGameOver();
   }
 }

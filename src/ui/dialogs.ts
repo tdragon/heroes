@@ -31,7 +31,8 @@ export class DialogQueue {
 
   update(state: GameState): void {
     if (state.status !== 'running') {
-      this.render(`Game over — ${state.status.winner} wins!`, []);
+      // the adventure screen's game-over overlay owns the UI from here
+      this.root.style.display = 'none';
       return;
     }
     if (state.combat !== null) {
@@ -92,7 +93,7 @@ export class DialogQueue {
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
-    if (this.root.style.display === 'none') return;
+    if (!this.root.isConnected || this.root.style.display === 'none') return;
     const buttons = this.root.querySelectorAll('button');
     if (buttons.length === 0) return;
     if (e.key === 'Enter') {

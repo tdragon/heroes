@@ -1,10 +1,13 @@
 import { loadGameData } from '../data';
-import { getMap } from '../maps';
+import { loadMaps } from '../maps';
 import { compileMap, type MapSource } from '../maps/dsl';
 import { combatArenaSource } from '../maps/fixtures/combat-arena.dsl';
 import { tinyMapSource } from '../maps/fixtures/tiny.dsl';
 import { newGame } from '../core/setup';
-import { AdventureScreen } from './adventureScreen';
+import type { GameState } from '../core/state';
+import { AdventureScreen, type ShellCallbacks } from './adventureScreen';
+import { MainMenu } from './mainMenu';
+import { NewGameSetup } from './newGameSetup';
 import { ScreenRouter } from './screens';
 
 const app = document.getElementById('app');
@@ -13,18 +16,59 @@ if (!app) {
 }
 
 const data = loadGameData();
-
-// dev/e2e boot parameters until the Task 17 main menu lands: ?map=<id>&seed=<n>
-const params = new URLSearchParams(window.location.search);
-const mapId = params.get('map') ?? 'tutorial-valley';
-const seedParam = Number(params.get('seed') ?? '');
-const seed = Number.isFinite(seedParam) && params.get('seed') !== null ? seedParam : 42;
-
 const fixtureSources: readonly MapSource[] = [tinyMapSource, combatArenaSource];
-const fixture = fixtureSources.find((source) => source.id === mapId);
-const map = fixture ? compileMap(fixture, data) : getMap(mapId);
-const state = newGame(map, {}, seed, data);
+const allMaps = [...loadMaps(), ...fixtureSources.map((source) => compileMap(source, data))];
 
 const router = new ScreenRouter(app);
-router.register('adventure', new AdventureScreen(data, state));
-router.show('adventure');
+
+const shell: ShellCallbacks = {
+  onExit: () => {
+    router.show('main-menu');
+  },
+  onLoad: (state) => {
+    startGame(state);
+  },
+  storage: window.localStorage,
+};
+
+function startGame(state: GameState): void {
+  router.register('adventure', new AdventureScreen(data, state, shell));
+  router.show('adventure');
+}
+
+router.register(
+  'main-menu',
+  new MainMenu(window.localStorage, {
+    onNewGame: () => {
+      router.show('new-game');
+    },
+    onLoadGame: startGame,
+  }),
+);
+
+router.register(
+  'new-game',
+  new NewGameSetup(data, allMaps, {
+    onStart: (map, startingResources, seed) => {
+      startGame(newGame(map, { startingResources }, seed, data));
+    },
+    onBack: () => {
+      router.show('main-menu');
+    },
+  }),
+);
+
+// dev/e2e direct boot: ?map=<id>&seed=<n> skips the menu
+const params = new URLSearchParams(window.location.search);
+const mapId = params.get('map');
+if (mapId !== null) {
+  const seedParam = Number(params.get('seed') ?? '');
+  const seed = Number.isFinite(seedParam) && params.get('seed') !== null ? seedParam : 42;
+  const map = allMaps.find((m) => m.id === mapId);
+  if (!map) {
+    throw new Error(`unknown map: ${mapId}`);
+  }
+  startGame(newGame(map, {}, seed, data));
+} else {
+  router.show('main-menu');
+}
