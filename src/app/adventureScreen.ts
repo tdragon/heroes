@@ -1,6 +1,7 @@
 import type { GameData } from '../data';
 import type { Pos } from '../maps/schema';
 import { CommandRejectedError, dispatch, type Command, type GameEvent } from '../core/commands';
+import { CombatRuleError } from '../core/combat/state';
 import { visibleTiles } from '../core/fog';
 import { maxMovementPoints } from '../core/hero';
 import { buildMoveContext, findPath, stepCost } from '../core/movement';
@@ -14,6 +15,7 @@ import {
 } from '../render/adventureRenderer';
 import { TokenPainter } from '../render/painter';
 import { splitPathByDays, type PathStepPreview } from '../render/pathPreview';
+import { CombatScreen } from '../ui/combatScreen';
 import type { UiContext } from '../ui/components';
 import { DialogQueue } from '../ui/dialogs';
 import { HeroScreen } from '../ui/heroScreen';
@@ -43,6 +45,7 @@ export class AdventureScreen implements Screen {
   private readonly infoPopup: InfoPopup;
   private readonly dialogs: DialogQueue;
   private activePanel: TownScreen | HeroScreen | null = null;
+  private combatPanel: CombatScreen | null = null;
 
   private state: GameState;
   private camera: Camera;
@@ -162,7 +165,7 @@ export class AdventureScreen implements Screen {
       this.markDirty();
       return null;
     } catch (err) {
-      if (err instanceof CommandRejectedError) {
+      if (err instanceof CommandRejectedError || err instanceof CombatRuleError) {
         this.hud.setStatus(err.message);
         this.markDirty();
         return err.message;
@@ -176,6 +179,10 @@ export class AdventureScreen implements Screen {
   }
 
   private handleEvents(events: GameEvent[]): void {
+    const xpGained = events.reduce(
+      (sum, e) => (e.type === 'heroXpGained' ? sum + e.amount : sum),
+      0,
+    );
     for (const event of events) {
       switch (event.type) {
         case 'weekStarted':
@@ -188,7 +195,7 @@ export class AdventureScreen implements Screen {
           this.dialogs.enqueueInfo(event.message);
           break;
         case 'combatResolved':
-          this.dialogs.enqueueInfo(this.combatResultText(event));
+          this.dialogs.enqueueInfo(this.combatResultText(event, xpGained));
           break;
         case 'heroLevelUp':
           this.hud.setStatus(`Level up: +1 ${event.stat}`);
@@ -200,12 +207,35 @@ export class AdventureScreen implements Screen {
           break;
       }
     }
+    this.syncCombatPanel();
+    if (this.combatPanel) {
+      this.combatPanel.consume(events);
+      this.combatPanel.ensureAiActs();
+    }
   }
 
-  private combatResultText(event: Extract<GameEvent, { type: 'combatResolved' }>): string {
+  // create/destroy the combat overlay so it always mirrors state.combat
+  private syncCombatPanel(): void {
+    if (this.state.combat !== null && !this.combatPanel) {
+      this.combatPanel = new CombatScreen(this.uiContext());
+      this.root.appendChild(this.combatPanel.root);
+    } else if (this.state.combat === null && this.combatPanel) {
+      this.combatPanel.destroy();
+      this.combatPanel = null;
+    }
+    this.markDirty();
+  }
+
+  private combatResultText(
+    event: Extract<GameEvent, { type: 'combatResolved' }>,
+    xpGained: number,
+  ): string {
     const attacker = this.state.heroes[event.attacker]?.name ?? event.attacker;
     if (event.outcome === 'fled') return `${attacker} fled from the battle.`;
-    if (event.outcome === 'attacker') return `${attacker} is victorious!`;
+    if (event.outcome === 'attacker') {
+      const xp = xpGained > 0 ? ` (+${String(xpGained)} XP)` : '';
+      return `${attacker} is victorious!${xp}`;
+    }
     return `${attacker} was defeated.`;
   }
 
@@ -519,6 +549,7 @@ export class AdventureScreen implements Screen {
     this.canvas.dataset.cameraX = String(Math.round(this.camera.x));
     this.canvas.dataset.cameraY = String(Math.round(this.camera.y));
     this.activePanel?.update();
+    this.combatPanel?.update();
     this.dialogs.update(this.state);
   }
 }

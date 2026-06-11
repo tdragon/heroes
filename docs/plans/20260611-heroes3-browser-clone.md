@@ -675,12 +675,13 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/render/combatRenderer.ts`, `src/ui/combatScreen.ts`, `src/ui/spellbook.ts`
 - Create: `e2e/combat.spec.ts`
 
-- [ ] implement hex battlefield renderer: hexes, obstacles, walls (siege), stack tokens + count badges, active highlight, reachable shading, hover damage-estimate tooltip (uses `computeDamage` breakdown), floating damage numbers + 200ms move tweens (skippable)
-- [ ] implement combat controls: hex click-to-move/attack with direction picking for melee (attack from clicked adjacent hex), Wait/Defend/Auto/Flee buttons, combat log panel, spellbook overlay (filter by school/level, mana costs, castable targeting)
-- [ ] wire auto-combat to combat AI placeholder (random-legal-move until Task 16, then real AI)
-- [ ] write unit tests for renderer-side pure helpers: hex pixel↔axial conversion, reachable-set memo, tooltip damage-range text
-- [ ] write e2e: trigger guard fight on tutorial map, win a scripted easy battle via attacks, see result dialog and XP; cast Magic Arrow from spellbook; defend/wait buttons advance queue
-- [ ] run tests + e2e — must pass before task 16
+- [x] implement hex battlefield renderer: hexes, obstacles, walls (siege), stack tokens + count badges, active highlight, reachable shading, hover damage-estimate tooltip (uses `computeDamage` breakdown), floating damage numbers + 200ms move tweens (skippable)
+- [x] implement combat controls: hex click-to-move/attack with direction picking for melee (attack from clicked adjacent hex), Wait/Defend/Auto/Flee buttons, combat log panel, spellbook overlay (filter by school/level, mana costs, castable targeting)
+- [x] wire auto-combat to combat AI placeholder (random-legal-move until Task 16, then real AI)
+- [x] write unit tests for renderer-side pure helpers: hex pixel↔axial conversion, reachable-set memo, tooltip damage-range text
+- [x] write e2e: trigger guard fight on tutorial map, win a scripted easy battle via attacks, see result dialog and XP; cast Magic Arrow from spellbook; defend/wait buttons advance queue
+- [x] run tests + e2e — must pass before task 16
+- ➕ note: the fixture's simple always-legal combat policy moved to `src/core/combat/simplePolicy.ts` (re-exported from the replay fixture); both the Auto button and the enemy side use it — non-human-side stacks are auto-played synchronously after every human action until the real AI lands in Task 16; melee direction picking = the reachable adjacent from-hex closest to the click point; `main.ts` accepts dev/e2e boot params `?map=<id>&seed=<n>` (fixture maps `tiny` and the new `src/maps/fixtures/combat-arena.dsl.ts` with a spellbook-carrying cleric are bootable); the combat result dialog now appends XP gained; `CombatRuleError` from the dispatcher is surfaced as a status message like command rejections; the Archangel `resurrect` action is engine-supported but has no UI button yet (post-MVP polish)
 
 ### Task 16: AI players
 

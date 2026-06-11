@@ -35,20 +35,8 @@ export class DialogQueue {
       return;
     }
     if (state.combat !== null) {
-      // placeholder until the Task 15 combat screen lands
-      this.render('A battle rages! The combat screen arrives in a later task.', [
-        {
-          label: 'Flee',
-          testId: 'combat-flee-button',
-          action: () => {
-            this.ctx.run({
-              type: 'combatAction',
-              player: state.currentPlayer,
-              action: { type: 'flee' },
-            });
-          },
-        },
-      ]);
+      // the combat screen owns the UI while a battle is in progress
+      this.root.style.display = 'none';
       return;
     }
     const choice = state.pendingChoices.find((c) => c.player === this.ctx.playerId);

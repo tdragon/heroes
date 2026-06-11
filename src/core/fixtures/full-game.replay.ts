@@ -3,23 +3,14 @@
 // chest, builds up its town, recruits, captures the abandoned enemy town and
 // wins when blue runs out the 7-day townless countdown.
 
-import type { GameData } from '../../data';
 import type { Pos } from '../../maps/schema';
 import type { Command } from '../commands';
-import { isBound, requireCreature } from '../combat/abilities';
-import { activeCombatStack, reachableHexesFor, type CombatAction } from '../combat/engine';
-import { hexDistance, type Hex } from '../combat/grid';
-import {
-  livingStacks,
-  occupiedHexes,
-  oppositeSide,
-  tailOffset,
-  type CombatStack,
-  type CombatState,
-} from '../combat/state';
+import { chooseSimpleCombatAction } from '../combat/simplePolicy';
 import { findPath } from '../movement';
 import type { ScriptStep } from '../replay';
 import type { GameState, Hero, PlayerId } from '../state';
+
+export { chooseSimpleCombatAction } from '../combat/simplePolicy';
 
 export const FULL_GAME_SEED = 7;
 export const RED_TOWN = 'town-2-2';
@@ -31,71 +22,6 @@ function requireHero(state: GameState, id: string): Hero {
     throw new Error(`hero ${id} is not on the map`);
   }
   return hero;
-}
-
-// --- a deliberately simple, always-legal combat policy for scripted battles ---
-
-function stackCells(stack: CombatStack, data: GameData): Hex[] {
-  return occupiedHexes(stack, requireCreature(data, stack.creature));
-}
-
-function attackerCells(head: Hex, wide: boolean, side: CombatStack['side']): Hex[] {
-  return wide ? [head, { x: head.x + tailOffset(side), y: head.y }] : [head];
-}
-
-function minDistanceToEnemies(from: Hex, enemyCells: Hex[]): number {
-  return enemyCells.reduce((min, cell) => Math.min(min, hexDistance(from, cell)), Infinity);
-}
-
-export function chooseSimpleCombatAction(combat: CombatState, data: GameData): CombatAction {
-  const stack = activeCombatStack(combat);
-  if (!stack) {
-    throw new Error('no active combat stack');
-  }
-  const creature = requireCreature(data, stack.creature);
-  const enemies = livingStacks(combat, oppositeSide(stack.side));
-  if (enemies.length === 0) {
-    throw new Error('no living enemies in combat');
-  }
-  const allEnemyCells = enemies.flatMap((enemy) => stackCells(enemy, data));
-  const adjacentEnemy = allEnemyCells.some(
-    (cell) => minDistanceToEnemies(cell, stackCells(stack, data)) === 1,
-  );
-
-  if (creature.shots !== undefined && stack.shots > 0 && !adjacentEnemy) {
-    const target = enemies.reduce((best, enemy) => (enemy.count > best.count ? enemy : best));
-    return { type: 'shoot', target: target.id };
-  }
-
-  const wide = creature.flags.includes('wide');
-  const candidates: Hex[] = isBound(stack)
-    ? [stack.pos]
-    : [stack.pos, ...reachableHexesFor(combat, stack.id, data)];
-  for (const enemy of enemies) {
-    const cells = stackCells(enemy, data);
-    for (const from of candidates) {
-      const reaches = attackerCells(from, wide, stack.side).some(
-        (cell) => minDistanceToEnemies(cell, cells) === 1,
-      );
-      if (reaches) {
-        return { type: 'melee', target: enemy.id, from };
-      }
-    }
-  }
-
-  let best: Hex | null = null;
-  let bestDistance = minDistanceToEnemies(stack.pos, allEnemyCells);
-  for (const hex of candidates) {
-    const distance = minDistanceToEnemies(hex, allEnemyCells);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      best = hex;
-    }
-  }
-  if (best) {
-    return { type: 'move', to: best };
-  }
-  return { type: 'defend' };
 }
 
 // --- script step helpers ---
