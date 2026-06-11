@@ -647,12 +647,13 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/ui/hud.ts` (sidebar, resource bar, minimap), `src/app/screens.ts` (router), `src/app/adventureScreen.ts`
 - Create: `e2e/adventure.spec.ts`
 
-- [ ] implement Painter token art (creature disc/initials/tier, hero shield, town silhouette, terrain colors, fog layers) behind interface
-- [ ] implement canvas adventure renderer: visible-rect tile draw, objects, heroes, selection ring, path preview with day markers, dirty-flag rAF loop; camera scroll (keys/edge/drag) and tile hit-testing
-- [ ] implement HUD: resource bar, day indicator, minimap (ownership colors, viewport rect, click-jump), hero/town lists, next-hero/end-turn buttons, right-click info popups; wire commands→dispatch→event-driven redraw
-- [ ] write unit tests for camera math (world↔screen, clamping) and path-preview day-split logic (pure helpers)
-- [ ] write e2e: load tutorial map, select hero, click destination twice → hero token moved, resource bar increases after end-turn, minimap click jumps viewport
-- [ ] run tests + e2e — must pass before task 14
+- [x] implement Painter token art (creature disc/initials/tier, hero shield, town silhouette, terrain colors, fog layers) behind interface
+- [x] implement canvas adventure renderer: visible-rect tile draw, objects, heroes, selection ring, path preview with day markers, dirty-flag rAF loop; camera scroll (keys/edge/drag) and tile hit-testing
+- [x] implement HUD: resource bar, day indicator, minimap (ownership colors, viewport rect, click-jump), hero/town lists, next-hero/end-turn buttons, right-click info popups; wire commands→dispatch→event-driven redraw
+- [x] write unit tests for camera math (world↔screen, clamping) and path-preview day-split logic (pure helpers)
+- [x] write e2e: load tutorial map, select hero, click destination twice → hero token moved, resource bar increases after end-turn, minimap click jumps viewport
+- [x] run tests + e2e — must pass before task 14
+- ➕ note: path day-split helper lives in `src/render/pathPreview.ts` (pure, unit-tested); `main.ts` boots straight into the adventure screen on tutorial-valley (seed 42) until the main menu lands in Task 17; a minimal modal overlay handles `pendingChoices` (numbered option buttons) and an in-progress combat (flee only) as placeholders for the Task 14 dialog queue and Task 15 combat screen; on end-turn, AI players auto-pass until Task 16
 
 ### Task 14: Town, hero, and dialog UI
 
