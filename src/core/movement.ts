@@ -4,6 +4,7 @@ import { objectFootprint } from '../maps/dsl';
 import { NO_ROAD_CHAR, type Pos } from '../maps/schema';
 import type { Command, GameEvent } from './commands';
 import { CommandRejectedError } from './commands';
+import { handleObjectTrigger } from './objects';
 import {
   getPlayer,
   revealCircle,
@@ -262,16 +263,6 @@ function leaveTile(state: GameState, hero: Hero, pos: Pos): void {
   }
 }
 
-function enterTrigger(state: GameState, hero: Hero, pos: Pos): void {
-  // full object interactions land in Task 7; towns must track their visitor now
-  const townId = townAt(state, pos);
-  if (townId === null) return;
-  const town = state.towns[townId];
-  if (town?.owner === hero.owner && town.visitingHero === null) {
-    town.visitingHero = hero.id;
-  }
-}
-
 export function moveHero(
   state: GameState,
   command: MoveHeroCommand,
@@ -325,8 +316,8 @@ export function moveHero(
 
     const triggerId = ctx.triggers[tileIndex(ctx, step)] ?? null;
     if (triggerId !== null) {
-      enterTrigger(state, hero, step);
       events.push({ type: 'objectTriggered', hero: hero.id, object: triggerId });
+      handleObjectTrigger(state, hero, triggerId, data, events);
       break;
     }
   }

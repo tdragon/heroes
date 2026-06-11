@@ -51,6 +51,8 @@ export interface Hero {
   spells: string[];
   mana: number;
   movementPoints: number;
+  tempLuck: number;
+  tempMorale: number;
 }
 
 export interface Town {
@@ -113,6 +115,8 @@ export interface PendingChoice {
   kind: string;
   options: string[];
   hero?: HeroId;
+  object?: ObjectId;
+  message?: string;
 }
 
 export type CombatState = Record<string, unknown>;

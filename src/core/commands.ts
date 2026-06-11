@@ -2,6 +2,7 @@ import type { GameData } from '../data';
 import type { Pos } from '../maps/schema';
 import { applyLevelUpChoice, type PrimaryStat } from './hero';
 import { moveHero } from './movement';
+import { OBJECT_CHOICE_KINDS, resolveObjectChoice } from './objects';
 import { endTurn } from './turn';
 import type { GameState, HeroId, ObjectId, PlayerId, Resources, TownId } from './state';
 
@@ -21,7 +22,21 @@ export type GameEvent =
   | { type: 'objectTriggered'; hero: HeroId; object: ObjectId }
   | { type: 'heroXpGained'; hero: HeroId; amount: number; total: number }
   | { type: 'heroLevelUp'; hero: HeroId; level: number; stat: PrimaryStat }
-  | { type: 'choiceResolved'; choiceId: string; option: number };
+  | { type: 'choiceResolved'; choiceId: string; option: number }
+  | { type: 'objectVisited'; hero: HeroId; object: ObjectId; effect: boolean }
+  | { type: 'resourcesGained'; player: PlayerId; amounts: Partial<Resources>; source: ObjectId }
+  | { type: 'objectFlagged'; object: ObjectId; player: PlayerId }
+  | { type: 'objectRemoved'; object: ObjectId }
+  | { type: 'artifactPickedUp'; hero: HeroId; artifact: string }
+  | { type: 'messageShown'; object: ObjectId; message: string }
+  | { type: 'heroTeleported'; hero: HeroId; from: Pos; to: Pos }
+  | { type: 'manaRestored'; hero: HeroId; mana: number }
+  | { type: 'blessingGained'; hero: HeroId; luck: number; morale: number }
+  | { type: 'statTrained'; hero: HeroId; stat: 'attack' | 'defense' }
+  | { type: 'areaRevealed'; object: ObjectId; player: PlayerId }
+  | { type: 'heroReleased'; hero: HeroId; player: PlayerId }
+  | { type: 'townCaptured'; town: TownId; player: PlayerId; previousOwner: PlayerId | null }
+  | { type: 'combatQueued'; attacker: HeroId; object: ObjectId };
 
 export interface DispatchResult {
   state: GameState;
@@ -38,6 +53,7 @@ export class CommandRejectedError extends Error {
 function resolveChoice(
   state: GameState,
   command: Extract<Command, { type: 'resolveChoice' }>,
+  data: GameData,
   events: GameEvent[],
 ): void {
   const choice = state.pendingChoices.find((c) => c.id === command.choiceId);
@@ -56,10 +72,12 @@ function resolveChoice(
       `choice ${choice.id}: option ${String(command.option)} out of range`,
     );
   }
+  state.pendingChoices = state.pendingChoices.filter((c) => c.id !== choice.id);
   if (choice.kind === 'levelUp') {
     applyLevelUpChoice(state, choice, command.option);
+  } else if ((OBJECT_CHOICE_KINDS as readonly string[]).includes(choice.kind)) {
+    resolveObjectChoice(state, choice, command.option, data, events);
   }
-  state.pendingChoices = state.pendingChoices.filter((c) => c.id !== choice.id);
   events.push({ type: 'choiceResolved', choiceId: choice.id, option: command.option });
 }
 
@@ -71,6 +89,10 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
     throw new CommandRejectedError(
       `command from ${command.player}, but current player is ${state.currentPlayer}`,
     );
+  }
+  if (state.combat !== null) {
+    // TODO(Task 8): combat commands will be accepted here once the combat engine lands
+    throw new CommandRejectedError('a combat is pending resolution');
   }
   if (state.pendingChoices.length > 0 && command.type !== 'resolveChoice') {
     throw new CommandRejectedError('a pending choice must be resolved first');
@@ -86,7 +108,7 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
       moveHero(next, command, data, events);
       break;
     case 'resolveChoice':
-      resolveChoice(next, command, events);
+      resolveChoice(next, command, data, events);
       break;
   }
   return { state: next, events };

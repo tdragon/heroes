@@ -2,6 +2,7 @@ import type { GameData } from '../data';
 import type { Building } from '../data/schema';
 import type { GameEvent } from './commands';
 import { maxMovementPoints } from './hero';
+import { applyDailyObjectResets, applyWeeklyObjectResets } from './objects';
 import {
   addResources,
   emptyResources,
@@ -101,7 +102,9 @@ function advanceDay(state: GameState, data: GameData, events: GameEvent[]): void
   if (isWeekStart(state.day)) {
     events.push({ type: 'weekStarted', week: weekOf(state.day) });
     applyWeeklyGrowth(state, data, events);
+    applyWeeklyObjectResets(state, data);
   }
+  applyDailyObjectResets(state, data);
   if (isMonthStart(state.day)) {
     events.push({ type: 'monthStarted', month: monthOf(state.day) });
   }

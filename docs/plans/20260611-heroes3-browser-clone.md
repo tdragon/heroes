@@ -564,12 +564,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/objects.ts`, `src/core/objects.test.ts`
 - Modify: `src/core/movement.ts` (trigger dispatch)
 
-- [ ] implement all 20 object behaviors from §8.3 (combat-triggering ones enqueue a combat start, resolved in Task 8–9; mark with TODO until combat lands)
-- [ ] implement flagging (mines/dwellings), weekly visitables reset, once-per-hero tracking (learning stone), pickup removal, monolith teleport, prison hero release
-- [ ] implement guard handling: power estimate text, attack-confirm `pendingChoice`, +10%/week guard growth
-- [ ] write tests: each object type's state change (resource added, mine flagged, chest choice branches, well once/day reset, monolith pairing, prison joins) — table-driven over fixture map
-- [ ] run tests — must pass before task 8 (combat-gated paths: `[x] … (fails until Task 9)` pattern allowed per partial-implementation exception)
-- [ ] run tests - must pass before next task
+- [x] implement all 20 object behaviors from §8.3 (combat-triggering ones enqueue a combat start, resolved in Task 8–9; mark with TODO until combat lands)
+- [x] implement flagging (mines/dwellings), weekly visitables reset, once-per-hero tracking (learning stone), pickup removal, monolith teleport, prison hero release
+- [x] implement guard handling: power estimate text, attack-confirm `pendingChoice`, +10%/week guard growth
+- [x] write tests: each object type's state change (resource added, mine flagged, chest choice branches, well once/day reset, monolith pairing, prison joins) — table-driven over fixture map
+- [x] run tests — must pass before task 8 (combat-gated paths: guard fights / sieges queue a `pendingCombat` placeholder with TODO(Task 8/9) markers in `objects.ts`; tests assert the queued combat)
+- [x] run tests - must pass before next task
 
 ### Task 8: Combat engine — battlefield, turn order, melee/ranged, damage
 

@@ -45,10 +45,16 @@ function rollStartArmy(state: GameState, template: HeroTemplate): ArmySlots {
   return army;
 }
 
-function createHero(state: GameState, mapPlayer: MapPlayer, data: GameData): Hero {
-  const template = data.heroes[mapPlayer.startHero];
+export function instantiateHero(
+  state: GameState,
+  templateId: string,
+  owner: Hero['owner'],
+  pos: Hero['pos'],
+  data: GameData,
+): Hero {
+  const template = data.heroes[templateId];
   if (!template) {
-    throw new Error(`unknown start hero: ${mapPlayer.startHero}`);
+    throw new Error(`unknown hero template: ${templateId}`);
   }
   const heroClass = data.heroClasses[template.class];
   if (!heroClass) {
@@ -59,8 +65,8 @@ function createHero(state: GameState, mapPlayer: MapPlayer, data: GameData): Her
     template: template.id,
     name: template.name,
     class: heroClass.id,
-    owner: mapPlayer.color,
-    pos: [...mapPlayer.startTownAt],
+    owner,
+    pos: [...pos],
     attack: heroClass.startStats.attack,
     defense: heroClass.startStats.defense,
     spellPower: heroClass.startStats.spellPower,
@@ -75,10 +81,16 @@ function createHero(state: GameState, mapPlayer: MapPlayer, data: GameData): Her
     spells: template.startSpell !== undefined ? [template.startSpell] : [],
     mana: 0,
     movementPoints: 0,
+    tempLuck: 0,
+    tempMorale: 0,
   };
   hero.mana = maxMana(hero, data);
   hero.movementPoints = maxMovementPoints(hero, data);
   return hero;
+}
+
+function createHero(state: GameState, mapPlayer: MapPlayer, data: GameData): Hero {
+  return instantiateHero(state, mapPlayer.startHero, mapPlayer.color, mapPlayer.startTownAt, data);
 }
 
 export function townIdAt(pos: readonly [number, number]): string {

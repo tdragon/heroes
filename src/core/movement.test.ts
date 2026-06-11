@@ -45,6 +45,8 @@ function makeHero(pos: Pos, overrides: Partial<Hero> = {}): Hero {
     spells: [],
     mana: 0,
     movementPoints: 2000,
+    tempLuck: 0,
+    tempMorale: 0,
     ...overrides,
   };
 }
