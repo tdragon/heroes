@@ -527,12 +527,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/state.ts`, `src/core/commands.ts`, `src/core/turn.ts`, `src/core/setup.ts` (new game from map), `src/core/serialize.ts`
 - Create: `src/core/turn.test.ts`, `src/core/setup.test.ts`, `src/core/serialize.test.ts`
 
-- [ ] implement `GameState` types + `newGame(map, config, seed)`: places towns/heroes, starting resources/army, initial fog
-- [ ] implement command dispatcher skeleton with event emission; reject commands from non-current player or while `pendingChoices` pending
-- [ ] implement `endTurn`: advance player; on full rotation advance day — income (hall + owned mines), MP/mana regen, weekly growth + week banner event, monthly event hook
-- [ ] implement serialize/deserialize with version field
-- [ ] write tests: new-game setup from tiny fixture (positions, resources, pools); income math day 1 vs after capturing a mine; weekly growth (×1.5/×2 with citadel/castle); serialization round-trip equality; command rejection cases
-- [ ] run tests — must pass before task 5
+- [x] implement `GameState` types + `newGame(map, config, seed)`: places towns/heroes, starting resources/army, initial fog
+- [x] implement command dispatcher skeleton with event emission; reject commands from non-current player or while `pendingChoices` pending
+- [x] implement `endTurn`: advance player; on full rotation advance day — income (hall + owned mines), MP/mana regen, weekly growth + week banner event, monthly event hook
+- [x] implement serialize/deserialize with version field
+- [x] write tests: new-game setup from tiny fixture (positions, resources, pools); income math day 1 vs after capturing a mine; weekly growth (×1.5/×2 with citadel/castle); serialization round-trip equality; command rejection cases
+- [x] run tests — must pass before task 5
 
 ### Task 5: Movement and pathfinding
 
