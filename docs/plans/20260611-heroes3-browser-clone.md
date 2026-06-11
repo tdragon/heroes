@@ -577,12 +577,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/combat/state.ts`, `src/core/combat/grid.ts` (hex math), `src/core/combat/engine.ts`, `src/core/combat/damage.ts`
 - Create: `src/core/combat/grid.test.ts`, `src/core/combat/damage.test.ts`, `src/core/combat/engine.test.ts`
 
-- [ ] implement hex grid (15×11 axial), neighbors, distance, BFS reachability, wide-creature occupancy, obstacle generation from seed
-- [ ] implement combat setup from two armies (+hero stats), initiative queue (speed desc, alternate ties, wait re-queue §7.2)
-- [ ] implement actions: move, melee (+retaliation rules), ranged (+distance/melee penalties, shots), defend, wait; stack HP-pool damage application and death
-- [ ] implement damage formula exactly per §7.5 as pure `computeDamage(attacker, defender, ctx)` returning breakdown (for tooltips/log)
-- [ ] write tests: hex math properties (distance symmetry, neighbor counts incl. edges); golden damage cases (A>D cap 4.0, D>A floor 0.3, min 1, luck double, jousting, penalties stacking); retaliation once/unlimited/none; wait ordering; wide-creature blocking; full scripted 2-stack battle replay snapshot
-- [ ] run tests — must pass before task 9
+- [x] implement hex grid (15×11 axial), neighbors, distance, BFS reachability, wide-creature occupancy, obstacle generation from seed
+- [x] implement combat setup from two armies (+hero stats), initiative queue (speed desc, alternate ties, wait re-queue §7.2)
+- [x] implement actions: move, melee (+retaliation rules), ranged (+distance/melee penalties, shots), defend, wait; stack HP-pool damage application and death
+- [x] implement damage formula exactly per §7.5 as pure `computeDamage(attacker, defender, ctx)` returning breakdown (for tooltips/log)
+- [x] write tests: hex math properties (distance symmetry, neighbor counts incl. edges); golden damage cases (A>D cap 4.0, D>A floor 0.3, min 1, luck double, jousting, penalties stacking); retaliation once/unlimited/none; wait ordering; wide-creature blocking; full scripted 2-stack battle replay snapshot
+- [x] run tests — must pass before task 9
 
 ### Task 9: Combat completion — specials, morale/luck, spells in combat, end conditions, sieges
 
