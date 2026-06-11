@@ -14,7 +14,7 @@ This plan is **self-contained**: every game rule, formula, data table, and scree
 
 ## Context (from discovery)
 
-- Project directory `/Users/tikhdm/sources/private/heroes` is empty — greenfield, not yet a git repository (run `git init` in Task 1).
+- Project directory `/Users/tikhdm/sources/private/heroes` is empty — greenfield. Git repo initialized (branch `heroes3-browser-clone`), Task 1 scaffolding done.
 - No existing code, conventions, or CI to conform to.
 - User constraints from global CLAUDE.md apply: modern TS/Python typing style, fix linter errors properly, minimal comments.
 
@@ -488,12 +488,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `package.json`, `vite.config.ts`, `tsconfig.json`, `eslint.config.js`, `.prettierrc`, `index.html`, `src/app/main.ts`, `playwright.config.ts`, `.gitignore`, `README.md`
 - Create: `src/core/rng.ts`, `src/core/rng.test.ts`
 
-- [ ] `git init`; scaffold Vite + TS strict project; add zod, vitest, coverage, playwright, eslint, prettier; scripts: `dev`, `build`, `test`, `test:e2e`, `check` (tsc+eslint+vitest)
-- [ ] `index.html` + `main.ts` render a "Heroes Clone" placeholder div (e2e smoke target)
-- [ ] implement `rng.ts`: mulberry32, `rollRange`, `rollChance`, state in/out (no globals)
-- [ ] write tests for rng: determinism (same seed = same sequence), range bounds, distribution sanity, state round-trip
-- [ ] write Playwright smoke test: page loads, title visible
-- [ ] run `npm run check` and `npm run test:e2e` — must pass before task 2
+- [x] `git init`; scaffold Vite + TS strict project; add zod, vitest, coverage, playwright, eslint, prettier; scripts: `dev`, `build`, `test`, `test:e2e`, `check` (tsc+eslint+vitest)
+- [x] `index.html` + `main.ts` render a "Heroes Clone" placeholder div (e2e smoke target)
+- [x] implement `rng.ts`: mulberry32, `rollRange`, `rollChance`, state in/out (no globals)
+- [x] write tests for rng: determinism (same seed = same sequence), range bounds, distribution sanity, state round-trip
+- [x] write Playwright smoke test: page loads, title visible
+- [x] run `npm run check` and `npm run test:e2e` — must pass before task 2
 
 ### Task 2: Game data files, schemas, and loader
 
