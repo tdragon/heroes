@@ -5,13 +5,7 @@ import { visibleTiles } from '../core/fog';
 import { maxMovementPoints } from '../core/hero';
 import { buildMoveContext, findPath, stepCost } from '../core/movement';
 import type { GameState, Hero, Player } from '../core/state';
-import {
-  centerCameraOn,
-  panCamera,
-  tileAtScreen,
-  TILE_PX,
-  type Camera,
-} from '../render/camera';
+import { centerCameraOn, panCamera, tileAtScreen, TILE_PX, type Camera } from '../render/camera';
 import {
   AdventureRenderer,
   minimapTile,
@@ -20,7 +14,11 @@ import {
 } from '../render/adventureRenderer';
 import { TokenPainter } from '../render/painter';
 import { splitPathByDays, type PathStepPreview } from '../render/pathPreview';
+import type { UiContext } from '../ui/components';
+import { DialogQueue } from '../ui/dialogs';
+import { HeroScreen } from '../ui/heroScreen';
 import { Hud, InfoPopup, MINIMAP_PX } from '../ui/hud';
+import { TownScreen } from '../ui/townScreen';
 import type { Screen } from './screens';
 
 export const CANVAS_W = 1000;
@@ -43,7 +41,8 @@ export class AdventureScreen implements Screen {
   private readonly minimapCtx: CanvasRenderingContext2D;
   private readonly hud: Hud;
   private readonly infoPopup: InfoPopup;
-  private readonly overlay: HTMLElement;
+  private readonly dialogs: DialogQueue;
+  private activePanel: TownScreen | HeroScreen | null = null;
 
   private state: GameState;
   private camera: Camera;
@@ -78,11 +77,9 @@ export class AdventureScreen implements Screen {
     this.infoPopup = new InfoPopup();
     canvasWrap.appendChild(this.infoPopup.root);
 
-    this.overlay = document.createElement('div');
-    this.overlay.className = 'modal-overlay';
-    this.overlay.dataset.testid = 'modal-overlay';
-    this.overlay.style.display = 'none';
-    canvasWrap.appendChild(this.overlay);
+    this.dialogs = new DialogQueue(this.uiContext(), () => {
+      this.markDirty();
+    });
 
     const ctx = this.canvas.getContext('2d');
     if (!ctx) throw new Error('canvas 2d context unavailable');
@@ -100,6 +97,10 @@ export class AdventureScreen implements Screen {
       },
       onSelectTown: (id) => {
         this.centerOnTown(id);
+        this.openTownScreen(id);
+      },
+      onOpenHeroScreen: () => {
+        if (this.selectedHero !== null) this.openHeroScreen(this.selectedHero, null);
       },
       onMinimapClick: (px, py) => {
         this.jumpToMinimap(px, py);
@@ -110,7 +111,7 @@ export class AdventureScreen implements Screen {
     this.minimapCtx = minimapCtx;
 
     main.append(canvasWrap, this.hud.sidebar);
-    this.root.append(main, this.hud.bottomBar);
+    this.root.append(main, this.hud.bottomBar, this.dialogs.root);
 
     const startHero = this.viewPlayer().heroes[0];
     this.camera = { x: 0, y: 0, width: CANVAS_W, height: CANVAS_H };
@@ -143,34 +144,54 @@ export class AdventureScreen implements Screen {
     return player;
   }
 
-  private runCommand(command: Command): boolean {
+  private uiContext(): UiContext {
+    return {
+      data: this.data,
+      playerId: this.viewPlayer().id,
+      getState: () => this.state,
+      run: (command) => this.runForUi(command),
+    };
+  }
+
+  // dispatches a command, returns the rejection message or null on success
+  private runForUi(command: Command): string | null {
     try {
       const result = dispatch(this.state, command, this.data);
       this.state = result.state;
       this.handleEvents(result.events);
       this.markDirty();
-      return true;
+      return null;
     } catch (err) {
       if (err instanceof CommandRejectedError) {
         this.hud.setStatus(err.message);
         this.markDirty();
-        return false;
+        return err.message;
       }
       throw err;
     }
+  }
+
+  private runCommand(command: Command): boolean {
+    return this.runForUi(command) === null;
   }
 
   private handleEvents(events: GameEvent[]): void {
     for (const event of events) {
       switch (event.type) {
         case 'weekStarted':
-          this.hud.setStatus(`Week ${String(event.week)} begins`);
+          this.dialogs.enqueueInfo(`Week ${String(event.week)} begins`);
           break;
         case 'dayStarted':
           this.hud.setStatus(`Day ${String(event.day)}`);
           break;
         case 'messageShown':
-          this.hud.setStatus(event.message);
+          this.dialogs.enqueueInfo(event.message);
+          break;
+        case 'combatResolved':
+          this.dialogs.enqueueInfo(this.combatResultText(event));
+          break;
+        case 'heroLevelUp':
+          this.hud.setStatus(`Level up: +1 ${event.stat}`);
           break;
         case 'gameOver':
           this.hud.setStatus(`Game over — ${event.winner} wins!`);
@@ -179,6 +200,42 @@ export class AdventureScreen implements Screen {
           break;
       }
     }
+  }
+
+  private combatResultText(event: Extract<GameEvent, { type: 'combatResolved' }>): string {
+    const attacker = this.state.heroes[event.attacker]?.name ?? event.attacker;
+    if (event.outcome === 'fled') return `${attacker} fled from the battle.`;
+    if (event.outcome === 'attacker') return `${attacker} is victorious!`;
+    return `${attacker} was defeated.`;
+  }
+
+  // --- overlay panels (town / hero screens) ---
+
+  private closePanel(): void {
+    if (!this.activePanel) return;
+    this.activePanel.root.remove();
+    this.activePanel = null;
+    this.markDirty();
+  }
+
+  private openTownScreen(townId: string): void {
+    const town = this.state.towns[townId];
+    if (town?.owner !== this.viewPlayer().id) return;
+    this.closePanel();
+    this.activePanel = new TownScreen(this.uiContext(), townId, () => {
+      this.closePanel();
+    });
+    this.root.appendChild(this.activePanel.root);
+    this.markDirty();
+  }
+
+  private openHeroScreen(heroId: string, secondHeroId: string | null): void {
+    this.closePanel();
+    this.activePanel = new HeroScreen(this.uiContext(), heroId, secondHeroId, () => {
+      this.closePanel();
+    });
+    this.root.appendChild(this.activePanel.root);
+    this.markDirty();
   }
 
   private endTurn(): void {
@@ -239,6 +296,18 @@ export class AdventureScreen implements Screen {
   private handleTileClick(tile: Pos): void {
     const ownHero = this.heroAt(tile);
     if (ownHero) {
+      const selected = this.selectedHero !== null ? this.state.heroes[this.selectedHero] : null;
+      const adjacent =
+        selected &&
+        selected.id !== ownHero.id &&
+        Math.max(
+          Math.abs(selected.pos[0] - ownHero.pos[0]),
+          Math.abs(selected.pos[1] - ownHero.pos[1]),
+        ) <= 1;
+      if (selected && adjacent === true) {
+        this.openHeroScreen(selected.id, ownHero.id);
+        return;
+      }
       this.selectHero(ownHero.id, false);
       return;
     }
@@ -246,10 +315,7 @@ export class AdventureScreen implements Screen {
     const hero = this.state.heroes[this.selectedHero];
     if (!hero) return;
 
-    if (
-      this.pendingPath?.dest[0] === tile[0] &&
-      this.pendingPath.dest[1] === tile[1]
-    ) {
+    if (this.pendingPath?.dest[0] === tile[0] && this.pendingPath.dest[1] === tile[1]) {
       const path = this.pendingPath.path;
       this.pendingPath = null;
       this.runCommand({ type: 'moveHero', player: hero.owner, hero: hero.id, path });
@@ -268,7 +334,12 @@ export class AdventureScreen implements Screen {
       const from = i === 0 ? hero.pos : (path[i - 1] ?? hero.pos);
       return stepCost(ctx, from, step);
     });
-    const preview = splitPathByDays(path, costs, hero.movementPoints, maxMovementPoints(hero, this.data));
+    const preview = splitPathByDays(
+      path,
+      costs,
+      hero.movementPoints,
+      maxMovementPoints(hero, this.data),
+    );
     this.pendingPath = { dest: [...tile], path, preview };
     this.hud.setStatus('Click again to move');
     this.markDirty();
@@ -376,6 +447,10 @@ export class AdventureScreen implements Screen {
 
     window.addEventListener('keydown', (e) => {
       if (!this.running) return;
+      if (e.key === 'Escape' && this.activePanel && this.dialogs.root.style.display === 'none') {
+        this.closePanel();
+        return;
+      }
       const pan: Record<string, [number, number]> = {
         ArrowLeft: [-KEY_SCROLL_STEP, 0],
         ArrowRight: [KEY_SCROLL_STEP, 0],
@@ -443,73 +518,7 @@ export class AdventureScreen implements Screen {
     this.hud.update(this.state, player, this.selectedHero);
     this.canvas.dataset.cameraX = String(Math.round(this.camera.x));
     this.canvas.dataset.cameraY = String(Math.round(this.camera.y));
-    this.updateOverlay();
-  }
-
-  private updateOverlay(): void {
-    if (this.state.status !== 'running') {
-      this.showOverlay(`Game over — ${this.state.status.winner} wins!`, []);
-      return;
-    }
-    if (this.state.combat !== null) {
-      this.showOverlay('A battle rages! The combat screen arrives in a later task.', [
-        {
-          label: 'Flee',
-          testId: 'combat-flee-button',
-          action: () => {
-            this.runCommand({
-              type: 'combatAction',
-              player: this.state.currentPlayer,
-              action: { type: 'flee' },
-            });
-          },
-        },
-      ]);
-      return;
-    }
-    const choice = this.state.pendingChoices.find((c) => c.player === this.viewPlayer().id);
-    if (choice) {
-      this.showOverlay(
-        choice.message ?? choice.kind,
-        choice.options.map((label, i) => ({
-          label,
-          testId: `choice-option-${String(i)}`,
-          action: () => {
-            this.runCommand({
-              type: 'resolveChoice',
-              player: choice.player,
-              choiceId: choice.id,
-              option: i,
-            });
-          },
-        })),
-      );
-      return;
-    }
-    this.overlay.style.display = 'none';
-  }
-
-  private showOverlay(
-    message: string,
-    buttons: { label: string; testId: string; action: () => void }[],
-  ): void {
-    this.overlay.replaceChildren();
-    const box = document.createElement('div');
-    box.className = 'modal-box';
-    const text = document.createElement('div');
-    text.className = 'modal-message';
-    text.dataset.testid = 'modal-message';
-    text.textContent = message;
-    box.appendChild(text);
-    for (const button of buttons) {
-      const node = document.createElement('button');
-      node.className = 'modal-button';
-      node.dataset.testid = button.testId;
-      node.textContent = button.label;
-      node.addEventListener('click', button.action);
-      box.appendChild(node);
-    }
-    this.overlay.appendChild(box);
-    this.overlay.style.display = 'flex';
+    this.activePanel?.update();
+    this.dialogs.update(this.state);
   }
 }

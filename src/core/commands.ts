@@ -3,7 +3,14 @@ import type { ResourceId } from '../data/schema';
 import type { Pos } from '../maps/schema';
 import { applyCombatAction, type GameCombatAction } from './combat/resolve';
 import type { CombatEvent } from './combat/state';
-import { applyLevelUpChoice, type PrimaryStat } from './hero';
+import {
+  applyLevelUpChoice,
+  equipArtifactCommand,
+  moveArmyStack,
+  transferArtifactCommand,
+  unequipArtifactCommand,
+  type PrimaryStat,
+} from './hero';
 import { castAdventureSpell } from './magic';
 import { moveHero } from './movement';
 import { applyObjectReward, OBJECT_CHOICE_KINDS, resolveObjectChoice } from './objects';
@@ -30,6 +37,8 @@ import type {
 
 export type ArmyDest = 'garrison' | 'visitingHero';
 
+export type ArmyLocation = { kind: 'hero'; hero: HeroId } | { kind: 'garrison'; town: TownId };
+
 export type Command =
   | { type: 'endTurn'; player: PlayerId }
   | { type: 'moveHero'; player: PlayerId; hero: HeroId; path: Pos[] }
@@ -49,6 +58,18 @@ export type Command =
   | { type: 'trade'; player: PlayerId; give: ResourceId; receive: ResourceId; amount: number }
   | { type: 'hireHero'; player: PlayerId; town: TownId; hero: string }
   | { type: 'transformToSkeletons'; player: PlayerId; town: TownId; slot: number }
+  | {
+      type: 'moveStack';
+      player: PlayerId;
+      from: ArmyLocation;
+      fromSlot: number;
+      to: ArmyLocation;
+      toSlot: number;
+      count?: number;
+    }
+  | { type: 'equipArtifact'; player: PlayerId; hero: HeroId; artifact: string }
+  | { type: 'unequipArtifact'; player: PlayerId; hero: HeroId; artifact: string }
+  | { type: 'transferArtifact'; player: PlayerId; from: HeroId; to: HeroId; artifact: string }
   | {
       type: 'castAdventureSpell';
       player: PlayerId;
@@ -125,6 +146,10 @@ export type GameEvent =
   | { type: 'stackTransformed'; hero: HeroId; slot: number; from: string; count: number }
   | { type: 'mysticPondYield'; town: TownId; resource: ResourceId; amount: number }
   | { type: 'adventureSpellCast'; hero: HeroId; spell: string }
+  | { type: 'stackMoved'; player: PlayerId }
+  | { type: 'artifactEquipped'; hero: HeroId; artifact: string }
+  | { type: 'artifactUnequipped'; hero: HeroId; artifact: string }
+  | { type: 'artifactTransferred'; from: HeroId; to: HeroId; artifact: string }
   | { type: 'playerDefeated'; player: PlayerId }
   | { type: 'gameOver'; winner: PlayerId };
 
@@ -227,6 +252,18 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
       break;
     case 'transformToSkeletons':
       transformToSkeletons(next, command, events);
+      break;
+    case 'moveStack':
+      moveArmyStack(next, command, events);
+      break;
+    case 'equipArtifact':
+      equipArtifactCommand(next, command, data, events);
+      break;
+    case 'unequipArtifact':
+      unequipArtifactCommand(next, command, events);
+      break;
+    case 'transferArtifact':
+      transferArtifactCommand(next, command, events);
       break;
     case 'castAdventureSpell':
       castAdventureSpell(next, command, data, events);

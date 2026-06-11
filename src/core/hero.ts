@@ -1,6 +1,7 @@
 import type { GameData } from '../data';
 import type { ArtifactSlot, HeroClass, SkillRank } from '../data/schema';
-import type { GameEvent } from './commands';
+import type { Pos } from '../maps/schema';
+import { CommandRejectedError, type ArmyLocation, type Command, type GameEvent } from './commands';
 import { nextFloat, rollRange } from './rng';
 import {
   ARMY_SLOTS,
@@ -12,6 +13,7 @@ import {
   type Hero,
   type HeroId,
   type PendingChoice,
+  type PlayerId,
   type Town,
 } from './state';
 
@@ -154,7 +156,9 @@ function levelUpSkillOptions(state: GameState, hero: Hero, heroClass: HeroClass)
       state,
       upgradable.filter(([id]) => id !== upgrade),
     );
-    return second === null ? [encodeUpgrade(upgrade)] : [encodeUpgrade(upgrade), encodeUpgrade(second)];
+    return second === null
+      ? [encodeUpgrade(upgrade)]
+      : [encodeUpgrade(upgrade), encodeUpgrade(second)];
   }
   return [];
 }
@@ -298,6 +302,132 @@ export function transferStack(
   } else {
     source.count -= moved;
   }
+}
+
+// --- army / artifact commands (dispatch-level wrappers) ---
+
+function requireOwnHero(state: GameState, heroId: HeroId, player: PlayerId): Hero {
+  const hero = state.heroes[heroId];
+  if (!hero) {
+    throw new CommandRejectedError(`unknown hero: ${heroId}`);
+  }
+  if (hero.owner !== player) {
+    throw new CommandRejectedError(`hero ${heroId} belongs to ${hero.owner}`);
+  }
+  return hero;
+}
+
+function chebyshev(a: Pos, b: Pos): number {
+  return Math.max(Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1]));
+}
+
+function resolveArmyLocation(state: GameState, loc: ArmyLocation, player: PlayerId): ArmyRef {
+  if (loc.kind === 'hero') {
+    return heroArmy(requireOwnHero(state, loc.hero, player));
+  }
+  const town = state.towns[loc.town];
+  if (!town) {
+    throw new CommandRejectedError(`unknown town: ${loc.town}`);
+  }
+  if (town.owner !== player) {
+    throw new CommandRejectedError(`town ${loc.town} is not owned by ${player}`);
+  }
+  return garrisonArmy(town);
+}
+
+function armiesColocated(state: GameState, a: ArmyLocation, b: ArmyLocation): boolean {
+  if (a.kind === 'hero' && b.kind === 'hero') {
+    if (a.hero === b.hero) return true;
+    const heroA = state.heroes[a.hero];
+    const heroB = state.heroes[b.hero];
+    return heroA !== undefined && heroB !== undefined && chebyshev(heroA.pos, heroB.pos) <= 1;
+  }
+  if (a.kind === 'garrison' && b.kind === 'garrison') {
+    return a.town === b.town;
+  }
+  const garrison = a.kind === 'garrison' ? a : b;
+  const heroLoc = a.kind === 'hero' ? a : b;
+  if (garrison.kind !== 'garrison' || heroLoc.kind !== 'hero') return false;
+  return state.towns[garrison.town]?.visitingHero === heroLoc.hero;
+}
+
+export function moveArmyStack(
+  state: GameState,
+  command: Extract<Command, { type: 'moveStack' }>,
+  events: GameEvent[],
+): void {
+  const from = resolveArmyLocation(state, command.from, command.player);
+  const to = resolveArmyLocation(state, command.to, command.player);
+  if (!armiesColocated(state, command.from, command.to)) {
+    throw new CommandRejectedError('the two armies are not at the same place');
+  }
+  try {
+    transferStack(from, command.fromSlot, to, command.toSlot, command.count);
+  } catch (err) {
+    throw new CommandRejectedError(err instanceof Error ? err.message : String(err));
+  }
+  events.push({ type: 'stackMoved', player: command.player });
+}
+
+export function equipArtifactCommand(
+  state: GameState,
+  command: Extract<Command, { type: 'equipArtifact' }>,
+  data: GameData,
+  events: GameEvent[],
+): void {
+  const hero = requireOwnHero(state, command.hero, command.player);
+  try {
+    equipArtifact(hero, command.artifact, data);
+  } catch (err) {
+    throw new CommandRejectedError(err instanceof Error ? err.message : String(err));
+  }
+  events.push({ type: 'artifactEquipped', hero: hero.id, artifact: command.artifact });
+}
+
+export function unequipArtifactCommand(
+  state: GameState,
+  command: Extract<Command, { type: 'unequipArtifact' }>,
+  events: GameEvent[],
+): void {
+  const hero = requireOwnHero(state, command.hero, command.player);
+  try {
+    unequipArtifact(hero, command.artifact);
+  } catch (err) {
+    throw new CommandRejectedError(err instanceof Error ? err.message : String(err));
+  }
+  events.push({ type: 'artifactUnequipped', hero: hero.id, artifact: command.artifact });
+}
+
+export function transferArtifactCommand(
+  state: GameState,
+  command: Extract<Command, { type: 'transferArtifact' }>,
+  events: GameEvent[],
+): void {
+  if (command.from === command.to) {
+    throw new CommandRejectedError('cannot transfer an artifact to the same hero');
+  }
+  const from = requireOwnHero(state, command.from, command.player);
+  const to = requireOwnHero(state, command.to, command.player);
+  if (chebyshev(from.pos, to.pos) > 1) {
+    throw new CommandRejectedError('the two heroes are not adjacent');
+  }
+  const backpackIndex = from.backpack.indexOf(command.artifact);
+  if (backpackIndex !== -1) {
+    from.backpack.splice(backpackIndex, 1);
+  } else {
+    const equippedIndex = from.artifacts.indexOf(command.artifact);
+    if (equippedIndex === -1) {
+      throw new CommandRejectedError(`hero ${from.id} does not carry ${command.artifact}`);
+    }
+    from.artifacts.splice(equippedIndex, 1);
+  }
+  to.backpack.push(command.artifact);
+  events.push({
+    type: 'artifactTransferred',
+    from: from.id,
+    to: to.id,
+    artifact: command.artifact,
+  });
 }
 
 // --- artifacts ---

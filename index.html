@@ -20,6 +20,7 @@
         height: 100%;
       }
       .adventure-screen {
+        position: relative;
         display: flex;
         flex-direction: column;
         width: 1280px;
@@ -136,7 +137,7 @@
         align-items: center;
         justify-content: center;
         background: rgba(0, 0, 0, 0.5);
-        z-index: 20;
+        z-index: 40;
       }
       .modal-box {
         background: #f7e8c4;
@@ -156,6 +157,213 @@
         border-radius: 4px;
         padding: 8px;
         cursor: pointer;
+      }
+      /* town / hero overlay panels */
+      .panel-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: 30;
+      }
+      .panel {
+        background: #2d3748;
+        border: 2px solid #b7791f;
+        border-radius: 8px;
+        padding: 14px 18px;
+        width: 960px;
+        max-height: 740px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 13px;
+      }
+      .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .panel-title {
+        font-size: 17px;
+        font-weight: 700;
+      }
+      .panel-section {
+        background: #1a202c;
+        border-radius: 6px;
+        padding: 8px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .section-title {
+        font-weight: 600;
+        color: #ecc94b;
+        font-size: 13px;
+      }
+      .panel-status {
+        min-height: 16px;
+        font-size: 12px;
+        color: #fc8181;
+      }
+      .ui-button {
+        background: #4a5568;
+        color: #e2e8f0;
+        border: 1px solid #718096;
+        border-radius: 4px;
+        padding: 4px 10px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .ui-button:hover {
+        background: #5a6678;
+      }
+      .building-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+      }
+      .building-card {
+        text-align: left;
+        border-radius: 4px;
+        border: 1px solid #4a5568;
+        padding: 6px 8px;
+        background: #2d3748;
+        color: #e2e8f0;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .building-card .building-name {
+        font-weight: 600;
+        font-size: 12px;
+      }
+      .building-card .building-info {
+        font-size: 11px;
+        color: #a0aec0;
+      }
+      .building-card.built {
+        border-color: #48bb78;
+        background: #1f3a2c;
+        cursor: default;
+      }
+      .building-card.available {
+        border-color: #ecc94b;
+      }
+      .building-card.locked,
+      .building-card.unaffordable {
+        opacity: 0.65;
+        cursor: not-allowed;
+      }
+      .army-row-wrap {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .army-row-label {
+        width: 90px;
+        font-size: 12px;
+        color: #a0aec0;
+      }
+      .army-row {
+        display: flex;
+        gap: 4px;
+      }
+      .army-slot {
+        width: 96px;
+        height: 40px;
+        background: #2d3748;
+        color: #e2e8f0;
+        border: 1px solid #4a5568;
+        border-radius: 4px;
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .army-slot.selected {
+        border-color: #ecc94b;
+        background: #553c1c;
+      }
+      .recruit-row,
+      .trade-row,
+      .backpack-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .hero-columns {
+        display: flex;
+        gap: 12px;
+      }
+      .hero-column {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 0;
+      }
+      .stat-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        font-size: 12px;
+      }
+      .doll-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+      }
+      .doll-cell {
+        height: 32px;
+        border: 1px dashed #4a5568;
+        border-radius: 4px;
+        background: #2d3748;
+        color: #718096;
+        font-size: 10px;
+        cursor: pointer;
+      }
+      .doll-cell.filled {
+        border-style: solid;
+        border-color: #ecc94b;
+        color: #e2e8f0;
+      }
+      .count-dialog-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 35;
+      }
+      .count-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .count-input {
+        width: 64px;
+      }
+      .count-buttons {
+        display: flex;
+        gap: 8px;
+      }
+      .count-detail {
+        font-size: 12px;
+        min-height: 14px;
+      }
+      .trade-select {
+        background: #2d3748;
+        color: #e2e8f0;
+        border: 1px solid #4a5568;
+        border-radius: 4px;
+        padding: 3px 6px;
+      }
+      .guild-spell,
+      .skill-item {
+        font-size: 12px;
       }
     </style>
   </head>

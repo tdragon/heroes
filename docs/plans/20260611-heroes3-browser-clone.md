@@ -661,12 +661,13 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/ui/townScreen.ts`, `src/ui/heroScreen.ts`, `src/ui/dialogs.ts` (modal queue), `src/ui/recruitDialog.ts`, `src/ui/components.ts`
 - Create: `e2e/town-hero.spec.ts`
 
-- [ ] implement modal dialog queue bound to `pendingChoices` + informational events (week banner, sign, chest choice, level-up two-option picker, combat result)
-- [ ] implement town screen per §5.4: building grid with lock reasons, hall build menu, recruit dialog (slider+max), garrison/visiting rows with click-click swap, guild viewer, tavern hire, marketplace trade UI
-- [ ] implement hero screen + two-hero exchange: stats, skills, army with split dialog, artifact paper-doll + backpack
-- [ ] write unit tests for pure UI helpers (build-availability reasons, recruit max calc, trade rate calc rendering model)
-- [ ] write e2e: open town → build Town Hall → next day income reflects; recruit max pikemen → garrison badge updates; hero screen split stack; level-up dialog appears after Learning Stone ×2 and choice persists
-- [ ] run tests + e2e — must pass before task 15
+- [x] implement modal dialog queue bound to `pendingChoices` + informational events (week banner, sign, chest choice, level-up two-option picker, combat result)
+- [x] implement town screen per §5.4: building grid with lock reasons, hall build menu, recruit dialog (slider+max), garrison/visiting rows with click-click swap, guild viewer, tavern hire, marketplace trade UI
+- [x] implement hero screen + two-hero exchange: stats, skills, army with split dialog, artifact paper-doll + backpack
+- [x] write unit tests for pure UI helpers (build-availability reasons, recruit max calc, trade rate calc rendering model)
+- [x] write e2e: open town → build Town Hall → next day income reflects; recruit max pikemen → garrison badge updates; hero screen split stack; level-up dialog appears after Learning Stone ×2 and choice persists
+- [x] run tests + e2e — must pass before task 15
+- ➕ note: army/artifact manipulation needed dispatcher support — new commands `moveStack` (hero↔hero/garrison with co-location rules), `equipArtifact`/`unequipArtifact`, `transferArtifact` in `src/core/hero.ts` + `commands.ts` (tested in `src/core/armyCommands.test.ts`); pure UI models live in `src/ui/helpers.ts`; one Learning Stone visit (+1000 XP) already reaches level 2, so the e2e visits it once; two-hero exchange opens by clicking an adjacent own hero on the adventure map; town screen opens from the HUD town list, hero screen from the "Hero Details" HUD button
 
 ### Task 15: Combat screen UI
 

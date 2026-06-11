@@ -8,6 +8,7 @@ export interface HudCallbacks {
   onNextHero: () => void;
   onSelectHero: (id: string) => void;
   onSelectTown: (id: string) => void;
+  onOpenHeroScreen: () => void;
   onMinimapClick: (px: number, py: number) => void;
 }
 
@@ -156,7 +157,12 @@ export class Hud {
     stats.textContent = `MP ${String(hero.movementPoints)} | Mana ${String(hero.mana)}/${String(maxMana(hero, this.data))}`;
     const army = el('div', 'hero-panel-army', 'hero-panel-army');
     army.textContent = this.armySummary(hero);
-    this.heroPanel.append(name, pos, stats, army);
+    const details = el('button', 'hud-button', 'open-hero-screen');
+    details.textContent = 'Hero Details';
+    details.addEventListener('click', () => {
+      this.callbacks.onOpenHeroScreen();
+    });
+    this.heroPanel.append(name, pos, stats, army, details);
   }
 
   private armySummary(hero: Hero): string {
