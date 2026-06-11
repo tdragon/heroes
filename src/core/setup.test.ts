@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { loadGameData } from '../data';
 import { compileMap } from '../maps/dsl';
 import { tinyMapSource } from '../maps/fixtures/tiny.dsl';
-import { newGame, townIdAt } from './setup';
+import { DIFFICULTY_PRESETS, newGame, scaleResources, townIdAt } from './setup';
 import { isExplored } from './fog';
 import { type CreatureStack } from './state';
 
@@ -162,5 +162,71 @@ describe('newGame', () => {
     expect(isExplored(blue, size, [9, 9])).toBe(true);
     expect(isExplored(blue, size, [0, 0])).toBe(false);
     expect(red.explored).toHaveLength(size * size);
+  });
+});
+
+describe('difficulty settings', () => {
+  // tiny map: red is human, blue is AI
+
+  it('easy gives humans 30k gold and handicaps the AI by -20%', () => {
+    const state = newGame(tinyMap, { difficulty: 'easy' }, 1, data);
+    const [red, blue] = state.players;
+    expect(red?.isHuman).toBe(true);
+    expect(blue?.isHuman).toBe(false);
+    expect(red?.resources).toEqual({
+      gold: 30000,
+      wood: 30,
+      ore: 30,
+      mercury: 8,
+      sulfur: 8,
+      crystal: 8,
+      gems: 8,
+    });
+    expect(blue?.resources).toEqual({
+      gold: 24000,
+      wood: 24,
+      ore: 24,
+      mercury: 6,
+      sulfur: 6,
+      crystal: 6,
+      gems: 6,
+    });
+  });
+
+  it('hard gives humans 10k gold and boosts the AI by +20%', () => {
+    const state = newGame(tinyMap, { difficulty: 'hard' }, 1, data);
+    const [red, blue] = state.players;
+    expect(red?.resources.gold).toBe(10000);
+    expect(red?.resources.wood).toBe(10);
+    expect(blue?.resources.gold).toBe(12000);
+    expect(blue?.resources.wood).toBe(12);
+    expect(blue?.resources.gems).toBe(2); // round(2 * 1.2)
+  });
+
+  it('normal applies no handicap and matches the engine defaults', () => {
+    const state = newGame(tinyMap, { difficulty: 'normal' }, 1, data);
+    expect(state.players[0]?.resources).toEqual(state.players[1]?.resources);
+    expect(state.players[0]?.resources.gold).toBe(20000);
+    expect(DIFFICULTY_PRESETS.normal.aiResourceMultiplier).toBe(1);
+  });
+
+  it('explicit startingResources override the difficulty preset for humans and scale for AI', () => {
+    const state = newGame(
+      tinyMap,
+      { difficulty: 'easy', startingResources: { gold: 1000 } },
+      1,
+      data,
+    );
+    expect(state.players[0]?.resources.gold).toBe(1000);
+    expect(state.players[1]?.resources.gold).toBe(800);
+    expect(state.players[0]?.resources.wood).toBe(30);
+  });
+
+  it('scaleResources rounds each entry', () => {
+    const scaled = scaleResources(
+      { gold: 5, wood: 1, ore: 0, mercury: 3, sulfur: 0, crystal: 0, gems: 0 },
+      0.8,
+    );
+    expect(scaled).toEqual({ gold: 4, wood: 1, ore: 0, mercury: 2, sulfur: 0, crystal: 0, gems: 0 });
   });
 });

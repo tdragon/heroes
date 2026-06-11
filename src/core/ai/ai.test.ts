@@ -10,7 +10,12 @@ import { rollRange, seedRng, type RngState } from '../rng';
 import type { GameState } from '../state';
 import { chooseAICommand, chooseHeroCommand, heroOpportunities, armyPower } from './adventureAI';
 import { chooseCombatAction } from './combatAI';
-import { chooseBuildCommand, chooseRecruitCommand, maxAffordable } from './economyAI';
+import {
+  chooseBuildCommand,
+  chooseHireCommand,
+  chooseRecruitCommand,
+  maxAffordable,
+} from './economyAI';
 
 const data = loadGameData();
 const tinyMap = compileMap(tinyMapSource, data);
@@ -349,6 +354,46 @@ describe('economy AI', () => {
     expect(maxAffordable({ gold: 1000 }, { gold: 60 }, 99)).toBe(16);
     expect(maxAffordable({ gold: 100000 }, { gold: 60 }, 14)).toBe(14);
     expect(maxAffordable({ gold: 30 }, { gold: 60 }, 14)).toBe(0);
+  });
+
+  it('rehires a hero from the tavern when it has none', () => {
+    let state = newGame(tinyMap, {}, 3, data);
+    state = dispatch(
+      state,
+      { type: 'build', player: 'red', town: 'town-2-2', building: 'tavern' },
+      data,
+    ).state;
+    const town = state.towns['town-2-2'];
+    if (!town) throw new Error('red town missing');
+    expect(town.tavernHeroes.length).toBeGreaterThan(0);
+
+    // still has a hero — no hire
+    expect(chooseHireCommand(state, 'red')).toBeNull();
+
+    // the hero is gone (e.g. lost a battle): the AI must rehire
+    delete state.heroes.edric;
+    const red = state.players.find((p) => p.id === 'red');
+    if (!red) throw new Error('red player missing');
+    red.heroes = [];
+    town.visitingHero = null;
+    const hire = chooseHireCommand(state, 'red');
+    expect(hire?.type).toBe('hireHero');
+    if (hire?.type !== 'hireHero') throw new Error('expected a hireHero command');
+    const goldBefore = red.resources.gold;
+    state = dispatch(state, hire, data).state;
+    expect(state.players.find((p) => p.id === 'red')?.heroes).toHaveLength(1);
+    expect(state.players.find((p) => p.id === 'red')?.resources.gold).toBe(goldBefore - 2500);
+
+    // too poor to hire — no illegal command, keep saving
+    const poor = structuredClone(state);
+    const poorRed = poor.players.find((p) => p.id === 'red');
+    const poorTown = poor.towns['town-2-2'];
+    if (!poorRed || !poorTown) throw new Error('post-hire state broken');
+    poor.heroes = {};
+    poorRed.heroes = [];
+    poorTown.visitingHero = null;
+    poorRed.resources.gold = 100;
+    expect(chooseHireCommand(poor, 'red')).toBeNull();
   });
 });
 

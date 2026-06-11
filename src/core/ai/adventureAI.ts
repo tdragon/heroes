@@ -19,6 +19,7 @@ import {
 import { chooseCombatAction } from './combatAI';
 import {
   chooseBuildCommand,
+  chooseHireCommand,
   chooseRecruitCommand,
   chooseTradeCommand,
   hasAffordableRecruits,
@@ -151,6 +152,9 @@ export function chooseAICommand(state: GameState, data: GameData): Command {
   if (choice) {
     return { type: 'resolveChoice', player: playerId, choiceId: choice.id, option: 0 };
   }
+
+  const hire = chooseHireCommand(state, playerId);
+  if (hire) return hire;
 
   const build = chooseBuildCommand(state, playerId, data);
   if (build) return build;

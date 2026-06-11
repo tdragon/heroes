@@ -22,7 +22,7 @@ import {
   slotMeta,
   type SaveStorage,
 } from './saveload';
-import { configureMap, DIFFICULTY_RESOURCES, heroesOfFaction } from './newGameSetup';
+import { configureMap, heroesOfFaction } from './newGameSetup';
 
 const data = loadGameData();
 const tinyMap = compileMap(tinyMapSource, data);
@@ -220,12 +220,9 @@ describe('export / import', () => {
 
 describe('new game setup helpers', () => {
   it('difficulty presets scale starting resources', () => {
-    expect(DIFFICULTY_RESOURCES.easy.gold).toBe(30000);
-    expect(DIFFICULTY_RESOURCES.normal).toEqual({});
-    expect(DIFFICULTY_RESOURCES.hard.gold).toBe(10000);
-    const hard = newGame(tinyMap, { startingResources: DIFFICULTY_RESOURCES.hard }, 1, data);
+    const hard = newGame(tinyMap, { difficulty: 'hard' }, 1, data);
     expect(hard.players[0]?.resources.gold).toBe(10000);
-    const normal = newGame(tinyMap, { startingResources: DIFFICULTY_RESOURCES.normal }, 1, data);
+    const normal = newGame(tinyMap, { difficulty: 'normal' }, 1, data);
     expect(normal.players[0]?.resources.gold).toBe(20000);
   });
 

@@ -12,7 +12,7 @@ import {
   type PrimaryStat,
 } from './hero';
 import { castAdventureSpell } from './magic';
-import { moveHero } from './movement';
+import { moveHero, visitObject } from './movement';
 import { applyObjectReward, OBJECT_CHOICE_KINDS, resolveObjectChoice } from './objects';
 import {
   buildStructure,
@@ -42,6 +42,7 @@ export type ArmyLocation = { kind: 'hero'; hero: HeroId } | { kind: 'garrison'; 
 export type Command =
   | { type: 'endTurn'; player: PlayerId }
   | { type: 'moveHero'; player: PlayerId; hero: HeroId; path: Pos[] }
+  | { type: 'visitObject'; player: PlayerId; hero: HeroId }
   | { type: 'resolveChoice'; player: PlayerId; choiceId: string; option: number }
   | { type: 'combatAction'; player: PlayerId; action: GameCombatAction }
   | { type: 'build'; player: PlayerId; town: TownId; building: string }
@@ -228,6 +229,9 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
       break;
     case 'moveHero':
       moveHero(next, command, data, events);
+      break;
+    case 'visitObject':
+      visitObject(next, command, data, events);
       break;
     case 'resolveChoice':
       resolveChoice(next, command, data, events);

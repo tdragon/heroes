@@ -55,6 +55,33 @@ test('minimap click jumps the viewport', async ({ page }) => {
   await expect(canvas).toHaveAttribute('data-camera-y', '968');
 });
 
+test('keyboard shortcuts: E ends turn, H selects hero, Space visits, arrows pan', async ({
+  page,
+}) => {
+  // E ends the turn (AI passes, day advances)
+  await expect(page.getByTestId('date-indicator')).toHaveText('Day 1, Week 1, Month 1');
+  await page.keyboard.press('e');
+  await expect(page.getByTestId('date-indicator')).toHaveText('Day 2, Week 1, Month 1');
+
+  // H selects the next hero
+  await page.keyboard.press('h');
+  await expect(page.getByTestId('hero-pos')).toHaveText('4,5');
+
+  // Space on the own town tile opens the town screen, Escape closes it
+  await page.keyboard.press('Space');
+  await expect(page.getByTestId('town-screen')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('town-screen')).not.toBeVisible();
+
+  // arrow keys pan the camera by one tile
+  const canvas = page.getByTestId('adventure-canvas');
+  await expect(canvas).toHaveAttribute('data-camera-x', '0');
+  await page.keyboard.press('ArrowRight');
+  await expect(canvas).toHaveAttribute('data-camera-x', '48');
+  await page.keyboard.press('ArrowDown');
+  await expect(canvas).toHaveAttribute('data-camera-y', '48');
+});
+
 test('right-click shows an info popup for the hovered entity', async ({ page }) => {
   const [px, py] = await canvasPoint(page, 4, 5);
   await page.mouse.click(px, py, { button: 'right' });

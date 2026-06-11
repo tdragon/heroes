@@ -17,7 +17,30 @@ import {
   type Town,
 } from './state';
 
+export type Difficulty = 'easy' | 'normal' | 'hard';
+
+export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'normal', 'hard'];
+
+export interface DifficultyPreset {
+  startingResources: Partial<Resources>;
+  // AI players start with their resources scaled by this factor
+  aiResourceMultiplier: number;
+}
+
+export const DIFFICULTY_PRESETS: Record<Difficulty, DifficultyPreset> = {
+  easy: {
+    startingResources: { gold: 30000, wood: 30, ore: 30, mercury: 8, sulfur: 8, crystal: 8, gems: 8 },
+    aiResourceMultiplier: 0.8,
+  },
+  normal: { startingResources: {}, aiResourceMultiplier: 1 },
+  hard: {
+    startingResources: { gold: 10000, wood: 10, ore: 10, mercury: 2, sulfur: 2, crystal: 2, gems: 2 },
+    aiResourceMultiplier: 1.2,
+  },
+};
+
 export interface NewGameConfig {
+  difficulty?: Difficulty;
   startingResources?: Partial<Resources>;
 }
 
@@ -30,6 +53,14 @@ const DEFAULT_STARTING_RESOURCES: Resources = {
   crystal: 5,
   gems: 5,
 };
+
+export function scaleResources(resources: Resources, factor: number): Resources {
+  const scaled = { ...resources };
+  for (const key of Object.keys(scaled) as (keyof Resources)[]) {
+    scaled[key] = Math.round(scaled[key] * factor);
+  }
+  return scaled;
+}
 
 function rollStartArmy(state: GameState, template: HeroTemplate): ArmySlots {
   if (template.startArmy.length > ARMY_SLOTS) {
@@ -159,10 +190,13 @@ export function newGame(
   seed: number,
   data: GameData,
 ): GameState {
+  const preset = DIFFICULTY_PRESETS[config.difficulty ?? 'normal'];
   const startingResources: Resources = {
     ...DEFAULT_STARTING_RESOURCES,
+    ...preset.startingResources,
     ...config.startingResources,
   };
+  const aiStartingResources = scaleResources(startingResources, preset.aiResourceMultiplier);
 
   const state: GameState = {
     seed,
@@ -212,7 +246,10 @@ export function newGame(
       color: mapPlayer.color,
       faction: mapPlayer.faction,
       isHuman: mapPlayer.isHuman,
-      resources: { ...emptyResources(), ...startingResources },
+      resources: {
+        ...emptyResources(),
+        ...(mapPlayer.isHuman ? startingResources : aiStartingResources),
+      },
       heroes: [hero.id],
       towns: ownedTowns,
       explored: Array.from({ length: map.size * map.size }, () => false),

@@ -35,6 +35,7 @@ import {
   sideColor,
 } from '../render/combatRenderer';
 import { TokenPainter } from '../render/painter';
+import { combatShortcut, isTypingTarget } from '../app/shortcuts';
 import { el, type UiContext } from './components';
 import { SpellbookOverlay, spellbookEntries, type SpellbookEntry } from './spellbook';
 
@@ -340,15 +341,25 @@ export class CombatScreen {
   }
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
-    if (e.key !== 'Escape') return;
-    if (this.spellbook) {
-      e.preventDefault();
-      this.closeSpellbook();
-    } else if (this.targeting) {
-      e.preventDefault();
-      this.targeting = null;
-      this.statusEl.textContent = '';
+    if (isTypingTarget(e.target)) return;
+    if (e.key === 'Escape') {
+      if (this.spellbook) {
+        e.preventDefault();
+        this.closeSpellbook();
+      } else if (this.targeting) {
+        e.preventDefault();
+        this.targeting = null;
+        this.statusEl.textContent = '';
+      }
+      return;
     }
+    if (this.spellbook || this.targeting) return;
+    const shortcut = combatShortcut(e.key);
+    if (!shortcut) return;
+    const combat = this.combatState();
+    if (!combat || !this.isHumanTurn(combat)) return;
+    e.preventDefault();
+    this.onHumanAction({ type: shortcut.type });
   };
 
   private handleHexClick(hex: Hex, px: number, py: number): void {

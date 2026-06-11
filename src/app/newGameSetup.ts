@@ -1,19 +1,10 @@
 import type { GameData } from '../data';
 import type { FactionId, HeroTemplate } from '../data/schema';
 import type { GameMap, PlayerColor } from '../maps/schema';
-import type { Resources } from '../core/state';
+import { DIFFICULTIES, type Difficulty } from '../core/setup';
 import type { Screen } from './screens';
 
-export type Difficulty = 'easy' | 'normal' | 'hard';
-
-export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'normal', 'hard'];
-
-// normal uses the engine defaults (20000 gold etc.); Task 18 adds AI handicaps
-export const DIFFICULTY_RESOURCES: Record<Difficulty, Partial<Resources>> = {
-  easy: { gold: 30000, wood: 30, ore: 30, mercury: 8, sulfur: 8, crystal: 8, gems: 8 },
-  normal: {},
-  hard: { gold: 10000, wood: 10, ore: 10, mercury: 2, sulfur: 2, crystal: 2, gems: 2 },
-};
+export { DIFFICULTIES, type Difficulty };
 
 export interface PlayerSetup {
   color: PlayerColor;
@@ -51,7 +42,7 @@ export function configureMap(map: GameMap, data: GameData, setups: PlayerSetup[]
 }
 
 export interface NewGameSetupCallbacks {
-  onStart: (map: GameMap, startingResources: Partial<Resources>, seed: number) => void;
+  onStart: (map: GameMap, difficulty: Difficulty, seed: number) => void;
   onBack: () => void;
 }
 
@@ -223,7 +214,7 @@ export class NewGameSetup implements Screen {
     const difficulty = DIFFICULTIES.find((d) => d === this.difficultySelect.value) ?? 'normal';
     try {
       const map = configureMap(this.selectedMap, this.data, this.playerSetups());
-      this.callbacks.onStart(map, DIFFICULTY_RESOURCES[difficulty], Math.floor(seed));
+      this.callbacks.onStart(map, difficulty, Math.floor(seed));
     } catch (err) {
       this.status.textContent = err instanceof Error ? err.message : String(err);
     }

@@ -9,6 +9,7 @@ import {
   buildRejection,
   canPlace,
   GOLD_PER_RESOURCE,
+  HERO_HIRE_COST,
   marketplaceCount,
   townBuildingCatalog,
   tradeRate,
@@ -156,6 +157,22 @@ export function chooseRecruitCommand(
           count,
         };
       }
+    }
+  }
+  return null;
+}
+
+// a heroless AI can neither expand nor attack — rehire from any tavern offer
+// (without this, two heroless AIs end-turn forever and the game never ends)
+export function chooseHireCommand(state: GameState, playerId: PlayerId): Command | null {
+  const player = getPlayer(state, playerId);
+  if (player.heroes.length > 0) return null;
+  if (player.resources.gold < HERO_HIRE_COST) return null;
+  for (const town of ownTowns(state, playerId)) {
+    if (!town.buildings.includes('tavern') || town.visitingHero !== null) continue;
+    const offer = town.tavernHeroes.find((id) => !(id in state.heroes));
+    if (offer !== undefined) {
+      return { type: 'hireHero', player: playerId, town: town.id, hero: offer };
     }
   }
   return null;

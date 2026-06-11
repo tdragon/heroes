@@ -34,6 +34,7 @@ import {
   saveToSlot,
   type SaveStorage,
 } from './saveload';
+import { adventureShortcut, isTypingTarget, type AdventureShortcutAction } from './shortcuts';
 import type { Screen } from './screens';
 
 export interface ShellCallbacks {
@@ -774,24 +775,69 @@ export class AdventureScreen implements Screen {
     });
 
     window.addEventListener('keydown', (e) => {
-      if (!this.running) return;
-      if (e.key === 'Escape' && this.activePanel && this.dialogs.root.style.display === 'none') {
-        this.closePanel();
-        return;
+      if (!this.running || isTypingTarget(e.target)) return;
+      if (e.key === 'Escape' && this.dialogs.root.style.display === 'none') {
+        if (this.systemPanel) {
+          this.closeSystemPanel();
+          return;
+        }
+        if (this.activePanel) {
+          this.closePanel();
+          return;
+        }
       }
-      const pan: Record<string, [number, number]> = {
-        ArrowLeft: [-KEY_SCROLL_STEP, 0],
-        ArrowRight: [KEY_SCROLL_STEP, 0],
-        ArrowUp: [0, -KEY_SCROLL_STEP],
-        ArrowDown: [0, KEY_SCROLL_STEP],
-      };
-      const delta = pan[e.key];
-      if (delta) {
-        e.preventDefault();
-        this.camera = panCamera(this.camera, delta[0], delta[1], this.state.map.size);
-        this.markDirty();
-      }
+      if (this.shortcutsBlocked()) return;
+      const action = adventureShortcut(e.key, KEY_SCROLL_STEP);
+      if (!action) return;
+      e.preventDefault();
+      this.applyShortcut(action);
     });
+  }
+
+  // overlays own the keyboard while they are visible
+  private shortcutsBlocked(): boolean {
+    return (
+      this.activePanel !== null ||
+      this.systemPanel !== null ||
+      this.combatPanel !== null ||
+      this.dialogs.root.style.display !== 'none' ||
+      this.passOverlay.style.display !== 'none' ||
+      this.gameOverOverlay.style.display !== 'none'
+    );
+  }
+
+  private applyShortcut(action: AdventureShortcutAction): void {
+    switch (action.type) {
+      case 'endTurn':
+        this.endTurn();
+        break;
+      case 'nextHero':
+        this.selectNextHero();
+        break;
+      case 'visitHere':
+        this.visitHere();
+        break;
+      case 'pan':
+        this.camera = panCamera(this.camera, action.dx, action.dy, this.state.map.size);
+        this.markDirty();
+        break;
+    }
+  }
+
+  // Space: re-visit whatever the selected hero is standing on; an own town
+  // opens its screen instead of re-triggering the map object
+  private visitHere(): void {
+    if (this.selectedHero === null) return;
+    const hero = this.state.heroes[this.selectedHero];
+    if (hero?.owner !== this.viewPlayer().id) return;
+    const town = Object.values(this.state.towns).find(
+      (t) => t.pos[0] === hero.pos[0] && t.pos[1] === hero.pos[1],
+    );
+    if (town?.owner === hero.owner) {
+      this.openTownScreen(town.id);
+      return;
+    }
+    this.runCommand({ type: 'visitObject', player: hero.owner, hero: hero.id });
   }
 
   private edgeScroll(): void {

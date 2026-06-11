@@ -718,11 +718,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Modify: `src/data/*.json`, `src/core/setup.ts`, `src/ui/*`
 - Create: `src/core/balance.test.ts`
 
-- [ ] implement difficulty settings (easy/normal/hard: starting resources 30k/20k/10k & AI gets ±20% resource handicap)
-- [ ] add keyboard shortcuts (E end turn, H next hero, Space defend/visit again, arrows scroll), Esc closes dialogs, Enter confirms
-- [ ] sanity-balance via simulation: AI-vs-AI on both real maps × 10 seeds — assert games end, no faction wins > 80% of mirrorless matches (crude balance signal), log table of win rates
-- [ ] write tests: difficulty modifiers applied; shortcut→command mapping unit test; the simulation suite above as a slow tagged test (`npm run test:balance`)
-- [ ] run full check — must pass before task 19
+- [x] implement difficulty settings (easy/normal/hard: starting resources 30k/20k/10k & AI gets ±20% resource handicap)
+- [x] add keyboard shortcuts (E end turn, H next hero, Space defend/visit again, arrows scroll), Esc closes dialogs, Enter confirms
+- [x] sanity-balance via simulation: AI-vs-AI on both real maps × 10 seeds — assert games end, no faction wins > 80% of mirrorless matches (crude balance signal), log table of win rates
+- [x] write tests: difficulty modifiers applied; shortcut→command mapping unit test; the simulation suite above as a slow tagged test (`npm run test:balance`)
+- [x] run full check — must pass before task 19
+- ➕ note: difficulty moved into the core — `Difficulty`/`DIFFICULTY_PRESETS` live in `src/core/setup.ts` (`NewGameConfig.difficulty`; AI players get starting resources × 0.8/1.0/1.2 on easy/normal/hard, rounded); `newGameSetup.ts` re-exports them and passes the difficulty through `onStart`. Space "visit again" needed a new core command `visitObject` (re-triggers the object on the hero's tile; an own town opens the town screen instead); shortcut→action mapping is pure in `src/app/shortcuts.ts` (combat: Space = defend, Esc cancels spellbook/targeting; form controls never intercept). Balance suite: `src/core/balance.test.ts` excluded from the default vitest run, executed via `npm run test:balance` (vitest.balance.config.ts). The simulation exposed a real AI deadlock — a heroless AI never rehired from the tavern, so two heroless AIs ended turns forever; fixed with `chooseHireCommand` in `economyAI.ts`. Results (20/20 games end, ≤ day 68): castle 8/16 (50%), rampart 8/17 (47%), necropolis 4/17 (24%) — no data tweaks needed under the 80% gate
 
 ### Task 19: Verify acceptance criteria
 

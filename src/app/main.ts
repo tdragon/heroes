@@ -49,8 +49,8 @@ router.register(
 router.register(
   'new-game',
   new NewGameSetup(data, allMaps, {
-    onStart: (map, startingResources, seed) => {
-      startGame(newGame(map, { startingResources }, seed, data));
+    onStart: (map, difficulty, seed) => {
+      startGame(newGame(map, { difficulty }, seed, data));
     },
     onBack: () => {
       router.show('main-menu');

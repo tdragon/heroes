@@ -256,6 +256,30 @@ export function pathCost(ctx: MoveContext, start: Pos, path: readonly Pos[]): nu
 }
 
 export type MoveHeroCommand = Extract<Command, { type: 'moveHero' }>;
+export type VisitObjectCommand = Extract<Command, { type: 'visitObject' }>;
+
+// re-trigger the object on the hero's current tile (Space shortcut)
+export function visitObject(
+  state: GameState,
+  command: VisitObjectCommand,
+  data: GameData,
+  events: GameEvent[],
+): void {
+  const hero = state.heroes[command.hero];
+  if (!hero) {
+    throw new CommandRejectedError(`unknown hero: ${command.hero}`);
+  }
+  if (hero.owner !== command.player) {
+    throw new CommandRejectedError(`hero ${hero.id} belongs to ${hero.owner}`);
+  }
+  const ctx = buildMoveContext(state, data, hero);
+  const triggerId = ctx.triggers[tileIndex(ctx, hero.pos)] ?? null;
+  if (triggerId === null) {
+    throw new CommandRejectedError('nothing to visit here');
+  }
+  events.push({ type: 'objectTriggered', hero: hero.id, object: triggerId });
+  handleObjectTrigger(state, hero, triggerId, data, events);
+}
 
 function townAt(state: GameState, pos: Pos): string | null {
   for (const town of Object.values(state.towns)) {

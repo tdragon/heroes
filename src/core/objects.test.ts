@@ -630,3 +630,46 @@ describe('towns', () => {
     expect(events.some((e) => e.type === 'combatStarted')).toBe(true);
   });
 });
+
+describe('visitObject command', () => {
+  it('re-triggers the object on the hero tile (Space shortcut)', () => {
+    const state = makeGame();
+    const hero = getHero(state, 'edric');
+    const well = findObject(state, 'magic_well');
+    hero.pos = [...well.at];
+    hero.mana = 0;
+    const result = dispatch(state, { type: 'visitObject', player: 'red', hero: 'edric' }, data);
+    expect(result.state.heroes.edric?.mana).toBeGreaterThan(0);
+    expect(
+      result.events.some((e) => e.type === 'objectTriggered' && e.object === well.id),
+    ).toBe(true);
+
+    // second visit the same day has no effect but is still a legal command
+    const again = dispatch(
+      result.state,
+      { type: 'visitObject', player: 'red', hero: 'edric' },
+      data,
+    );
+    expect(again.events).toContainEqual({
+      type: 'objectVisited',
+      hero: 'edric',
+      object: well.id,
+      effect: false,
+    });
+  });
+
+  it('rejects when there is nothing to visit on the tile', () => {
+    const state = makeGame();
+    getHero(state, 'edric').pos = [8, 12];
+    expect(() =>
+      dispatch(state, { type: 'visitObject', player: 'red', hero: 'edric' }, data),
+    ).toThrow('nothing to visit');
+  });
+
+  it("rejects visiting with another player's hero", () => {
+    const state = makeGame();
+    expect(() =>
+      dispatch(state, { type: 'visitObject', player: 'red', hero: 'mortus' }, data),
+    ).toThrow(/belongs to/);
+  });
+});
