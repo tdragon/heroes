@@ -40,6 +40,7 @@ function makeHero(pos: Pos, overrides: Partial<Hero> = {}): Hero {
     skills: [],
     army: Array.from({ length: 7 }, () => null),
     artifacts: [],
+    backpack: [],
     hasSpellbook: false,
     spells: [],
     mana: 0,

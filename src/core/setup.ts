@@ -70,6 +70,7 @@ function createHero(state: GameState, mapPlayer: MapPlayer, data: GameData): Her
     skills: template.startSkills.map((s) => ({ skill: s.skill, rank: s.rank })),
     army: rollStartArmy(state, template),
     artifacts: [],
+    backpack: [],
     hasSpellbook: heroClass.hasSpellbook,
     spells: template.startSpell !== undefined ? [template.startSpell] : [],
     mana: 0,

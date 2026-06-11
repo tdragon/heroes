@@ -552,11 +552,11 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Modify: `src/core/hero.ts`
 - Create: `src/core/hero.test.ts`
 
-- [ ] implement XP gain + level threshold table; level-up: class-weighted primary stat roll + two-skill offer as `pendingChoices` entry (§3.3); `resolveChoice` applies pick
-- [ ] implement army ops: merge/split/swap stacks between slots and between two heroes / hero↔garrison; 7-slot limit; cannot leave hero with empty army
-- [ ] implement artifact equip/unequip with slot validation + stat/skill aggregation helper `effectiveStats(hero)`
-- [ ] write tests: threshold boundaries; multi-level single XP gain queues multiple choices; stat roll uses seeded rng (golden values); 8-skill cap offers upgrades only; army split/merge invariants (total count conserved); artifact slot rules and stat aggregation
-- [ ] run tests — must pass before task 7
+- [x] implement XP gain + level threshold table; level-up: class-weighted primary stat roll + two-skill offer as `pendingChoices` entry (§3.3); `resolveChoice` applies pick
+- [x] implement army ops: merge/split/swap stacks between slots and between two heroes / hero↔garrison; 7-slot limit; cannot leave hero with empty army
+- [x] implement artifact equip/unequip with slot validation + stat/skill aggregation helper `effectiveStats(hero)`
+- [x] write tests: threshold boundaries; multi-level single XP gain queues multiple choices; stat roll uses seeded rng (golden values); 8-skill cap offers upgrades only; army split/merge invariants (total count conserved); artifact slot rules and stat aggregation
+- [x] run tests — must pass before task 7
 
 ### Task 7: Adventure map object interactions
 

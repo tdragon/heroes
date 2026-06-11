@@ -1,5 +1,11 @@
 import type { GameData } from '../data';
-import { RESOURCE_IDS, type FactionId, type ResourceId, type SkillRank } from '../data/schema';
+import {
+  RESOURCE_IDS,
+  type Artifact,
+  type FactionId,
+  type ResourceId,
+  type SkillRank,
+} from '../data/schema';
 import type { Guard, PlayerColor, Pos } from '../maps/schema';
 import type { RngState } from './rng';
 
@@ -40,6 +46,7 @@ export interface Hero {
   skills: HeroSkill[];
   army: ArmySlots;
   artifacts: string[];
+  backpack: string[];
   hasSpellbook: boolean;
   spells: string[];
   mana: number;
@@ -105,6 +112,7 @@ export interface PendingChoice {
   player: PlayerId;
   kind: string;
   options: string[];
+  hero?: HeroId;
 }
 
 export type CombatState = Record<string, unknown>;
@@ -171,18 +179,33 @@ export function skillValue(hero: Hero, skillId: string, data: GameData): number 
   return skill.values[RANK_INDEX[entry.rank]] ?? 0;
 }
 
+export type ArtifactBonusKey = keyof Artifact['bonuses'];
+
+export function artifactBonus(hero: Hero, key: ArtifactBonusKey, data: GameData): number {
+  let total = 0;
+  for (const id of hero.artifacts) {
+    const artifact = data.artifacts[id];
+    if (!artifact) {
+      throw new Error(`unknown artifact: ${id}`);
+    }
+    total += artifact.bonuses[key] ?? 0;
+  }
+  return total;
+}
+
 export function maxMana(hero: Hero, data: GameData): number {
   const intelligence = skillValue(hero, 'intelligence', data);
-  return Math.floor(hero.knowledge * 10 * (1 + intelligence / 100));
+  const knowledge = hero.knowledge + artifactBonus(hero, 'knowledge', data);
+  return Math.floor(knowledge * 10 * (1 + intelligence / 100));
 }
 
 export function manaRegenPerDay(hero: Hero, data: GameData): number {
   const mysticism = skillValue(hero, 'mysticism', data);
-  return Math.max(1, mysticism);
+  return Math.max(1, mysticism) + artifactBonus(hero, 'manaRegen', data);
 }
 
 export function sightRadius(hero: Hero, data: GameData): number {
-  return 5 + skillValue(hero, 'scouting', data);
+  return 5 + skillValue(hero, 'scouting', data) + artifactBonus(hero, 'sightRadius', data);
 }
 
 export function revealCircle(explored: boolean[], size: number, center: Pos, radius: number): void {

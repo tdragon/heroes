@@ -1,5 +1,6 @@
 import type { GameData } from '../data';
 import type { Pos } from '../maps/schema';
+import { applyLevelUpChoice, type PrimaryStat } from './hero';
 import { moveHero } from './movement';
 import { endTurn } from './turn';
 import type { GameState, HeroId, ObjectId, PlayerId, Resources, TownId } from './state';
@@ -18,6 +19,8 @@ export type GameEvent =
   | { type: 'growth'; town: TownId }
   | { type: 'heroMoved'; hero: HeroId; from: Pos; to: Pos; mpLeft: number }
   | { type: 'objectTriggered'; hero: HeroId; object: ObjectId }
+  | { type: 'heroXpGained'; hero: HeroId; amount: number; total: number }
+  | { type: 'heroLevelUp'; hero: HeroId; level: number; stat: PrimaryStat }
   | { type: 'choiceResolved'; choiceId: string; option: number };
 
 export interface DispatchResult {
@@ -52,6 +55,9 @@ function resolveChoice(
     throw new CommandRejectedError(
       `choice ${choice.id}: option ${String(command.option)} out of range`,
     );
+  }
+  if (choice.kind === 'levelUp') {
+    applyLevelUpChoice(state, choice, command.option);
   }
   state.pendingChoices = state.pendingChoices.filter((c) => c.id !== choice.id);
   events.push({ type: 'choiceResolved', choiceId: choice.id, option: command.option });
