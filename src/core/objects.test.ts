@@ -288,12 +288,13 @@ describe('guards', () => {
     expect(state.combat).toBeNull();
   });
 
-  it('attack queues a pending combat (fails until Task 9 resolves fights)', () => {
+  it('attack starts a real combat against the guard', () => {
     const state = makeGame();
     visit(state, 'edric', 'mine', [7, 1]);
     const events = resolveLast(state, 0);
-    expect(state.combat).toMatchObject({ kind: 'pendingCombat', attacker: 'edric' });
-    expect(events.some((e) => e.type === 'combatQueued')).toBe(true);
+    expect(state.combat).toMatchObject({ reason: 'guard', attackerHero: 'edric' });
+    expect(state.combat?.combat.stacks.some((s) => s.creature === 'wolf')).toBe(true);
+    expect(events.some((e) => e.type === 'combatStarted')).toBe(true);
   });
 
   it('wandering monsters act as their own guard', () => {
@@ -601,7 +602,7 @@ describe('towns', () => {
     });
   });
 
-  it('queues a siege for a defended enemy town (fails until Task 9)', () => {
+  it('starts a siege for a defended enemy town', () => {
     const state = makeGame();
     const blueTown = state.towns[townIdAt([13, 13])];
     if (!blueTown) throw new Error('missing blue town');
@@ -609,16 +610,23 @@ describe('towns', () => {
     blueTown.garrison[0] = { creature: 'skeleton', count: 10 };
     const events = visit(state, 'edric', 'town', [13, 13]);
     expect(blueTown.owner).toBe('blue');
-    expect(state.combat).toMatchObject({ kind: 'pendingCombat', reason: 'siege' });
-    expect(events.some((e) => e.type === 'combatQueued')).toBe(true);
+    expect(state.combat).toMatchObject({
+      reason: 'siege',
+      attackerHero: 'edric',
+      defenderHero: null,
+      defenderTown: blueTown.id,
+    });
+    expect(state.combat?.defenderSlots).toEqual([{ source: 'garrison', index: 0 }]);
+    expect(events.some((e) => e.type === 'combatStarted')).toBe(true);
   });
 
-  it('queues a siege when an enemy hero is visiting the town', () => {
+  it('starts a siege when an enemy hero is visiting the town', () => {
     const state = makeGame();
     const blueTown = state.towns[townIdAt([13, 13])];
     if (!blueTown) throw new Error('missing blue town');
     const events = visit(state, 'edric', 'town', [13, 13]);
     expect(blueTown.owner).toBe('blue');
-    expect(events.some((e) => e.type === 'combatQueued')).toBe(true);
+    expect(state.combat).toMatchObject({ reason: 'siege', defenderHero: 'mortus' });
+    expect(events.some((e) => e.type === 'combatStarted')).toBe(true);
   });
 });

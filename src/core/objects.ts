@@ -2,8 +2,10 @@ import type { GameData } from '../data';
 import type { ResourceId } from '../data/schema';
 import { objectFootprint } from '../maps/dsl';
 import type { Guard, Pos } from '../maps/schema';
+import { captureTown, startGuardCombat, startSiegeCombat } from './combat/resolve';
 import { CommandRejectedError, type GameEvent } from './commands';
 import { giveArtifact, giveExperience } from './hero';
+import { learnGuildSpells } from './magic';
 import { rollRange } from './rng';
 import { instantiateHero, townIdAt } from './setup';
 import {
@@ -80,18 +82,6 @@ function offerGuardFight(
   });
 }
 
-// TODO(Task 8): replace the placeholder with real combat setup once the combat engine lands
-function queueCombat(
-  state: GameState,
-  hero: Hero,
-  obj: MapObjectState,
-  reason: 'guard' | 'siege',
-  events: GameEvent[],
-): void {
-  state.combat = { kind: 'pendingCombat', attacker: hero.id, object: obj.id, reason };
-  events.push({ type: 'combatQueued', attacker: hero.id, object: obj.id });
-}
-
 function townAtObject(state: GameState, obj: MapObjectState): Town {
   const town = state.towns[townIdAt(obj.at)];
   if (!town) {
@@ -100,42 +90,28 @@ function townAtObject(state: GameState, obj: MapObjectState): Town {
   return town;
 }
 
-function captureTown(
+function enterTown(
   state: GameState,
   hero: Hero,
   obj: MapObjectState,
-  town: Town,
+  data: GameData,
   events: GameEvent[],
 ): void {
-  const previousOwner = town.owner;
-  if (previousOwner !== null) {
-    const prev = getPlayer(state, previousOwner);
-    prev.towns = prev.towns.filter((id) => id !== town.id);
-  }
-  const player = getPlayer(state, hero.owner);
-  if (!player.towns.includes(town.id)) {
-    player.towns.push(town.id);
-  }
-  town.owner = hero.owner;
-  obj.owner = hero.owner;
-  town.visitingHero = hero.id;
-  revealCircle(player.explored, state.map.size, town.pos, 5);
-  events.push({ type: 'townCaptured', town: town.id, player: hero.owner, previousOwner });
-}
-
-function enterTown(state: GameState, hero: Hero, obj: MapObjectState, events: GameEvent[]): void {
   const town = townAtObject(state, obj);
   if (town.owner === hero.owner) {
     town.visitingHero ??= hero.id;
     events.push({ type: 'objectVisited', hero: hero.id, object: obj.id, effect: true });
+    const learned = learnGuildSpells(hero, town, data);
+    if (learned.length > 0) {
+      events.push({ type: 'spellsLearned', hero: hero.id, spells: learned });
+    }
     return;
   }
   if (town.garrison.some((stack) => stack !== null) || town.visitingHero !== null) {
-    // TODO(Task 9/10): siege battle against garrison/visiting hero, capture on victory
-    queueCombat(state, hero, obj, 'siege', events);
+    startSiegeCombat(state, hero, obj, town, data, events);
     return;
   }
-  captureTown(state, hero, obj, town, events);
+  captureTown(state, hero, obj, town, data, events);
 }
 
 function flagObject(hero: Hero, obj: MapObjectState, events: GameEvent[]): void {
@@ -457,7 +433,7 @@ export function applyObjectReward(
   }
   switch (obj.type) {
     case 'town':
-      enterTown(state, hero, obj, events);
+      enterTown(state, hero, obj, data, events);
       break;
     case 'mine':
     case 'dwelling':
@@ -610,13 +586,16 @@ function resolveGuardChoice(
   state: GameState,
   choice: PendingChoice,
   option: number,
+  data: GameData,
   events: GameEvent[],
 ): void {
   const { hero, obj } = choiceContext(state, choice);
   if (choice.options[option] !== 'attack') return;
-  // TODO(Task 8/9): combat resolves the fight; on victory the guard is cleared
-  // and applyObjectReward(state, hero, obj, …) finishes the interaction
-  queueCombat(state, hero, obj, 'guard', events);
+  const guard = liveGuard(obj);
+  if (!guard) {
+    throw new Error(`guard choice ${choice.id} has no living guard`);
+  }
+  startGuardCombat(state, hero, obj, guard, data, events);
 }
 
 export const OBJECT_CHOICE_KINDS = ['chest', 'schoolOfWar', 'guardAttack'] as const;
@@ -636,7 +615,7 @@ export function resolveObjectChoice(
       resolveSchoolOfWarChoice(state, choice, option, data, events);
       break;
     case 'guardAttack':
-      resolveGuardChoice(state, choice, option, events);
+      resolveGuardChoice(state, choice, option, data, events);
       break;
     default:
       throw new Error(`unhandled object choice kind: ${choice.kind}`);

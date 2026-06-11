@@ -58,8 +58,29 @@ export function hexDistance(a: Hex, b: Hex): number {
   return (Math.abs(ax - bx) + Math.abs(ay - by) + Math.abs(az - bz)) / 2;
 }
 
-// BFS over standable hexes; returns hexes reachable in 1..speed steps (start excluded)
-export function bfsReachable(start: Hex, speed: number, canStand: (h: Hex) => boolean): Hex[] {
+function fromCube(x: number, z: number): Hex {
+  const parity = ((z % 2) + 2) % 2;
+  return { x: x + (z - parity) / 2, y: z };
+}
+
+// the hex one step beyond `through` along the from->through direction
+// (dragon breath); null when the hexes are not adjacent or it leaves the field
+export function hexLineExtend(from: Hex, through: Hex): Hex | null {
+  if (hexDistance(from, through) !== 1) return null;
+  const [fx, , fz] = toCube(from);
+  const [tx, , tz] = toCube(through);
+  const beyond = fromCube(tx + (tx - fx), tz + (tz - fz));
+  return inField(beyond) ? beyond : null;
+}
+
+// BFS over standable hexes; returns hexes reachable in 1..speed steps (start
+// excluded). `stopAt` hexes can be entered but not moved through (moat).
+export function bfsReachable(
+  start: Hex,
+  speed: number,
+  canStand: (h: Hex) => boolean,
+  stopAt?: (h: Hex) => boolean,
+): Hex[] {
   const visited = new Set<number>([hexKey(start)]);
   const out: Hex[] = [];
   let frontier: Hex[] = [start];
@@ -72,7 +93,7 @@ export function bfsReachable(start: Hex, speed: number, canStand: (h: Hex) => bo
         visited.add(key);
         if (!canStand(neighbor)) continue;
         out.push(neighbor);
-        next.push(neighbor);
+        if (!stopAt?.(neighbor)) next.push(neighbor);
       }
     }
     frontier = next;

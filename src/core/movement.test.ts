@@ -67,6 +67,7 @@ function makeState(terrain: string[], roads?: string[], heroes: Hero[] = []): Ga
     heroes: Object.fromEntries(heroes.map((h) => [h.id, h])),
     towns: {},
     combat: null,
+    tavernPool: [],
     pendingChoices: [],
     status: 'running',
   };

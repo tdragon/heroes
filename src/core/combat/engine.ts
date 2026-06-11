@@ -1,8 +1,30 @@
 import type { GameData } from '../../data';
-import type { Creature, SpecialType } from '../../data/schema';
+import type { Creature } from '../../data/schema';
 import { effectiveStats } from '../hero';
-import type { RngState } from '../rng';
+import { rollChance, rollRange, type RngState } from '../rng';
 import { skillValue, type Hero } from '../state';
+import {
+  addEffect,
+  damageStack,
+  effectiveAttack,
+  effectiveDefense,
+  effectiveHp,
+  effectiveSpeed,
+  getEffect,
+  hasSpecial,
+  healTopCreature,
+  isBlinded,
+  isBound,
+  MORALE_LUCK_DIE,
+  ON_HIT_EFFECT_ROUNDS,
+  requireCreature,
+  resurrectStack,
+  sideLuck,
+  specialValue,
+  stackHpPool,
+  stackMorale,
+  type DamageOutcome,
+} from './abilities';
 import {
   computeDamage,
   RANGED_PENALTY_DISTANCE,
@@ -17,10 +39,26 @@ import {
   hexDistance,
   hexEquals,
   hexKey,
+  hexLineExtend,
   inField,
   type Hex,
 } from './grid';
+import { castCombatSpell, type CastAction } from '../magic';
 import {
+  CATAPULT_HIT_CHANCE,
+  createSiege,
+  isMoatHex,
+  MOAT_DAMAGE,
+  siegeBlockedHexes,
+  standingSegments,
+  TOWER_CREATURE,
+  WALL_MELEE_DAMAGE,
+  WALL_X,
+  wallsBreached,
+  type SiegeLevel,
+} from './siege';
+import {
+  CombatRuleError,
   getCombatStack,
   heroInfoFor,
   isStackAlive,
@@ -28,64 +66,30 @@ import {
   occupiedHexes,
   oppositeSide,
   tailOffset,
+  type CombatEvent,
   type CombatHeroInfo,
   type CombatSideId,
   type CombatStack,
   type CombatState,
 } from './state';
 
+export { CombatRuleError, type CombatEvent } from './state';
+export { applyDamage } from './abilities';
+
 export type CombatAction =
   | { type: 'move'; to: Hex }
   | { type: 'melee'; target: string; from: Hex }
   | { type: 'shoot'; target: string }
   | { type: 'defend' }
-  | { type: 'wait' };
-
-export type CombatEvent =
-  | { type: 'combatStarted'; obstacles: Hex[] }
-  | { type: 'roundStarted'; round: number }
-  | { type: 'stackMoved'; stack: string; from: Hex; to: Hex }
-  | {
-      type: 'stackAttacked';
-      attacker: string;
-      target: string;
-      damage: number;
-      kills: number;
-      ranged: boolean;
-      retaliation: boolean;
-    }
-  | { type: 'stackDied'; stack: string }
-  | { type: 'stackWaited'; stack: string }
-  | { type: 'stackDefended'; stack: string }
-  | { type: 'combatEnded'; winner: CombatSideId };
-
-export class CombatRuleError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'CombatRuleError';
-  }
-}
+  | { type: 'wait' }
+  | ({ type: 'cast' } & CastAction)
+  | { type: 'resurrect'; target: string }
+  | { type: 'attackWall'; segment: number; from: Hex };
 
 export const DEFEND_DEFENSE_BONUS = 0.2;
 
 // rows used for up to 7 deployment slots, spread top-to-bottom
 const SLOT_ROWS: readonly number[] = [0, 2, 4, 5, 6, 8, 10];
-
-function requireCreature(data: GameData, id: string): Creature {
-  const creature = data.creatures[id];
-  if (!creature) {
-    throw new Error(`unknown creature: ${id}`);
-  }
-  return creature;
-}
-
-function hasSpecial(creature: Creature, type: SpecialType): boolean {
-  return creature.specials.some((s) => s.type === type);
-}
-
-function specialValue(creature: Creature, type: SpecialType): number | undefined {
-  return creature.specials.find((s) => s.type === type)?.value;
-}
 
 export function heroCombatInfo(hero: Hero, data: GameData): CombatHeroInfo {
   const stats = effectiveStats(hero, data);
@@ -99,6 +103,17 @@ export function heroCombatInfo(hero: Hero, data: GameData): CombatHeroInfo {
     offenseBonus: skillValue(hero, 'offense', data) / 100,
     archeryBonus: skillValue(hero, 'archery', data) / 100,
     armorerReduction: skillValue(hero, 'armorer', data) / 100,
+    morale: stats.morale + hero.tempMorale,
+    luck: stats.luck + hero.tempLuck,
+    mana: hero.mana,
+    hasSpellbook: hero.hasSpellbook,
+    spells: [...hero.spells],
+    schoolTiers: {
+      air: skillValue(hero, 'air_magic', data),
+      earth: skillValue(hero, 'earth_magic', data),
+      fire: skillValue(hero, 'fire_magic', data),
+      water: skillValue(hero, 'water_magic', data),
+    },
   };
 }
 
@@ -112,6 +127,7 @@ export interface CombatSetup {
   defender: { hero: CombatHeroInfo; stacks: CombatArmyStack[] };
   rng: RngState;
   obstacles?: Hex[];
+  siege?: SiegeLevel;
 }
 
 function deploySide(
@@ -139,18 +155,22 @@ function deploySide(
       slot,
       creature: creature.id,
       count: entry.count,
+      initialCount: entry.count,
       firstHp: creature.hp,
       pos: { x, y: row },
       shots: creature.shots ?? 0,
       retaliationsLeft: 0,
       defending: false,
       waited: false,
+      moraleSurged: false,
+      usedResurrect: false,
+      effects: [],
     };
   });
 }
 
 function stackSpeed(stack: CombatStack, data: GameData): number {
-  return requireCreature(data, stack.creature).speed;
+  return effectiveSpeed(stack, requireCreature(data, stack.creature));
 }
 
 // speed order with side-alternating ties, attacker first (spec 7.2)
@@ -184,16 +204,242 @@ function retaliationsFor(creature: Creature): number {
   return specialValue(creature, 'extraRetaliations') ?? 1;
 }
 
+function pushDamageEvents(
+  target: CombatStack,
+  outcome: DamageOutcome,
+  events: CombatEvent[],
+): void {
+  if (outcome.blindBroken) {
+    events.push({ type: 'effectExpired', stack: target.id, kind: 'blind' });
+  }
+  if (outcome.died) {
+    events.push({ type: 'stackDied', stack: target.id });
+  }
+}
+
+function expireEffects(combat: CombatState, data: GameData, events: CombatEvent[]): void {
+  for (const stack of combat.stacks) {
+    if (!isStackAlive(stack)) continue;
+    const kept: typeof stack.effects = [];
+    for (const effect of stack.effects) {
+      effect.rounds -= 1;
+      let expired = effect.rounds <= 0;
+      // bind holds only while a living enemy binder stands adjacent
+      if (effect.kind === 'bind') {
+        const binderAdjacent = livingStacks(combat, oppositeSide(stack.side)).some((enemy) => {
+          const enemyCreature = requireCreature(data, enemy.creature);
+          if (!hasSpecial(enemyCreature, 'bind')) return false;
+          const enemyHexes = occupiedHexes(enemy, enemyCreature);
+          const ownHexes = occupiedHexes(stack, requireCreature(data, stack.creature));
+          return ownHexes.some((h) => enemyHexes.some((e) => hexDistance(h, e) === 1));
+        });
+        expired = !binderAdjacent;
+        if (!expired) effect.rounds = 1;
+      }
+      if (expired) {
+        events.push({ type: 'effectExpired', stack: stack.id, kind: effect.kind });
+      } else {
+        kept.push(effect);
+      }
+    }
+    stack.effects = kept;
+  }
+}
+
+function processRegeneration(combat: CombatState, data: GameData, events: CombatEvent[]): void {
+  for (const stack of livingStacks(combat)) {
+    const creature = requireCreature(data, stack.creature);
+    if (!hasSpecial(creature, 'regeneration')) continue;
+    const maxHp = effectiveHp(stack, creature);
+    const healed = healTopCreature(stack, maxHp, maxHp);
+    if (healed > 0) {
+      events.push({ type: 'stackHealed', stack: stack.id, amount: healed });
+    }
+  }
+}
+
+function processManaDrain(combat: CombatState, data: GameData, events: CombatEvent[]): void {
+  for (const stack of livingStacks(combat)) {
+    const drain = specialValue(requireCreature(data, stack.creature), 'manaDrain');
+    if (drain === undefined) continue;
+    const enemySide = oppositeSide(stack.side);
+    const enemyHero = heroInfoFor(combat, enemySide);
+    const amount = Math.min(enemyHero.mana, drain);
+    if (amount <= 0) continue;
+    enemyHero.mana -= amount;
+    events.push({ type: 'manaDrained', side: enemySide, amount, by: stack.id });
+  }
+}
+
+function nearestEnemyToHex(
+  combat: CombatState,
+  side: CombatSideId,
+  from: Hex,
+  data: GameData,
+): CombatStack | null {
+  let best: CombatStack | null = null;
+  let bestDistance = Infinity;
+  for (const stack of livingStacks(combat, side)) {
+    const distance = Math.min(
+      ...occupiedHexes(stack, requireCreature(data, stack.creature)).map((h) =>
+        hexDistance(from, h),
+      ),
+    );
+    if (distance < bestDistance || (distance === bestDistance && best && stack.id < best.id)) {
+      best = stack;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+function processSiegeRoundStart(combat: CombatState, data: GameData, events: CombatEvent[]): void {
+  const siege = combat.siege;
+  if (!siege) return;
+
+  // attacker catapult: 50% to hit a random standing wall segment, 2 dmg on luck
+  const targets = standingSegments(siege, false);
+  if (targets.length > 0) {
+    const [hit, afterHit] = rollChance(combat.rngState, CATAPULT_HIT_CHANCE);
+    combat.rngState = afterHit;
+    if (hit) {
+      const [pick, afterPick] = rollRange(combat.rngState, 0, targets.length - 1);
+      combat.rngState = afterPick;
+      const segment = targets[pick];
+      if (!segment) throw new Error('catapult segment pick out of range');
+      let damage = 1;
+      const luck = sideLuck(combat, 'attacker');
+      if (luck > 0) {
+        const [lucky, afterLuck] = rollChance(combat.rngState, luck / MORALE_LUCK_DIE);
+        combat.rngState = afterLuck;
+        if (lucky) damage = 2;
+      }
+      segment.hp = Math.max(0, segment.hp - damage);
+      events.push({
+        type: 'wallHit',
+        segment: siege.segments.indexOf(segment),
+        damage,
+        hp: segment.hp,
+        source: 'catapult',
+      });
+    }
+  }
+
+  // defender arrow towers shoot the nearest attacker stack
+  const archer = requireCreature(data, TOWER_CREATURE);
+  siege.towers.forEach((tower, index) => {
+    const target = nearestEnemyToHex(combat, 'attacker', tower.pos, data);
+    if (!target) return;
+    const targetCreature = requireCreature(data, target.creature);
+    const [base, afterBase] = rollBaseDamage(
+      combat.rngState,
+      archer.dmgMin,
+      archer.dmgMax,
+      tower.count,
+    );
+    combat.rngState = afterBase;
+    const breakdown = computeDamage({
+      base,
+      attack: archer.attack + combat.defenderHero.attack,
+      defense:
+        effectiveDefense(target, targetCreature) +
+        combat.attackerHero.defense +
+        (target.defending ? Math.floor(targetCreature.defense * DEFEND_DEFENSE_BONUS) : 0),
+      ranged: true,
+      distancePenalty: hexDistance(tower.pos, target.pos) > RANGED_PENALTY_DISTANCE,
+      armorerReduction: combat.attackerHero.armorerReduction,
+    });
+    const outcome = damageStack(target, targetCreature, breakdown.total);
+    events.push({
+      type: 'towerShot',
+      tower: index,
+      target: target.id,
+      damage: breakdown.total,
+      kills: outcome.kills,
+    });
+    pushDamageEvents(target, outcome, events);
+  });
+
+  // moat damages anything standing in it
+  for (const stack of livingStacks(combat)) {
+    if (!isMoatHex(siege, stack.pos)) continue;
+    const creature = requireCreature(data, stack.creature);
+    const outcome = damageStack(stack, creature, MOAT_DAMAGE);
+    events.push({ type: 'moatDamage', stack: stack.id, damage: MOAT_DAMAGE });
+    pushDamageEvents(stack, outcome, events);
+  }
+}
+
 function startRound(combat: CombatState, data: GameData, events: CombatEvent[]): void {
   combat.round += 1;
-  const living = livingStacks(combat);
-  for (const stack of living) {
+  events.push({ type: 'roundStarted', round: combat.round });
+  expireEffects(combat, data, events);
+  for (const stack of livingStacks(combat)) {
     stack.waited = false;
+    stack.moraleSurged = false;
     stack.retaliationsLeft = retaliationsFor(requireCreature(data, stack.creature));
   }
-  combat.queue = orderStacks(living, data, 'fastestFirst');
+  combat.castThisRound = { attacker: false, defender: false };
+  processRegeneration(combat, data, events);
+  processManaDrain(combat, data, events);
+  processSiegeRoundStart(combat, data, events);
+  combat.queue = orderStacks(livingStacks(combat), data, 'fastestFirst');
   combat.waitQueue = [];
-  events.push({ type: 'roundStarted', round: combat.round });
+}
+
+function checkWinner(combat: CombatState): CombatSideId | null {
+  if (livingStacks(combat, 'defender').length === 0) return 'attacker';
+  if (livingStacks(combat, 'attacker').length === 0) return 'defender';
+  return null;
+}
+
+// prune the queues, declare a winner, refill rounds, and skip disabled stacks
+// until a stack that can act is at the front (or combat is over)
+function normalizeQueue(combat: CombatState, data: GameData, events: CombatEvent[]): void {
+  for (;;) {
+    const alive = (id: string): boolean => isStackAlive(getCombatStack(combat, id));
+    combat.queue = combat.queue.filter(alive);
+    combat.waitQueue = combat.waitQueue.filter(alive);
+
+    const winner = checkWinner(combat);
+    if (winner !== null) {
+      combat.winner = winner;
+      combat.queue = [];
+      combat.waitQueue = [];
+      events.push({ type: 'combatEnded', winner });
+      return;
+    }
+
+    const headId = combat.queue[0];
+    if (headId === undefined) {
+      if (combat.waitQueue.length > 0) {
+        const waiting = combat.waitQueue.map((id) => getCombatStack(combat, id));
+        combat.queue = orderStacks(waiting, data, 'slowestFirst');
+        combat.waitQueue = [];
+      } else {
+        startRound(combat, data, events);
+      }
+      continue;
+    }
+
+    const head = getCombatStack(combat, headId);
+    if (isBlinded(head)) {
+      events.push({ type: 'stackSkipped', stack: headId, reason: 'blind' });
+      combat.queue = combat.queue.slice(1);
+      continue;
+    }
+    return;
+  }
+}
+
+function finishTurn(
+  combat: CombatState,
+  actedId: string,
+  data: GameData,
+  events: CombatEvent[],
+): void {
+  combat.queue = combat.queue.filter((id) => id !== actedId);
+  normalizeQueue(combat, data, events);
 }
 
 export function createCombat(
@@ -204,6 +450,8 @@ export function createCombat(
   let obstacles: Hex[];
   if (setup.obstacles) {
     obstacles = setup.obstacles;
+  } else if (setup.siege) {
+    obstacles = [];
   } else {
     [obstacles, rngState] = generateObstacles(rngState);
   }
@@ -219,10 +467,13 @@ export function createCombat(
     obstacles,
     queue: [],
     waitQueue: [],
+    castThisRound: { attacker: false, defender: false },
+    siege: setup.siege ? createSiege(setup.siege) : null,
     winner: null,
   };
   const events: CombatEvent[] = [{ type: 'combatStarted', obstacles }];
   startRound(combat, data, events);
+  normalizeQueue(combat, data, events);
   return { combat, events };
 }
 
@@ -237,7 +488,9 @@ export function reachableHexesFor(
   data: GameData,
 ): Hex[] {
   const stack = getCombatStack(combat, stackId);
+  if (isBound(stack)) return [];
   const creature = requireCreature(data, stack.creature);
+  const speed = effectiveSpeed(stack, creature);
   const canStand = buildCanStand(combat, stack, creature, data);
   if (creature.flags.includes('flying')) {
     const out: Hex[] = [];
@@ -245,13 +498,15 @@ export function reachableHexesFor(
       for (let x = 0; x < FIELD_WIDTH; x++) {
         const hex = { x, y };
         if (hexEquals(hex, stack.pos)) continue;
-        if (hexDistance(stack.pos, hex) > creature.speed) continue;
+        if (hexDistance(stack.pos, hex) > speed) continue;
         if (canStand(hex)) out.push(hex);
       }
     }
     return out;
   }
-  return bfsReachable(stack.pos, creature.speed, canStand);
+  const siege = combat.siege;
+  const stopAt = siege ? (h: Hex): boolean => isMoatHex(siege, h) : undefined;
+  return bfsReachable(stack.pos, speed, canStand, stopAt);
 }
 
 function buildCanStand(
@@ -262,6 +517,11 @@ function buildCanStand(
 ): (head: Hex) => boolean {
   const wide = creature.flags.includes('wide');
   const blocked = new Set<number>(combat.obstacles.map(hexKey));
+  if (combat.siege) {
+    for (const hex of siegeBlockedHexes(combat.siege, stack.side)) {
+      blocked.add(hexKey(hex));
+    }
+  }
   for (const other of livingStacks(combat)) {
     if (other.id === stack.id) continue;
     for (const hex of occupiedHexes(other, requireCreature(data, other.creature))) {
@@ -286,7 +546,13 @@ function minStackDistance(a: CombatStack, b: CombatStack, data: GameData): numbe
   return min;
 }
 
-function hexesAdjacentToStack(head: Hex, attacker: CombatStack, wide: boolean, target: CombatStack, data: GameData): boolean {
+function hexesAdjacentToStack(
+  head: Hex,
+  attacker: CombatStack,
+  wide: boolean,
+  target: CombatStack,
+  data: GameData,
+): boolean {
   const attackerCells = wide
     ? [head, { x: head.x + tailOffset(attacker.side), y: head.y }]
     : [head];
@@ -300,29 +566,62 @@ function hasAdjacentEnemy(combat: CombatState, stack: CombatStack, data: GameDat
   );
 }
 
-// damage hits the stack HP pool; returns creatures killed
-export function applyDamage(stack: CombatStack, creature: Creature, damage: number): number {
-  const pool = stack.firstHp + (stack.count - 1) * creature.hp;
-  const remaining = pool - damage;
-  if (remaining <= 0) {
-    const kills = stack.count;
-    stack.count = 0;
-    stack.firstHp = 0;
-    return kills;
-  }
-  const newCount = Math.ceil(remaining / creature.hp);
-  const kills = stack.count - newCount;
-  stack.count = newCount;
-  stack.firstHp = remaining - (newCount - 1) * creature.hp;
-  return kills;
-}
-
 interface StrikeOptions {
   ranged: boolean;
   retaliation: boolean;
   joustingHexes: number;
+  wallPenalty?: boolean;
+  retaliationPenaltyMult?: number;
 }
 
+const ON_HIT_EFFECTS = [
+  { special: 'curse', kind: 'curse', skipUndead: true, value: 0 },
+  { special: 'disease', kind: 'disease', skipUndead: false, value: 2 },
+  { special: 'blind', kind: 'blind', skipUndead: true, value: 50 },
+  { special: 'aging', kind: 'aging', skipUndead: false, value: 0 },
+] as const;
+
+function applyOnHitEffects(
+  combat: CombatState,
+  attackerCreature: Creature,
+  target: CombatStack,
+  targetCreature: Creature,
+  events: CombatEvent[],
+): void {
+  const targetUndead = targetCreature.flags.includes('undead');
+  for (const entry of ON_HIT_EFFECTS) {
+    const chance = specialValue(attackerCreature, entry.special);
+    if (chance === undefined) continue;
+    if (entry.skipUndead && targetUndead) continue;
+    const [hit, next] = rollChance(combat.rngState, chance / 100);
+    combat.rngState = next;
+    if (!hit) continue;
+    addEffect(target, {
+      kind: entry.kind,
+      positive: false,
+      rounds: ON_HIT_EFFECT_ROUNDS,
+      value: entry.value,
+    });
+    if (entry.kind === 'aging') {
+      // halving HP can shrink the current top-creature pool immediately
+      target.firstHp = Math.min(target.firstHp, effectiveHp(target, targetCreature));
+    }
+    events.push({
+      type: 'effectApplied',
+      stack: target.id,
+      kind: entry.kind,
+      rounds: ON_HIT_EFFECT_ROUNDS,
+      value: entry.value,
+    });
+  }
+  if (hasSpecial(attackerCreature, 'bind') && !targetUndead) {
+    // dendroids always bind; freshness tracked per round in expireEffects
+    addEffect(target, { kind: 'bind', positive: false, rounds: 1, value: 0 });
+    events.push({ type: 'effectApplied', stack: target.id, kind: 'bind', rounds: 1, value: 0 });
+  }
+}
+
+// returns total damage dealt
 function strike(
   combat: CombatState,
   attacker: CombatStack,
@@ -330,27 +629,72 @@ function strike(
   opts: StrikeOptions,
   data: GameData,
   events: CombatEvent[],
-): void {
+): number {
   const attackerCreature = requireCreature(data, attacker.creature);
   const targetCreature = requireCreature(data, target.creature);
   const attackerHero = heroInfoFor(combat, attacker.side);
   const targetHero = heroInfoFor(combat, target.side);
 
-  const attack = attackerCreature.attack + attackerHero.attack;
-  let defense = targetCreature.defense + targetHero.defense;
+  const attack = effectiveAttack(attacker, attackerCreature, !opts.ranged) + attackerHero.attack;
+  let defense = effectiveDefense(target, targetCreature) + targetHero.defense;
   if (target.defending) {
     defense = Math.floor(defense * (1 + DEFEND_DEFENSE_BONUS));
   }
 
-  const [base, nextRng] = rollBaseDamage(
-    combat.rngState,
-    attackerCreature.dmgMin,
-    attackerCreature.dmgMax,
-    attacker.count,
-  );
-  combat.rngState = nextRng;
+  // bless forces max damage, curse forces (reduced) min damage
+  const curse = getEffect(attacker, 'curse');
+  const bless = getEffect(attacker, 'bless');
+  let base: number;
+  if (curse) {
+    base = attacker.count * attackerCreature.dmgMin * (1 - curse.value / 100);
+  } else if (bless) {
+    base = attacker.count * (attackerCreature.dmgMax + bless.value);
+  } else {
+    const [rolled, nextRng] = rollBaseDamage(
+      combat.rngState,
+      attackerCreature.dmgMin,
+      attackerCreature.dmgMax,
+      attacker.count,
+    );
+    combat.rngState = nextRng;
+    base = rolled;
+  }
 
-  const isShooter = (attackerCreature.shots ?? 0) > 0;
+  let lucky = false;
+  const luck = sideLuck(combat, attacker.side);
+  if (luck > 0) {
+    const [rolledLucky, nextRng] = rollChance(combat.rngState, luck / MORALE_LUCK_DIE);
+    combat.rngState = nextRng;
+    lucky = rolledLucky;
+    if (lucky) {
+      events.push({ type: 'luck', stack: attacker.id });
+    }
+  }
+
+  let doubled = false;
+  const doubleChance = specialValue(attackerCreature, 'doubleDamage');
+  if (doubleChance !== undefined) {
+    const [rolledDouble, nextRng] = rollChance(combat.rngState, doubleChance / 100);
+    combat.rngState = nextRng;
+    doubled = rolledDouble;
+    if (doubled) {
+      events.push({ type: 'abilityTriggered', stack: attacker.id, ability: 'doubleDamage' });
+    }
+  }
+
+  let effectMult = opts.retaliationPenaltyMult ?? 1;
+  const shield = getEffect(target, 'shield');
+  if (shield && !opts.ranged) {
+    effectMult *= 1 - shield.value / 100;
+  }
+  if (opts.ranged) {
+    const forget = getEffect(attacker, 'forgetfulness');
+    if (forget && forget.value < 100) {
+      effectMult *= 0.5;
+    }
+  }
+
+  const isShooter = attackerCreature.shots !== undefined;
   const ctx: DamageContext = {
     base,
     attack,
@@ -362,57 +706,40 @@ function strike(
     distancePenalty:
       opts.ranged && minStackDistance(attacker, target, data) > RANGED_PENALTY_DISTANCE,
     meleePenalty: !opts.ranged && isShooter && !hasSpecial(attackerCreature, 'noMeleePenalty'),
+    wallPenalty: opts.wallPenalty ?? false,
+    lucky,
+    doubleDamage: doubled,
+    effectMult,
     joustingHexes: opts.joustingHexes,
   };
   const breakdown = computeDamage(ctx);
-  const kills = applyDamage(target, targetCreature, breakdown.total);
+  const outcome = damageStack(target, targetCreature, breakdown.total);
   events.push({
     type: 'stackAttacked',
     attacker: attacker.id,
     target: target.id,
     damage: breakdown.total,
-    kills,
+    kills: outcome.kills,
     ranged: opts.ranged,
     retaliation: opts.retaliation,
   });
-  if (!isStackAlive(target)) {
-    events.push({ type: 'stackDied', stack: target.id });
-  }
-}
+  pushDamageEvents(target, outcome, events);
 
-function checkWinner(combat: CombatState): CombatSideId | null {
-  if (livingStacks(combat, 'defender').length === 0) return 'attacker';
-  if (livingStacks(combat, 'attacker').length === 0) return 'defender';
-  return null;
-}
-
-function finishTurn(
-  combat: CombatState,
-  actedId: string,
-  data: GameData,
-  events: CombatEvent[],
-): void {
-  const alive = (id: string): boolean => isStackAlive(getCombatStack(combat, id));
-  combat.queue = combat.queue.filter((id) => id !== actedId && alive(id));
-  combat.waitQueue = combat.waitQueue.filter(alive);
-
-  const winner = checkWinner(combat);
-  if (winner !== null) {
-    combat.winner = winner;
-    combat.queue = [];
-    combat.waitQueue = [];
-    events.push({ type: 'combatEnded', winner });
-    return;
+  if (isStackAlive(target)) {
+    applyOnHitEffects(combat, attackerCreature, target, targetCreature, events);
   }
-  if (combat.queue.length === 0) {
-    if (combat.waitQueue.length > 0) {
-      const waiting = combat.waitQueue.map((id) => getCombatStack(combat, id));
-      combat.queue = orderStacks(waiting, data, 'slowestFirst');
-      combat.waitQueue = [];
-    } else {
-      startRound(combat, data, events);
-    }
+
+  if (hasSpecial(attackerCreature, 'lifeDrain') && breakdown.total > 0 && isStackAlive(attacker)) {
+    const revived = resurrectStack(
+      attacker,
+      effectiveHp(attacker, attackerCreature),
+      breakdown.total,
+    );
+    events.push({ type: 'abilityTriggered', stack: attacker.id, ability: 'lifeDrain' });
+    events.push({ type: 'stackResurrected', stack: attacker.id, revived });
   }
+
+  return breakdown.total;
 }
 
 function requireEnemyTarget(
@@ -440,6 +767,9 @@ function applyMove(
   if (hexEquals(to, stack.pos)) {
     throw new CombatRuleError('move: already standing there');
   }
+  if (isBound(stack)) {
+    throw new CombatRuleError(`${stack.id} is bound in place`);
+  }
   const reachable = reachableHexesFor(combat, stack.id, data);
   if (!reachable.some((h) => hexEquals(h, to))) {
     throw new CombatRuleError(
@@ -449,6 +779,42 @@ function applyMove(
   const from = { ...stack.pos };
   stack.pos = { ...to };
   events.push({ type: 'stackMoved', stack: stack.id, from, to: { ...to } });
+}
+
+function breathStrike(
+  combat: CombatState,
+  attacker: CombatStack,
+  target: CombatStack,
+  data: GameData,
+  events: CombatEvent[],
+): void {
+  const attackerCreature = requireCreature(data, attacker.creature);
+  if (!hasSpecial(attackerCreature, 'breath')) return;
+  // find the attacker cell adjacent to a target cell to define the direction
+  const attackerCells = occupiedHexes(attacker, attackerCreature);
+  const targetCells = occupiedHexes(target, requireCreature(data, target.creature));
+  for (const from of attackerCells) {
+    for (const through of targetCells) {
+      if (hexDistance(from, through) !== 1) continue;
+      const beyond = hexLineExtend(from, through);
+      if (!beyond) continue;
+      const victim = livingStacks(combat).find(
+        (s) =>
+          s.id !== attacker.id &&
+          s.id !== target.id &&
+          occupiedHexes(s, requireCreature(data, s.creature)).some((h) => hexEquals(h, beyond)),
+      );
+      if (!victim) continue;
+      events.push({
+        type: 'abilityTriggered',
+        stack: attacker.id,
+        ability: 'breath',
+        target: victim.id,
+      });
+      strike(combat, attacker, victim, { ranged: false, retaliation: false, joustingHexes: 0 }, data, events);
+      return;
+    }
+  }
 }
 
 function applyMelee(
@@ -471,11 +837,23 @@ function applyMelee(
     applyMove(combat, stack, action.from, data, events);
   }
   const joustingHexes = hasSpecial(creature, 'jousting') ? hexDistance(origin, action.from) : 0;
-  strike(combat, stack, target, { ranged: false, retaliation: false, joustingHexes }, data, events);
+
+  // capture blind state before the hit: damage wakes the target, which then
+  // retaliates at the blind penalty (no retaliation at 100)
+  const blind = getEffect(target, 'blind');
+  const blindMult = blind ? (blind.value >= 100 ? 0 : 1 - blind.value / 100) : 1;
+
+  const strikeOnce = (): void => {
+    strike(combat, stack, target, { ranged: false, retaliation: false, joustingHexes }, data, events);
+    breathStrike(combat, stack, target, data, events);
+  };
+  strikeOnce();
 
   const targetCreature = requireCreature(data, target.creature);
   const canRetaliate =
     isStackAlive(target) &&
+    isStackAlive(stack) &&
+    blindMult > 0 &&
     !hasSpecial(creature, 'noRetaliation') &&
     (hasSpecial(targetCreature, 'unlimitedRetaliation') || target.retaliationsLeft > 0);
   if (canRetaliate) {
@@ -486,10 +864,20 @@ function applyMelee(
       combat,
       target,
       stack,
-      { ranged: false, retaliation: true, joustingHexes: 0 },
+      {
+        ranged: false,
+        retaliation: true,
+        joustingHexes: 0,
+        retaliationPenaltyMult: blindMult,
+      },
       data,
       events,
     );
+  }
+
+  if (hasSpecial(creature, 'doubleAttack') && isStackAlive(stack) && isStackAlive(target)) {
+    events.push({ type: 'abilityTriggered', stack: stack.id, ability: 'doubleAttack' });
+    strikeOnce();
   }
 }
 
@@ -510,9 +898,142 @@ function applyShoot(
   if (hasAdjacentEnemy(combat, stack, data)) {
     throw new CombatRuleError('cannot shoot with an adjacent enemy');
   }
+  const forget = getEffect(stack, 'forgetfulness');
+  if (forget && forget.value >= 100) {
+    throw new CombatRuleError(`${stack.id} forgot how to shoot`);
+  }
   const target = requireEnemyTarget(combat, stack, action.target);
-  stack.shots -= 1;
-  strike(combat, stack, target, { ranged: true, retaliation: false, joustingHexes: 0 }, data, events);
+
+  const siege = combat.siege;
+  const wallPenalty = (victim: CombatStack): boolean => {
+    if (!siege || stack.side !== 'attacker' || wallsBreached(siege)) return false;
+    return occupiedHexes(victim, requireCreature(data, victim.creature)).some(
+      (h) => h.x > WALL_X,
+    );
+  };
+
+  const shoot = (): void => {
+    stack.shots -= 1;
+    strike(
+      combat,
+      stack,
+      target,
+      { ranged: true, retaliation: false, joustingHexes: 0, wallPenalty: wallPenalty(target) },
+      data,
+      events,
+    );
+    // lich death cloud splashes living stacks around the target hex
+    if (hasSpecial(creature, 'deathCloud')) {
+      const splash = livingStacks(combat).filter((s) => {
+        if (s.id === stack.id || s.id === target.id) return false;
+        const sCreature = requireCreature(data, s.creature);
+        if (sCreature.flags.includes('undead')) return false;
+        return occupiedHexes(s, sCreature).some((h) => hexDistance(h, target.pos) === 1);
+      });
+      for (const victim of splash) {
+        events.push({
+          type: 'abilityTriggered',
+          stack: stack.id,
+          ability: 'deathCloud',
+          target: victim.id,
+        });
+        strike(
+          combat,
+          stack,
+          victim,
+          { ranged: true, retaliation: false, joustingHexes: 0, wallPenalty: wallPenalty(victim) },
+          data,
+          events,
+        );
+      }
+    }
+  };
+
+  shoot();
+  if (
+    hasSpecial(creature, 'doubleShot') &&
+    stack.shots > 0 &&
+    isStackAlive(target) &&
+    isStackAlive(stack)
+  ) {
+    events.push({ type: 'abilityTriggered', stack: stack.id, ability: 'doubleShot' });
+    shoot();
+  }
+}
+
+function applyResurrect(
+  combat: CombatState,
+  stack: CombatStack,
+  action: Extract<CombatAction, { type: 'resurrect' }>,
+  data: GameData,
+  events: CombatEvent[],
+): void {
+  const creature = requireCreature(data, stack.creature);
+  const perCreature = specialValue(creature, 'resurrectOnce');
+  if (perCreature === undefined) {
+    throw new CombatRuleError(`${creature.id} cannot resurrect`);
+  }
+  if (stack.usedResurrect) {
+    throw new CombatRuleError(`${stack.id} already resurrected this battle`);
+  }
+  const target = getCombatStack(combat, action.target);
+  if (target.side !== stack.side || target.id === stack.id) {
+    throw new CombatRuleError('can only resurrect another friendly stack');
+  }
+  const targetCreature = requireCreature(data, target.creature);
+  const maxHp = effectiveHp(target, targetCreature);
+  if (stackHpPool(target, maxHp) >= target.initialCount * maxHp) {
+    throw new CombatRuleError(`${target.id} has no losses to resurrect`);
+  }
+  const revived = resurrectStack(target, maxHp, perCreature * stack.count);
+  stack.usedResurrect = true;
+  events.push({ type: 'abilityTriggered', stack: stack.id, ability: 'resurrectOnce', target: target.id });
+  events.push({ type: 'stackResurrected', stack: target.id, revived });
+}
+
+function applyAttackWall(
+  combat: CombatState,
+  stack: CombatStack,
+  action: Extract<CombatAction, { type: 'attackWall' }>,
+  data: GameData,
+  events: CombatEvent[],
+): void {
+  const siege = combat.siege;
+  if (!siege) {
+    throw new CombatRuleError('no walls to attack');
+  }
+  if (stack.side !== 'attacker') {
+    throw new CombatRuleError('defenders cannot attack their own walls');
+  }
+  const segment = siege.segments[action.segment];
+  if (!segment) {
+    throw new CombatRuleError(`unknown wall segment ${String(action.segment)}`);
+  }
+  if (segment.hp <= 0) {
+    throw new CombatRuleError('that wall segment is already destroyed');
+  }
+  if (!segment.isGate) {
+    throw new CombatRuleError('only the gate can be attacked in melee');
+  }
+  const creature = requireCreature(data, stack.creature);
+  const wide = creature.flags.includes('wide');
+  const cells = wide
+    ? [action.from, { x: action.from.x + tailOffset(stack.side), y: action.from.y }]
+    : [action.from];
+  if (!cells.some((c) => hexDistance(c, segment.pos) === 1)) {
+    throw new CombatRuleError('not adjacent to the gate');
+  }
+  if (!hexEquals(action.from, stack.pos)) {
+    applyMove(combat, stack, action.from, data, events);
+  }
+  segment.hp = Math.max(0, segment.hp - WALL_MELEE_DAMAGE);
+  events.push({
+    type: 'wallHit',
+    segment: siege.segments.indexOf(segment),
+    damage: WALL_MELEE_DAMAGE,
+    hp: segment.hp,
+    source: 'melee',
+  });
 }
 
 export function combatAct(
@@ -523,11 +1044,38 @@ export function combatAct(
   if (combat.winner !== null) {
     throw new CombatRuleError('combat is over');
   }
+  const events: CombatEvent[] = [];
+  // skip stacks disabled since the last action (e.g. blinded by an effect)
+  normalizeQueue(combat, data, events);
   const stack = activeCombatStack(combat);
   if (!stack) {
-    throw new Error('combat has no active stack');
+    // normalization can finish the combat (an empty queue means a winner)
+    return events;
   }
-  const events: CombatEvent[] = [];
+
+  // a cast happens at the start of an own stack's action and doesn't use it up
+  if (action.type === 'cast') {
+    castCombatSpell(combat, stack.side, action, data, events);
+    if (!isStackAlive(stack)) {
+      finishTurn(combat, stack.id, data, events);
+    } else {
+      normalizeQueue(combat, data, events);
+    }
+    return events;
+  }
+
+  const morale = stackMorale(combat, stack, data);
+  if (morale < 0) {
+    const [frozen, nextRng] = rollChance(combat.rngState, -morale / MORALE_LUCK_DIE);
+    combat.rngState = nextRng;
+    if (frozen) {
+      stack.defending = false;
+      events.push({ type: 'moraleFreeze', stack: stack.id });
+      finishTurn(combat, stack.id, data, events);
+      return events;
+    }
+  }
+
   stack.defending = false;
   switch (action.type) {
     case 'wait':
@@ -551,7 +1099,34 @@ export function combatAct(
     case 'shoot':
       applyShoot(combat, stack, action, data, events);
       break;
+    case 'resurrect':
+      applyResurrect(combat, stack, action, data, events);
+      break;
+    case 'attackWall':
+      applyAttackWall(combat, stack, action, data, events);
+      break;
   }
+
+  // positive morale: chance of an immediate extra action (once per round)
+  const surgeEligible =
+    action.type === 'move' || action.type === 'melee' || action.type === 'shoot';
+  if (
+    surgeEligible &&
+    morale > 0 &&
+    !stack.moraleSurged &&
+    isStackAlive(stack) &&
+    checkWinner(combat) === null
+  ) {
+    const [surged, nextRng] = rollChance(combat.rngState, morale / MORALE_LUCK_DIE);
+    combat.rngState = nextRng;
+    if (surged) {
+      stack.moraleSurged = true;
+      events.push({ type: 'moraleSurge', stack: stack.id });
+      normalizeQueue(combat, data, events);
+      return events;
+    }
+  }
+
   finishTurn(combat, stack.id, data, events);
   return events;
 }

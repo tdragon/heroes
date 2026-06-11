@@ -1,11 +1,26 @@
-import type { Creature } from '../../data/schema';
+import type { Creature, SpecialType } from '../../data/schema';
 import type { RngState } from '../rng';
 import type { Hex } from './grid';
+import type { SiegeState } from './siege';
 
 export type CombatSideId = 'attacker' | 'defender';
 
+export class CombatRuleError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'CombatRuleError';
+  }
+}
+
 export function oppositeSide(side: CombatSideId): CombatSideId {
   return side === 'attacker' ? 'defender' : 'attacker';
+}
+
+export interface SchoolTiers {
+  air: number;
+  earth: number;
+  fire: number;
+  water: number;
 }
 
 // hero-derived combat modifiers; all-zero for heroless armies (map guards)
@@ -19,6 +34,12 @@ export interface CombatHeroInfo {
   offenseBonus: number;
   archeryBonus: number;
   armorerReduction: number;
+  morale: number;
+  luck: number;
+  mana: number;
+  hasSpellbook: boolean;
+  spells: string[];
+  schoolTiers: SchoolTiers;
 }
 
 export function noHero(): CombatHeroInfo {
@@ -32,7 +53,35 @@ export function noHero(): CombatHeroInfo {
     offenseBonus: 0,
     archeryBonus: 0,
     armorerReduction: 0,
+    morale: 0,
+    luck: 0,
+    mana: 0,
+    hasSpellbook: false,
+    spells: [],
+    schoolTiers: { air: 0, earth: 0, fire: 0, water: 0 },
   };
+}
+
+export type EffectKind =
+  | 'haste'
+  | 'slow'
+  | 'shield'
+  | 'stone_skin'
+  | 'bless'
+  | 'curse'
+  | 'bloodlust'
+  | 'weakness'
+  | 'blind'
+  | 'forgetfulness'
+  | 'disease'
+  | 'aging'
+  | 'bind';
+
+export interface StackEffect {
+  kind: EffectKind;
+  positive: boolean;
+  rounds: number;
+  value: number;
 }
 
 export interface CombatStack {
@@ -41,13 +90,51 @@ export interface CombatStack {
   slot: number;
   creature: string;
   count: number;
+  initialCount: number;
   firstHp: number;
   pos: Hex;
   shots: number;
   retaliationsLeft: number;
   defending: boolean;
   waited: boolean;
+  moraleSurged: boolean;
+  usedResurrect: boolean;
+  effects: StackEffect[];
 }
+
+export type CombatEvent =
+  | { type: 'combatStarted'; obstacles: Hex[] }
+  | { type: 'roundStarted'; round: number }
+  | { type: 'stackMoved'; stack: string; from: Hex; to: Hex }
+  | {
+      type: 'stackAttacked';
+      attacker: string;
+      target: string;
+      damage: number;
+      kills: number;
+      ranged: boolean;
+      retaliation: boolean;
+    }
+  | { type: 'stackDied'; stack: string }
+  | { type: 'stackWaited'; stack: string }
+  | { type: 'stackDefended'; stack: string }
+  | { type: 'stackSkipped'; stack: string; reason: 'blind' }
+  | { type: 'moraleSurge'; stack: string }
+  | { type: 'moraleFreeze'; stack: string }
+  | { type: 'luck'; stack: string }
+  | { type: 'abilityTriggered'; stack: string; ability: SpecialType; target?: string }
+  | { type: 'effectApplied'; stack: string; kind: EffectKind; rounds: number; value: number }
+  | { type: 'effectExpired'; stack: string; kind: EffectKind }
+  | { type: 'stackHealed'; stack: string; amount: number }
+  | { type: 'stackResurrected'; stack: string; revived: number }
+  | { type: 'manaDrained'; side: CombatSideId; amount: number; by: string }
+  | { type: 'spellCast'; side: CombatSideId; spell: string; targets: string[] }
+  | { type: 'spellResisted'; stack: string; spell: string; reason: 'immune' | 'resisted' }
+  | { type: 'spellDamage'; stack: string; spell: string; damage: number; kills: number }
+  | { type: 'wallHit'; segment: number; damage: number; hp: number; source: 'catapult' | 'melee' }
+  | { type: 'towerShot'; tower: number; target: string; damage: number; kills: number }
+  | { type: 'moatDamage'; stack: string; damage: number }
+  | { type: 'combatEnded'; winner: CombatSideId };
 
 export interface CombatState {
   round: number;
@@ -58,6 +145,8 @@ export interface CombatState {
   obstacles: Hex[];
   queue: string[];
   waitQueue: string[];
+  castThisRound: Record<CombatSideId, boolean>;
+  siege: SiegeState | null;
   winner: CombatSideId | null;
 }
 

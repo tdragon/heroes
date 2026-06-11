@@ -179,6 +179,7 @@ export function newGame(
     heroes: {},
     towns: {},
     combat: null,
+    tavernPool: [],
     pendingChoices: [],
     status: 'running',
   };

@@ -1,6 +1,6 @@
 import type { GameState } from './state';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 interface SaveFile {
   version: number;
@@ -27,6 +27,7 @@ function isGameState(value: unknown): value is GameState {
     typeof value.day === 'number' &&
     typeof value.currentPlayer === 'string' &&
     Array.isArray(value.players) &&
+    Array.isArray(value.tavernPool) &&
     Array.isArray(value.pendingChoices) &&
     isRecord(value.heroes) &&
     isRecord(value.towns) &&

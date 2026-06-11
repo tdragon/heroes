@@ -591,13 +591,14 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/combat/abilities.ts`, `src/core/combat/siege.ts`, `src/core/magic.ts`
 - Create: `src/core/combat/abilities.test.ts`, `src/core/combat/siege.test.ts`, `src/core/magic.test.ts`
 
-- [ ] implement ability hooks: double shot/attack, no-retaliation, life drain, regeneration, bind, blind/curse/disease/aging on-hit chances, breath, death cloud, mana drain, magic resistance, spell-level immunity, Archangel resurrect+morale aura, Bone Dragon morale debuff
-- [ ] implement morale/luck rolls per §7.4 with events
-- [ ] implement magic system: mana, spellbook learning (guild visit, Wisdom gate), combat casting 1/round, all 22 combat spells (effects per §6 table, school-tier scaling, undead/mind immunities), buff/debuff duration tracking
-- [ ] implement combat end: victory/defeat/flee, XP award, artifact transfer, Necromancy skeleton raise, town capture on siege win; connect Task 7 combat-gated object paths and remove their TODOs
-- [ ] implement simplified siege per §7.7 (walls, gate, catapult, towers, moat)
-- [ ] write tests: each ability in isolation (table-driven); morale/luck statistics over seeds (≈n/24 within tolerance); every spell's effect + immunity matrix (undead vs Bless/Blind/Death Ripple, dragon spell-level immunity, dwarf resistance roll); animate/resurrection HP math; necromancy yield; full siege battle replay snapshot; flee/rehire flow
-- [ ] run tests — must pass before task 10
+- [x] implement ability hooks: double shot/attack, no-retaliation, life drain, regeneration, bind, blind/curse/disease/aging on-hit chances, breath, death cloud, mana drain, magic resistance, spell-level immunity, Archangel resurrect+morale aura, Bone Dragon morale debuff
+- [x] implement morale/luck rolls per §7.4 with events
+- [x] implement magic system: mana, spellbook learning (guild visit, Wisdom gate), combat casting 1/round, all 22 combat spells (effects per §6 table, school-tier scaling, undead/mind immunities), buff/debuff duration tracking
+- [x] implement combat end: victory/defeat/flee, XP award, artifact transfer, Necromancy skeleton raise, town capture on siege win; connect Task 7 combat-gated object paths and remove their TODOs
+- [x] implement simplified siege per §7.7 (walls, gate, catapult, towers, moat)
+- [x] write tests: each ability in isolation (table-driven); morale/luck statistics over seeds (≈n/24 within tolerance); every spell's effect + immunity matrix (undead vs Bless/Blind/Death Ripple, dragon spell-level immunity, dwarf resistance roll); animate/resurrection HP math; necromancy yield; full siege battle replay snapshot; flee/rehire flow
+- [x] run tests — must pass before task 10
+- ➕ note: game-level combat glue lives in `src/core/combat/resolve.ts` (start guard/siege combat, finish combat, flee, necromancy, tavern pool); defeated/fled hero templates collect in `GameState.tavernPool` for the Task 10 tavern rehire flow
 
 ### Task 10: Town system — building, recruiting, mage guild, marketplace
 
@@ -685,6 +686,7 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - [ ] implement combat AI per §9.4 (shooter targeting, melee value trade, approach, spell pick) — pure function `chooseCombatAction(combatState) → CombatAction`
 - [ ] implement economy AI (build priority list, weekly recruit-all to main hero) and adventure AI (opportunity scoring loop §9.1–9.3, power-ratio gate 1.3)
 - [ ] wire AI turns into endTurn flow with per-command event stream (UI shows "Enemy turn…" + optionally visible moves in explored area); replace auto-combat placeholder
+- ➕ allow `moveHero` onto an enemy hero's tile to trigger hero-vs-hero field combat (movement currently blocks all hero tiles; the combat itself reuses the Task 9 resolve flow)
 - [ ] write tests: combat AI never returns illegal action (fuzz over 200 seeded random combat states); AI beats an idle player on tiny map within 4 weeks (integration, seeded); economy AI builds capitol track in valid order; full AI-vs-AI game on tiny map terminates < 3 months with a winner (no hangs)
 - [ ] run tests — must pass before task 17
 

@@ -7,6 +7,7 @@ import {
   type SkillRank,
 } from '../data/schema';
 import type { Guard, PlayerColor, Pos } from '../maps/schema';
+import type { CombatState } from './combat/state';
 import type { RngState } from './rng';
 
 export type PlayerId = PlayerColor;
@@ -119,7 +120,24 @@ export interface PendingChoice {
   message?: string;
 }
 
-export type CombatState = Record<string, unknown>;
+export type CombatReason = 'guard' | 'siege';
+
+export interface DefenderSlotRef {
+  source: 'garrison' | 'hero';
+  index: number;
+}
+
+// game-level wrapper around a running battle: who fights and how survivors map back
+export interface ActiveCombat {
+  reason: CombatReason;
+  attackerHero: HeroId;
+  attackerSlots: number[];
+  defenderHero: HeroId | null;
+  defenderTown: TownId | null;
+  defenderSlots: DefenderSlotRef[];
+  object: ObjectId | null;
+  combat: CombatState;
+}
 
 export type GameStatus = 'running' | { winner: PlayerId };
 
@@ -132,7 +150,8 @@ export interface GameState {
   map: MapState;
   heroes: Record<HeroId, Hero>;
   towns: Record<TownId, Town>;
-  combat: CombatState | null;
+  combat: ActiveCombat | null;
+  tavernPool: string[];
   pendingChoices: PendingChoice[];
   status: GameStatus;
 }

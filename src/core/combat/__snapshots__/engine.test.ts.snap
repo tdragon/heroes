@@ -2,11 +2,11 @@
 
 exports[`full scripted battle > matches the replay snapshot 1`] = `
 {
-  "attacks": 14,
-  "rounds": 4,
+  "attacks": 20,
+  "rounds": 5,
   "survivors": [
     {
-      "count": 5,
+      "count": 4,
       "creature": "halberdier",
       "firstHp": 10,
       "id": "a0",

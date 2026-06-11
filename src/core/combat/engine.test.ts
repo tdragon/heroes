@@ -565,22 +565,26 @@ describe('damage application to HP pools', () => {
       slot: 0,
       creature: 'pikeman',
       count: 3,
+      initialCount: 3,
       firstHp: 10,
       pos: { x: 0, y: 0 },
       shots: 0,
       retaliationsLeft: 1,
       defending: false,
       waited: false,
+      moraleSurged: false,
+      usedResurrect: false,
+      effects: [],
     };
-    const pikeman = requireCreature('pikeman');
-    expect(applyDamage(stack, pikeman, 25)).toBe(2);
+    const pikemanHp = requireCreature('pikeman').hp;
+    expect(applyDamage(stack, pikemanHp, 25)).toBe(2);
     expect(stack.count).toBe(1);
     expect(stack.firstHp).toBe(5);
 
-    expect(applyDamage(stack, pikeman, 4)).toBe(0);
+    expect(applyDamage(stack, pikemanHp, 4)).toBe(0);
     expect(stack.firstHp).toBe(1);
 
-    expect(applyDamage(stack, pikeman, 99)).toBe(1);
+    expect(applyDamage(stack, pikemanHp, 99)).toBe(1);
     expect(stack.count).toBe(0);
     expect(stack.firstHp).toBe(0);
   });
@@ -647,6 +651,12 @@ describe('heroCombatInfo', () => {
       offenseBonus: 0.2,
       archeryBonus: 0.1,
       armorerReduction: 0.15,
+      morale: 0,
+      luck: 0,
+      mana: 10,
+      hasSpellbook: false,
+      spells: [],
+      schoolTiers: { air: 0, earth: 0, fire: 0, water: 0 },
     });
   });
 });

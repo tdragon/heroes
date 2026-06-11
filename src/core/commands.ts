@@ -1,15 +1,26 @@
 import type { GameData } from '../data';
 import type { Pos } from '../maps/schema';
+import { applyCombatAction, type GameCombatAction } from './combat/resolve';
+import type { CombatEvent } from './combat/state';
 import { applyLevelUpChoice, type PrimaryStat } from './hero';
 import { moveHero } from './movement';
-import { OBJECT_CHOICE_KINDS, resolveObjectChoice } from './objects';
+import { applyObjectReward, OBJECT_CHOICE_KINDS, resolveObjectChoice } from './objects';
 import { endTurn } from './turn';
-import type { GameState, HeroId, ObjectId, PlayerId, Resources, TownId } from './state';
+import type {
+  CombatReason,
+  GameState,
+  HeroId,
+  ObjectId,
+  PlayerId,
+  Resources,
+  TownId,
+} from './state';
 
 export type Command =
   | { type: 'endTurn'; player: PlayerId }
   | { type: 'moveHero'; player: PlayerId; hero: HeroId; path: Pos[] }
-  | { type: 'resolveChoice'; player: PlayerId; choiceId: string; option: number };
+  | { type: 'resolveChoice'; player: PlayerId; choiceId: string; option: number }
+  | { type: 'combatAction'; player: PlayerId; action: GameCombatAction };
 
 export type GameEvent =
   | { type: 'turnStarted'; player: PlayerId }
@@ -36,7 +47,25 @@ export type GameEvent =
   | { type: 'areaRevealed'; object: ObjectId; player: PlayerId }
   | { type: 'heroReleased'; hero: HeroId; player: PlayerId }
   | { type: 'townCaptured'; town: TownId; player: PlayerId; previousOwner: PlayerId | null }
-  | { type: 'combatQueued'; attacker: HeroId; object: ObjectId };
+  | {
+      type: 'combatStarted';
+      attacker: HeroId;
+      defender: HeroId | null;
+      object: ObjectId | null;
+      reason: CombatReason;
+    }
+  | { type: 'combat'; event: CombatEvent }
+  | {
+      type: 'combatResolved';
+      outcome: 'attacker' | 'defender' | 'fled';
+      attacker: HeroId;
+      defender: HeroId | null;
+    }
+  | { type: 'heroDefeated'; hero: HeroId; player: PlayerId }
+  | { type: 'heroFled'; hero: HeroId; player: PlayerId }
+  | { type: 'necromancyRaised'; hero: HeroId; count: number }
+  | { type: 'artifactsSeized'; hero: HeroId; artifacts: string[] }
+  | { type: 'spellsLearned'; hero: HeroId; spells: string[] };
 
 export interface DispatchResult {
   state: GameState;
@@ -90,9 +119,11 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
       `command from ${command.player}, but current player is ${state.currentPlayer}`,
     );
   }
-  if (state.combat !== null) {
-    // TODO(Task 8): combat commands will be accepted here once the combat engine lands
-    throw new CommandRejectedError('a combat is pending resolution');
+  if (state.combat !== null && command.type !== 'combatAction') {
+    throw new CommandRejectedError('a combat must be resolved first');
+  }
+  if (state.combat === null && command.type === 'combatAction') {
+    throw new CommandRejectedError('no combat in progress');
   }
   if (state.pendingChoices.length > 0 && command.type !== 'resolveChoice') {
     throw new CommandRejectedError('a pending choice must be resolved first');
@@ -109,6 +140,11 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
       break;
     case 'resolveChoice':
       resolveChoice(next, command, data, events);
+      break;
+    case 'combatAction':
+      applyCombatAction(next, command.action, data, events, (s, hero, obj, evts) => {
+        applyObjectReward(s, hero, obj, data, evts);
+      });
       break;
   }
   return { state: next, events };

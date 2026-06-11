@@ -20,6 +20,8 @@ export interface DamageContext {
   meleePenalty?: boolean;
   wallPenalty?: boolean;
   lucky?: boolean;
+  doubleDamage?: boolean;
+  effectMult?: number;
   joustingHexes?: number;
 }
 
@@ -29,6 +31,7 @@ export interface DamageBreakdown {
   skillMult: number;
   penaltyMult: number;
   luckMult: number;
+  effectMult: number;
   joustingMult: number;
   total: number;
 }
@@ -48,12 +51,23 @@ export function computeDamage(ctx: DamageContext): DamageBreakdown {
   if (ctx.meleePenalty) penaltyMult *= 0.5;
   if (ctx.wallPenalty) penaltyMult *= 0.5;
 
-  const luckMult = ctx.lucky ? 2 : 1;
+  const luckMult = (ctx.lucky ? 2 : 1) * (ctx.doubleDamage ? 2 : 1);
+  const effectMult = ctx.effectMult ?? 1;
   const joustingMult = 1 + 0.05 * (ctx.joustingHexes ?? 0);
 
-  const product = ctx.base * attackMult * skillMult * penaltyMult * luckMult * joustingMult;
+  const product =
+    ctx.base * attackMult * skillMult * penaltyMult * luckMult * effectMult * joustingMult;
   const total = Math.max(1, Math.floor(product));
-  return { base: ctx.base, attackMult, skillMult, penaltyMult, luckMult, joustingMult, total };
+  return {
+    base: ctx.base,
+    attackMult,
+    skillMult,
+    penaltyMult,
+    luckMult,
+    effectMult,
+    joustingMult,
+    total,
+  };
 }
 
 // per-creature rolls; stacks larger than 10 roll once and multiply by count
