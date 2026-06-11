@@ -633,11 +633,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/replay.ts` (run command script → state), `src/core/replay.test.ts`
 - Create: `src/core/fixtures/full-game.replay.ts`
 
-- [ ] implement replay runner: `runScript(map, seed, Command[]) → {state, events}` + state hash helper
-- [ ] script a complete miniature game on the tiny fixture: move, pick up, capture mine, build, recruit, fight a guard, level up, capture enemy town, win — assert key state at checkpoints + final hash
-- [ ] write determinism test: same script twice ⇒ identical hash; different seed ⇒ different rng outcomes but valid end state
-- [ ] add invariant sweep test: after every command in the script — resource ≥ 0, stack counts > 0, MP ≥ 0, state serializes and round-trips
-- [ ] run tests — must pass before task 13
+- [x] implement replay runner: `runScript(map, seed, Command[]) → {state, events}` + state hash helper
+- [x] script a complete miniature game on the tiny fixture: move, pick up, capture mine, build, recruit, fight a guard, level up, capture enemy town, win — assert key state at checkpoints + final hash
+- [x] write determinism test: same script twice ⇒ identical hash; different seed ⇒ different rng outcomes but valid end state
+- [x] add invariant sweep test: after every command in the script — resource ≥ 0, stack counts > 0, MP ≥ 0, state serializes and round-trips
+- [x] run tests — must pass before task 13
+- ➕ note: `runScript` accepts script steps beyond literal commands — pure generators `(state, data) → Command | Command[] | null` (for paths/choice ids), bounded `{until, step}` loops (for scripted combat), and labelled assertion checkpoints; the fixture's `chooseSimpleCombatAction` is a minimal always-legal combat policy reused until the real combat AI lands in Task 16; hero-vs-hero combat is still unimplemented, so the scripted win captures the enemy town after its hero walks off and lets the 7-day townless countdown eliminate blue
 
 ### Task 13: Adventure screen rendering and input
 
