@@ -181,21 +181,6 @@ export function manaRegenPerDay(hero: Hero, data: GameData): number {
   return Math.max(1, mysticism);
 }
 
-export function maxMovementPoints(hero: Hero, data: GameData): number {
-  const speeds = hero.army
-    .filter((stack): stack is CreatureStack => stack !== null)
-    .map((stack) => {
-      const creature = data.creatures[stack.creature];
-      if (!creature) {
-        throw new Error(`unknown creature: ${stack.creature}`);
-      }
-      return creature.speed;
-    });
-  const slowest = speeds.length > 0 ? Math.min(...speeds) : 0;
-  const logistics = skillValue(hero, 'logistics', data);
-  return Math.floor((1500 + 50 * slowest) * (1 + logistics / 100));
-}
-
 export function sightRadius(hero: Hero, data: GameData): number {
   return 5 + skillValue(hero, 'scouting', data);
 }

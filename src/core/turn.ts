@@ -1,6 +1,7 @@
 import type { GameData } from '../data';
 import type { Building } from '../data/schema';
 import type { GameEvent } from './commands';
+import { maxMovementPoints } from './hero';
 import {
   addResources,
   emptyResources,
@@ -8,7 +9,6 @@ import {
   isWeekStart,
   manaRegenPerDay,
   maxMana,
-  maxMovementPoints,
   monthOf,
   weekOf,
   type GameState,

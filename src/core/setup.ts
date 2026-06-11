@@ -1,12 +1,12 @@
 import type { GameData } from '../data';
 import type { HeroTemplate } from '../data/schema';
 import type { GameMap, MapObject, MapPlayer } from '../maps/schema';
+import { maxMovementPoints } from './hero';
 import { rollRange, seedRng } from './rng';
 import {
   ARMY_SLOTS,
   emptyResources,
   maxMana,
-  maxMovementPoints,
   revealCircle,
   sightRadius,
   type ArmySlots,

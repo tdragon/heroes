@@ -1,9 +1,12 @@
 import type { GameData } from '../data';
+import type { Pos } from '../maps/schema';
+import { moveHero } from './movement';
 import { endTurn } from './turn';
-import type { GameState, PlayerId, Resources, TownId } from './state';
+import type { GameState, HeroId, ObjectId, PlayerId, Resources, TownId } from './state';
 
 export type Command =
   | { type: 'endTurn'; player: PlayerId }
+  | { type: 'moveHero'; player: PlayerId; hero: HeroId; path: Pos[] }
   | { type: 'resolveChoice'; player: PlayerId; choiceId: string; option: number };
 
 export type GameEvent =
@@ -13,6 +16,8 @@ export type GameEvent =
   | { type: 'monthStarted'; month: number }
   | { type: 'income'; player: PlayerId; amounts: Partial<Resources> }
   | { type: 'growth'; town: TownId }
+  | { type: 'heroMoved'; hero: HeroId; from: Pos; to: Pos; mpLeft: number }
+  | { type: 'objectTriggered'; hero: HeroId; object: ObjectId }
   | { type: 'choiceResolved'; choiceId: string; option: number };
 
 export interface DispatchResult {
@@ -70,6 +75,9 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
   switch (command.type) {
     case 'endTurn':
       endTurn(next, data, events);
+      break;
+    case 'moveHero':
+      moveHero(next, command, data, events);
       break;
     case 'resolveChoice':
       resolveChoice(next, command, events);

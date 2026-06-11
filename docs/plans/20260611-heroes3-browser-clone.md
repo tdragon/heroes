@@ -540,11 +540,11 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/movement.ts`, `src/core/movement.test.ts`
 - Modify: `src/core/commands.ts`, `src/core/hero.ts` (create — MP calc)
 
-- [ ] implement terrain cost lookup (+roads, +diagonal ×1.414, Pathfinding skill reduction §3.5) and daily MP formula (slowest creature + Logistics)
-- [ ] implement A* pathfinding over passable tiles (objects' footprints block; trigger tiles enterable)
-- [ ] implement `moveHero` command: validated step-by-step consumption of MP along path, stopping at triggers, emitting move events
-- [ ] write tests: A* optimality vs brute force on small grids; road preference; impassables; MP exhaustion mid-path; diagonal cost; Logistics/Pathfinding effects; cannot move through another hero
-- [ ] run tests — must pass before task 6
+- [x] implement terrain cost lookup (+roads, +diagonal ×1.414, Pathfinding skill reduction §3.5) and daily MP formula (slowest creature + Logistics)
+- [x] implement A* pathfinding over passable tiles (objects' footprints block; trigger tiles enterable)
+- [x] implement `moveHero` command: validated step-by-step consumption of MP along path, stopping at triggers, emitting move events
+- [x] write tests: A* optimality vs brute force on small grids; road preference; impassables; MP exhaustion mid-path; diagonal cost; Logistics/Pathfinding effects; cannot move through another hero
+- [x] run tests — must pass before task 6
 
 ### Task 6: Hero progression — XP, level-ups, skills, army management
 
