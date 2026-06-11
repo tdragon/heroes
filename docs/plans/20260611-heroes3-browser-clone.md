@@ -727,11 +727,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 
 ### Task 19: Verify acceptance criteria
 
-- [ ] verify all requirements from Overview are implemented: explore/collect/capture, town building, recruiting, hex combat with spells+sieges, 3 factions, AI opponents, fog, save/load, win/loss, hotseat
-- [ ] verify edge cases: 7-slot army limits, 8-skill cap, mana floors, last-town loss countdown, simultaneous-day mine income, mid-combat save
-- [ ] run full test suite: `npm run check`
-- [ ] run e2e tests: `npm run test:e2e`
-- [ ] verify coverage ≥80% on `src/core/` (`npm test -- --coverage`)
+- [x] verify all requirements from Overview are implemented: explore/collect/capture, town building, recruiting, hex combat with spells+sieges, 3 factions, AI opponents, fog, save/load, win/loss, hotseat
+- [x] verify edge cases: 7-slot army limits, 8-skill cap, mana floors, last-town loss countdown, simultaneous-day mine income, mid-combat save
+- [x] run full test suite: `npm run check`
+- [x] run e2e tests: `npm run test:e2e`
+- [x] verify coverage ≥80% on `src/core/` (`npm test -- --coverage`)
+- ➕ note: requirement→test evidence map: movement/pathfinding `movement.test.ts` + `e2e/adventure.spec.ts`; pickups/mines/town capture `objects.test.ts`; build/recruit/guild/trade `town.test.ts` + `e2e/town-hero.spec.ts`; hex combat/damage `combat/{engine,damage,grid}.test.ts` + `e2e/combat.spec.ts`; combat spells `magic.test.ts`; sieges `combat/siege.test.ts`; 3 factions `data.test.ts` ("42 faction creatures", "7+7 dwellings per faction"); AI `ai/ai.test.ts` (200-seed fuzz, AI-vs-AI termination); fog `fog.test.ts`; save/load+migration+mid-combat `app/saveload.test.ts` + `e2e/shell.spec.ts`; win/loss/townless `victory.test.ts`; hotseat `e2e/shell.spec.ts`; leveling/8-skill cap `hero.test.ts`; 7-slot limit `town.test.ts` + `armyCommands.test.ts`; same-day mine income `turn.test.ts` ("pays mine income to the mine owner only"). One gap found and fixed: mana-floor edge of Wraith drain (hero at 1 mana → floors at 0, no drain event at 0) had no explicit test — added to `combat/abilities.test.ts`. Coverage (lines): core 93.1%, core/combat 96.3%, core/ai 94.0%, all ≥80%; 512 unit + 18 e2e tests pass
 
 ### Task 20: [Final] Update documentation
 

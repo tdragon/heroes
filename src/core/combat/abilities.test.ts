@@ -474,6 +474,20 @@ describe('mana drain', () => {
     expect(events).toContainEqual({ type: 'manaDrained', side: 'attacker', amount: 2, by: 'd0' });
     expect(combat.attackerHero.mana).toBe(6);
   });
+
+  it('drain floors hero mana at zero and stops once mana is empty', () => {
+    const combat = makeCombat(
+      [{ creature: 'pikeman', count: 1 }],
+      [{ creature: 'wraith', count: 3 }],
+      { attackerHero: { hero: 'h1', mana: 1 } },
+    );
+    // partial drain at the start of round 1: only 1 mana available
+    expect(combat.attackerHero.mana).toBe(0);
+    combatAct(combat, { type: 'defend' }, data);
+    const events = combatAct(combat, { type: 'defend' }, data);
+    expect(events.filter((e) => e.type === 'manaDrained')).toEqual([]);
+    expect(combat.attackerHero.mana).toBe(0);
+  });
 });
 
 describe('morale', () => {
