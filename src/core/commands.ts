@@ -200,7 +200,12 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
   if (state.status !== 'running') {
     throw new CommandRejectedError('game is over');
   }
-  if (command.player !== state.currentPlayer) {
+  // a pending choice may be resolved by its owner even off-turn (e.g. the
+  // defender of an AI attack picking a level-up skill during the AI's turn)
+  const resolvesOwnChoice =
+    command.type === 'resolveChoice' &&
+    state.pendingChoices.some((c) => c.id === command.choiceId && c.player === command.player);
+  if (command.player !== state.currentPlayer && !resolvesOwnChoice) {
     throw new CommandRejectedError(
       `command from ${command.player}, but current player is ${state.currentPlayer}`,
     );

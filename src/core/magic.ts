@@ -578,7 +578,12 @@ function castDimensionDoor(
     throw new CommandRejectedError('cannot teleport into the shroud');
   }
   const ctx = buildMoveContext(state, data, hero);
-  if (!isEnterable(ctx, dest) || ctx.triggers[dest[1] * ctx.size + dest[0]] !== null) {
+  const destIndex = dest[1] * ctx.size + dest[0];
+  if (
+    !isEnterable(ctx, dest) ||
+    ctx.triggers[destIndex] !== null ||
+    ctx.enemyHeroes[destIndex] !== null
+  ) {
     throw new CommandRejectedError('the destination tile is not free');
   }
   payAdventureCast(hero, spell);

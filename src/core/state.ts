@@ -132,7 +132,7 @@ export interface PendingChoice {
   message?: string;
 }
 
-export type CombatReason = 'guard' | 'siege';
+export type CombatReason = 'guard' | 'siege' | 'field';
 
 export interface DefenderSlotRef {
   source: 'garrison' | 'hero';

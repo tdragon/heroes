@@ -2,15 +2,15 @@
 // Auto / Flee / Spellbook), combat log and hover damage estimates. All game
 // rules stay in the core; this screen only translates clicks into
 // `combatAction` commands and replays the emitted events as log lines and
-// small animations. Enemy-side stacks are auto-played with the simple combat
-// policy until the real AI lands in Task 16.
+// small animations. Enemy-side stacks and the Auto button are played by the
+// combat AI.
 
 import type { GameEvent } from '../core/commands';
+import { chooseCombatAction } from '../core/ai/combatAI';
 import { getEffect, requireCreature } from '../core/combat/abilities';
 import { activeCombatStack, type CombatAction } from '../core/combat/engine';
 import { hexDistance, type Hex } from '../core/combat/grid';
 import { segmentAt } from '../core/combat/siege';
-import { chooseSimpleCombatAction } from '../core/combat/simplePolicy';
 import {
   heroInfoFor,
   livingStacks,
@@ -205,7 +205,7 @@ export class CombatScreen {
     }
   }
 
-  // auto-play enemy-side stacks with the simple policy (placeholder AI)
+  // auto-play enemy-side stacks with the combat AI
   ensureAiActs(): void {
     if (this.aiRunning) return;
     this.aiRunning = true;
@@ -216,7 +216,7 @@ export class CombatScreen {
         if (!combat) break;
         const stack = activeCombatStack(combat);
         if (!stack || stack.side === this.humanSide(combat)) break;
-        if (!this.runAction(chooseSimpleCombatAction(combat, this.ctx.data))) break;
+        if (!this.runAction(chooseCombatAction(combat, this.ctx.data))) break;
       }
     } finally {
       this.aiRunning = false;
@@ -231,7 +231,7 @@ export class CombatScreen {
       while (guard++ < AUTO_ACTION_LIMIT) {
         const combat = this.combatState();
         if (!combat || activeCombatStack(combat) === null) break;
-        if (!this.runAction(chooseSimpleCombatAction(combat, this.ctx.data))) break;
+        if (!this.runAction(chooseCombatAction(combat, this.ctx.data))) break;
       }
     } finally {
       this.aiRunning = false;

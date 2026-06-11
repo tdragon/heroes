@@ -213,6 +213,38 @@ export function startSiegeCombat(
   );
 }
 
+// hero-vs-hero battle on the open map (spec task 16); the attacker fights
+// from its current tile and never moves onto the defender's tile
+export function startFieldCombat(
+  state: GameState,
+  attacker: Hero,
+  defender: Hero,
+  data: GameData,
+  events: GameEvent[],
+): void {
+  const att = armyToCombatStacks(attacker.army);
+  const def = armyToCombatStacks(defender.army);
+  beginCombat(
+    state,
+    {
+      reason: 'field',
+      attackerHero: attacker.id,
+      attackerSlots: att.slots,
+      defenderHero: defender.id,
+      defenderTown: null,
+      defenderSlots: def.slots.map((index): DefenderSlotRef => ({ source: 'hero', index })),
+      object: null,
+    },
+    {
+      attacker: { hero: heroCombatInfo(attacker, data), stacks: att.stacks },
+      defender: { hero: heroCombatInfo(defender, data), stacks: def.stacks },
+      rng: state.rngState,
+    },
+    data,
+    events,
+  );
+}
+
 function sideStacks(combat: CombatState, side: CombatSideId): CombatStack[] {
   return combat.stacks.filter((s) => s.side === side);
 }

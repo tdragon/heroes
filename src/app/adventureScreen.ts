@@ -1,5 +1,6 @@
 import type { GameData } from '../data';
 import type { Pos } from '../maps/schema';
+import { chooseAICommand } from '../core/ai/adventureAI';
 import { CommandRejectedError, dispatch, type Command, type GameEvent } from '../core/commands';
 import { CombatRuleError } from '../core/combat/state';
 import { visibleTiles } from '../core/fog';
@@ -29,6 +30,7 @@ export const CANVAS_H = 760;
 const EDGE_SCROLL_MARGIN = 16;
 const EDGE_SCROLL_SPEED = 10;
 const KEY_SCROLL_STEP = TILE_PX;
+const AI_COMMAND_LIMIT = 2000;
 
 interface PendingPath {
   dest: Pos;
@@ -55,6 +57,7 @@ export class AdventureScreen implements Screen {
   private mousePos: [number, number] | null = null;
   private dragFrom: [number, number] | null = null;
   private running = false;
+  private aiTurnRunning = false;
 
   constructor(
     private readonly data: GameData,
@@ -212,18 +215,67 @@ export class AdventureScreen implements Screen {
       this.combatPanel.consume(events);
       this.combatPanel.ensureAiActs();
     }
+    this.maybeResumeAiTurns();
   }
 
-  // create/destroy the combat overlay so it always mirrors state.combat
+  // create/destroy the combat overlay so it always mirrors state.combat;
+  // AI-vs-neutral battles during enemy turns stay off-screen
   private syncCombatPanel(): void {
-    if (this.state.combat !== null && !this.combatPanel) {
+    if (this.state.combat !== null && this.humanInCombat() && !this.combatPanel) {
       this.combatPanel = new CombatScreen(this.uiContext());
       this.root.appendChild(this.combatPanel.root);
-    } else if (this.state.combat === null && this.combatPanel) {
+    } else if ((this.state.combat === null || !this.humanInCombat()) && this.combatPanel) {
       this.combatPanel.destroy();
       this.combatPanel = null;
     }
     this.markDirty();
+  }
+
+  private humanInCombat(): boolean {
+    const combat = this.state.combat;
+    if (!combat) return false;
+    const humanId = this.viewPlayer().id;
+    return (
+      combat.combat.attackerHero.player === humanId ||
+      combat.combat.defenderHero.player === humanId
+    );
+  }
+
+  // --- AI turns ---
+
+  // run AI players until it is a human's turn again, the game ends, or a
+  // battle / pending choice needs the human's attention; also resolves
+  // choices owned by AI players that arise off-turn (e.g. an AI defender's
+  // level-up after surviving the human's attack)
+  private maybeResumeAiTurns(): void {
+    if (this.aiTurnRunning) return;
+    this.aiTurnRunning = true;
+    try {
+      let guard = 0;
+      while (guard++ < AI_COMMAND_LIMIT && this.state.status === 'running') {
+        if (this.state.combat !== null && this.humanInCombat()) break;
+        const aiChoice = this.state.pendingChoices.find(
+          (c) => this.state.players.find((p) => p.id === c.player)?.isHuman === false,
+        );
+        if (aiChoice) {
+          const resolve: Command = {
+            type: 'resolveChoice',
+            player: aiChoice.player,
+            choiceId: aiChoice.id,
+            option: 0,
+          };
+          if (!this.runCommand(resolve)) break;
+          continue;
+        }
+        if (this.state.pendingChoices.length > 0) break;
+        const player = this.state.players.find((p) => p.id === this.state.currentPlayer);
+        if (!player || player.isHuman || player.defeated) break;
+        this.hud.setStatus(`Enemy turn — ${player.id}…`);
+        if (!this.runCommand(chooseAICommand(this.state, this.data))) break;
+      }
+    } finally {
+      this.aiTurnRunning = false;
+    }
   }
 
   private combatResultText(
@@ -270,15 +322,8 @@ export class AdventureScreen implements Screen {
 
   private endTurn(): void {
     this.pendingPath = null;
-    if (!this.runCommand({ type: 'endTurn', player: this.state.currentPlayer })) return;
-    // placeholder until Task 16: AI players immediately pass their turn
-    let guard = 0;
-    while (this.state.status === 'running' && guard < 8) {
-      const current = this.state.players.find((p) => p.id === this.state.currentPlayer);
-      if (!current || current.isHuman || current.defeated) break;
-      if (!this.runCommand({ type: 'endTurn', player: current.id })) break;
-      guard += 1;
-    }
+    // AI turns run from handleEvents (maybeResumeAiTurns) once the turn passes
+    this.runCommand({ type: 'endTurn', player: this.state.currentPlayer });
   }
 
   // --- selection and movement ---

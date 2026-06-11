@@ -192,27 +192,29 @@ function applyDwellingBuilt(
   town.availableCreatures[creature.id] = (town.availableCreatures[creature.id] ?? 0) + gain;
 }
 
-export function buildStructure(
+// why `buildingId` cannot be built in `town` right now, or null when it can;
+// shared by the build command and the economy AI
+export function buildRejection(
   state: GameState,
-  command: Extract<Command, { type: 'build' }>,
+  playerId: PlayerId,
+  town: Town,
+  buildingId: string,
   data: GameData,
-  events: GameEvent[],
-): void {
-  const town = requireOwnTown(state, command.town, command.player);
+): string | null {
   if (town.builtToday) {
-    throw new CommandRejectedError(`town ${town.id} already built today`);
+    return `town ${town.id} already built today`;
   }
   const catalog = townBuildingCatalog(town.faction, data);
-  const building = catalog.get(command.building);
+  const building = catalog.get(buildingId);
   if (!building) {
-    throw new CommandRejectedError(`unknown building for ${town.faction}: ${command.building}`);
+    return `unknown building for ${town.faction}: ${buildingId}`;
   }
   if (town.buildings.includes(building.id)) {
-    throw new CommandRejectedError(`${building.id} is already built in ${town.id}`);
+    return `${building.id} is already built in ${town.id}`;
   }
   for (const prereq of building.prereqs) {
     if (!town.buildings.includes(prereq)) {
-      throw new CommandRejectedError(`${building.id} requires ${prereq}`);
+      return `${building.id} requires ${prereq}`;
     }
   }
   const faction = data.factions[town.faction];
@@ -220,29 +222,45 @@ export function buildStructure(
     throw new Error(`unknown faction: ${town.faction}`);
   }
   if (building.guildLevel !== undefined && building.guildLevel > faction.maxGuildLevel) {
-    throw new CommandRejectedError(
-      `${faction.id} mage guild is capped at level ${String(faction.maxGuildLevel)}`,
-    );
+    return `${faction.id} mage guild is capped at level ${String(faction.maxGuildLevel)}`;
   }
-  const built = builtBuildings(town, data);
   if (building.kind === 'hall') {
-    const current = built.find((b) => b.kind === 'hall');
+    const current = builtBuildings(town, data).find((b) => b.kind === 'hall');
     if (current && (current.income?.gold ?? 0) >= (building.income?.gold ?? 0)) {
-      throw new CommandRejectedError(`${town.id} already has ${current.id}`);
+      return `${town.id} already has ${current.id}`;
     }
   }
+  const player = getPlayer(state, playerId);
   if (building.uniquePerPlayer) {
-    const player = getPlayer(state, command.player);
     for (const townId of player.towns) {
       if (state.towns[townId]?.buildings.includes(building.id)) {
-        throw new CommandRejectedError(`${building.id} is unique per player`);
+        return `${building.id} is unique per player`;
       }
     }
   }
-  const player = getPlayer(state, command.player);
   if (!canAfford(player.resources, building.cost)) {
-    throw new CommandRejectedError(`cannot afford ${building.id}`);
+    return `cannot afford ${building.id}`;
   }
+  return null;
+}
+
+export function buildStructure(
+  state: GameState,
+  command: Extract<Command, { type: 'build' }>,
+  data: GameData,
+  events: GameEvent[],
+): void {
+  const town = requireOwnTown(state, command.town, command.player);
+  const rejection = buildRejection(state, command.player, town, command.building, data);
+  if (rejection !== null) {
+    throw new CommandRejectedError(rejection);
+  }
+  const catalog = townBuildingCatalog(town.faction, data);
+  const building = catalog.get(command.building);
+  if (!building) {
+    throw new Error(`unknown building for ${town.faction}: ${command.building}`);
+  }
+  const player = getPlayer(state, command.player);
   payCost(player.resources, building.cost);
 
   if (building.kind === 'hall') {
@@ -296,7 +314,7 @@ function armySlotsFor(
   return hero.army;
 }
 
-function canPlace(slots: ArmySlots, creature: string): boolean {
+export function canPlace(slots: ArmySlots, creature: string): boolean {
   return slots.some((s) => s?.creature === creature) || slots.includes(null);
 }
 

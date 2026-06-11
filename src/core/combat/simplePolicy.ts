@@ -1,7 +1,7 @@
 // A deliberately simple, always-legal combat policy: shoot the biggest stack,
 // otherwise melee the first reachable enemy, otherwise advance toward the
-// nearest one. Used by scripted replay battles and the combat screen's Auto
-// button until the real combat AI lands in Task 16.
+// nearest one. Kept for scripted replay battles (stable golden hashes); the
+// game itself uses the real combat AI in src/core/ai/combatAI.ts.
 
 import type { GameData } from '../../data';
 import { isBound, requireCreature } from './abilities';

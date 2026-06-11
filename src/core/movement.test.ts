@@ -426,14 +426,35 @@ describe('moveHero command', () => {
     expect(events).toEqual([]);
   });
 
-  it('cannot move through or onto another hero', () => {
+  it('cannot move through or onto an own hero', () => {
     const start = makeGame();
     const mortus = start.heroes.mortus;
     if (!mortus) throw new Error('missing mortus');
     mortus.pos = [3, 3];
+    mortus.owner = 'red';
     expect(() =>
       dispatch(start, { type: 'moveHero', player: 'red', hero: 'edric', path: [[3, 3]] }, data),
     ).toThrow(CommandRejectedError);
+  });
+
+  it('starts a field battle when stepping onto an enemy hero', () => {
+    const start = makeGame();
+    const mortus = start.heroes.mortus;
+    if (!mortus) throw new Error('missing mortus');
+    mortus.pos = [3, 3];
+    const before = start.heroes.edric?.movementPoints ?? 0;
+    const { state, events } = dispatch(
+      start,
+      { type: 'moveHero', player: 'red', hero: 'edric', path: [[3, 3]] },
+      data,
+    );
+    expect(state.combat?.reason).toBe('field');
+    expect(state.combat?.attackerHero).toBe('edric');
+    expect(state.combat?.defenderHero).toBe('mortus');
+    // the attacker pays for the step but never enters the defender's tile
+    expect(state.heroes.edric?.pos).toEqual([2, 2]);
+    expect(state.heroes.edric?.movementPoints).toBeLessThan(before);
+    expect(events.some((e) => e.type === 'combatStarted' && e.reason === 'field')).toBe(true);
   });
 
   it('rejects invalid paths and foreign heroes', () => {

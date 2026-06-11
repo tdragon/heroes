@@ -689,12 +689,13 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/ai/adventureAI.ts`, `src/core/ai/combatAI.ts`, `src/core/ai/economyAI.ts`
 - Create: `src/core/ai/ai.test.ts`
 
-- [ ] implement combat AI per §9.4 (shooter targeting, melee value trade, approach, spell pick) — pure function `chooseCombatAction(combatState) → CombatAction`
-- [ ] implement economy AI (build priority list, weekly recruit-all to main hero) and adventure AI (opportunity scoring loop §9.1–9.3, power-ratio gate 1.3)
-- [ ] wire AI turns into endTurn flow with per-command event stream (UI shows "Enemy turn…" + optionally visible moves in explored area); replace auto-combat placeholder
-- ➕ allow `moveHero` onto an enemy hero's tile to trigger hero-vs-hero field combat (movement currently blocks all hero tiles; the combat itself reuses the Task 9 resolve flow)
-- [ ] write tests: combat AI never returns illegal action (fuzz over 200 seeded random combat states); AI beats an idle player on tiny map within 4 weeks (integration, seeded); economy AI builds capitol track in valid order; full AI-vs-AI game on tiny map terminates < 3 months with a winner (no hangs)
-- [ ] run tests — must pass before task 17
+- [x] implement combat AI per §9.4 (shooter targeting, melee value trade, approach, spell pick) — pure function `chooseCombatAction(combatState) → CombatAction`
+- [x] implement economy AI (build priority list, weekly recruit-all to main hero) and adventure AI (opportunity scoring loop §9.1–9.3, power-ratio gate 1.3)
+- [x] wire AI turns into endTurn flow with per-command event stream (UI shows "Enemy turn…" + optionally visible moves in explored area); replace auto-combat placeholder
+- [x] ➕ allow `moveHero` onto an enemy hero's tile to trigger hero-vs-hero field combat (movement currently blocks all hero tiles; the combat itself reuses the Task 9 resolve flow)
+- [x] write tests: combat AI never returns illegal action (fuzz over 200 seeded random combat states); AI beats an idle player on tiny map within 4 weeks (integration, seeded); economy AI builds capitol track in valid order; full AI-vs-AI game on tiny map terminates < 3 months with a winner (no hangs)
+- [x] run tests — must pass before task 17
+- ➕ note: AI lives in `src/core/ai/{combatAI,economyAI,adventureAI}.ts`; `chooseAICommand(state, data)` is the single per-command entry point (combat action → choice resolution → build → recruit → trade → hero moves → endTurn). Deviations from §9: enemy towns are also gated by the 1.3× power ratio against garrison+visiting-hero strength (spec gates only neutral guards — ungated town rushes suicide the AI hero); the economy AI trades gold for missing build resources at the marketplace (the tiny map has no ore pit, so the fort was unreachable otherwise). Field combat = `startFieldCombat` (`CombatReason 'field'`); the attacker pays the step cost but stays on its tile; an enemy hero standing on a town tile is handled by the town trigger (siege). `moveHero` movement context now exposes `enemyHeroes` tiles (enterable destinations, never passed through; Dimension Door rejects them). Dispatcher change: `resolveChoice` is accepted from the choice owner even off-turn (an AI attack can hand the human defender a level-up choice mid-AI-turn); the adventure screen drives AI turns from `maybeResumeAiTurns` after every event batch and resolves off-turn AI-owned choices itself; AI-vs-neutral battles run without opening the combat screen. `simplePolicy.ts` is kept only for the Task 12 replay fixture (stable golden hashes)
 
 ### Task 17: Game shell — main menu, new game config, save/load
 

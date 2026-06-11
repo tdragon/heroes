@@ -4,9 +4,17 @@ import { objectFootprint } from '../maps/dsl';
 import { NO_ROAD_CHAR, type Pos } from '../maps/schema';
 import type { Command, GameEvent } from './commands';
 import { CommandRejectedError } from './commands';
+import { startFieldCombat } from './combat/resolve';
 import { revealFor, sightRadius } from './fog';
 import { handleObjectTrigger } from './objects';
-import { getPlayer, skillValue, type GameState, type Hero, type ObjectId } from './state';
+import {
+  getPlayer,
+  skillValue,
+  type GameState,
+  type Hero,
+  type HeroId,
+  type ObjectId,
+} from './state';
 
 export const DIAGONAL_FACTOR = 1.414;
 export const TERRAIN_COST_FLOOR = 100;
@@ -23,6 +31,9 @@ export interface MoveContext {
   tileCosts: (number | null)[];
   blocked: boolean[];
   triggers: (ObjectId | null)[];
+  // enemy hero on the tile: enterable as a path destination, stepping toward
+  // it triggers a field battle (or a siege when the tile is a town)
+  enemyHeroes: (HeroId | null)[];
 }
 
 export function buildMoveContext(state: GameState, data: GameData, hero: Hero): MoveContext {
@@ -61,12 +72,18 @@ export function buildMoveContext(state: GameState, data: GameData, hero: Hero): 
   for (let i = 0; i < size * size; i++) {
     if (triggers[i] !== null) blocked[i] = false;
   }
+  const enemyHeroes: (HeroId | null)[] = Array.from({ length: size * size }, () => null);
   for (const other of Object.values(state.heroes)) {
     if (other.id === hero.id) continue;
-    blocked[other.pos[1] * size + other.pos[0]] = true;
+    const index = other.pos[1] * size + other.pos[0];
+    if (other.owner === hero.owner) {
+      blocked[index] = true;
+    } else {
+      enemyHeroes[index] = other.id;
+    }
   }
 
-  return { size, tileCosts, blocked, triggers };
+  return { size, tileCosts, blocked, triggers, enemyHeroes };
 }
 
 function tileIndex(ctx: MoveContext, pos: Pos): number {
@@ -207,8 +224,8 @@ export function findPathInContext(ctx: MoveContext, start: Pos, dest: Pos): Pos[
       return path;
     }
 
-    // movement stops on trigger tiles, so they are never passed through
-    if (i !== startIndex && ctx.triggers[i] !== null) continue;
+    // movement stops on trigger and enemy-hero tiles, never passing through
+    if (i !== startIndex && (ctx.triggers[i] !== null || ctx.enemyHeroes[i] !== null)) continue;
 
     const x = i % ctx.size;
     const y = Math.floor(i / ctx.size);
@@ -289,11 +306,27 @@ export function moveHero(
     prev = step;
   }
 
+  const isTownTile = (objectId: ObjectId | null): boolean =>
+    objectId !== null && state.map.objects.some((o) => o.id === objectId && o.type === 'town');
+
   const player = getPlayer(state, hero.owner);
   const radius = sightRadius(hero, data);
   for (const step of command.path) {
     const cost = stepCost(ctx, hero.pos, step);
     if (hero.movementPoints < cost) break;
+    const stepIndex = tileIndex(ctx, step);
+    const enemyId = ctx.enemyHeroes[stepIndex] ?? null;
+    // an enemy hero defends the tile: fight a field battle without entering
+    // it (an enemy hero visiting a town is handled by the town trigger below)
+    if (enemyId !== null && !isTownTile(ctx.triggers[stepIndex] ?? null)) {
+      const defender = state.heroes[enemyId];
+      if (!defender) {
+        throw new Error(`enemy hero ${enemyId} is missing from the map`);
+      }
+      hero.movementPoints -= cost;
+      startFieldCombat(state, hero, defender, data, events);
+      break;
+    }
     hero.movementPoints -= cost;
     const from: Pos = [...hero.pos];
     leaveTile(state, hero, from);
