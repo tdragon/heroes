@@ -515,11 +515,11 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/maps/tutorial-valley.dsl.ts` (36×36, 2 players), `src/maps/contested-river.dsl.ts` (48×48, 3 players), `src/maps/fixtures/tiny.dsl.ts` (12×12 test map)
 - Create: `src/maps/index.ts` (map registry), `src/maps/maps.test.ts`
 
-- [ ] define map JSON zod schema (§8.1): size, players, tiles (terrain+road), objects with guards/amounts, victory/loss
-- [ ] implement DSL compiler: char-grid terrain layer + road layer + object list → validated map JSON; helpful errors with row/col
-- [ ] author 3 maps: tiny test fixture (hero, town, 1 mine, 1 guard, resources), tutorial 2-player, 3-player map with chokepoint guards and monolith pair
-- [ ] write tests: compiler errors (bad char, ragged grid, object out of bounds, overlapping footprints); compiled maps validate; tiny map snapshot
-- [ ] run tests — must pass before task 4
+- [x] define map JSON zod schema (§8.1): size, players, tiles (terrain+road), objects with guards/amounts, victory/loss
+- [x] implement DSL compiler: char-grid terrain layer + road layer + object list → validated map JSON; helpful errors with row/col
+- [x] author 3 maps: tiny test fixture (hero, town, 1 mine, 1 guard, resources), tutorial 2-player, 3-player map with chokepoint guards and monolith pair
+- [x] write tests: compiler errors (bad char, ragged grid, object out of bounds, overlapping footprints); compiled maps validate; tiny map snapshot
+- [x] run tests — must pass before task 4
 
 ### Task 4: GameState core, command dispatcher, turn cycle
 

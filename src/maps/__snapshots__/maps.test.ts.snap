@@ -1,0 +1,103 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`tiny fixture map > matches the snapshot 1`] = `
+{
+  "id": "tiny",
+  "loss": {
+    "type": "loseAll",
+  },
+  "name": "Tiny Proving Grounds",
+  "objects": [
+    {
+      "at": [
+        2,
+        2,
+      ],
+      "owner": "red",
+      "type": "town",
+    },
+    {
+      "at": [
+        9,
+        9,
+      ],
+      "owner": "blue",
+      "type": "town",
+    },
+    {
+      "at": [
+        6,
+        2,
+      ],
+      "guard": {
+        "count": 4,
+        "creature": "wolf",
+      },
+      "subtype": "sawmill",
+      "type": "mine",
+    },
+    {
+      "amount": 6,
+      "at": [
+        4,
+        4,
+      ],
+      "subtype": "wood",
+      "type": "resource",
+    },
+    {
+      "amount": 600,
+      "at": [
+        8,
+        7,
+      ],
+      "subtype": "gold",
+      "type": "resource",
+    },
+    {
+      "at": [
+        5,
+        7,
+      ],
+      "type": "treasure_chest",
+    },
+    {
+      "at": [
+        6,
+        6,
+      ],
+      "count": 6,
+      "creature": "wolf",
+      "type": "monster",
+    },
+  ],
+  "players": [
+    {
+      "color": "red",
+      "faction": "castle",
+      "isHuman": true,
+      "startHero": "edric",
+      "startTownAt": [
+        2,
+        2,
+      ],
+    },
+    {
+      "color": "blue",
+      "faction": "necropolis",
+      "isHuman": false,
+      "startHero": "mortus",
+      "startTownAt": [
+        9,
+        9,
+      ],
+    },
+  ],
+  "roads": "....................................................DDDD........................................................................................",
+  "size": 12,
+  "terrain": "ggggggggggggggggggggggggggggggggggggggggggggggggggggddddggggwwwgddddggggwwwggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg",
+  "victory": {
+    "type": "defeatAll",
+  },
+}
+`;
