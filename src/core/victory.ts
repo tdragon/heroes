@@ -56,12 +56,25 @@ function passTurnFromDefeated(state: GameState, data: GameData, events: GameEven
 
 export function evaluateVictory(state: GameState, data: GameData, events: GameEvent[]): void {
   if (state.status !== 'running' || state.combat !== null) return;
+  const eliminatedNow: Player[] = [];
   for (const player of state.players) {
     if (!player.defeated && isEliminated(player)) {
       eliminatePlayer(state, player, events);
+      eliminatedNow.push(player);
     }
   }
   const active = state.players.filter((p) => !p.defeated);
+  // simultaneous elimination (every remaining player hits the 7-day townless
+  // limit on the same pass) must not leave the game running with no active
+  // player: rule — the player eliminated last in this pass (turn order) wins
+  // the mutual destruction, as the deterministic tie-break
+  if (active.length === 0) {
+    const winner = eliminatedNow[eliminatedNow.length - 1];
+    if (!winner) return;
+    state.status = { winner: winner.id };
+    events.push({ type: 'gameOver', winner: winner.id });
+    return;
+  }
   if (active.length === 1 && state.players.length > 1) {
     const winner = active[0];
     if (!winner) return;

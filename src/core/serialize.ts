@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { FactionIdSchema, ResourceIdSchema, SkillRankSchema } from '../data/schema';
 import { GuardSchema, PlayerColorSchema, PosSchema } from '../maps/schema';
 import { EFFECT_KINDS } from './combat/state';
-import type { GameState } from './state';
+import { ARMY_SLOTS, type GameState } from './state';
 
 export const SAVE_VERSION = 4;
 
@@ -379,14 +379,93 @@ function assertReferentialIntegrity(state: GameState): void {
         `expected ${defender?.owner ?? 'nobody'}, found ${battle.defenderHero.player ?? 'nobody'}`,
       );
     }
+    // finishCombat writes survivors back through the slot mappings:
+    // attackerSlots[stack.slot] names an index into the attacker hero's army
+    // and defenderSlots[stack.slot] a garrison/visiting-hero slot. A bad
+    // mapping would crash syncAttackerArmy/syncDefenders or silently write
+    // survivors into the wrong army slot, so enforce the invariants the
+    // engine maintains: indexes are integers in [0, ARMY_SLOTS), unique per
+    // side, refs name an existing town/hero, and every combat stack has a
+    // mapping entry for its slot (guard combats keep no defender mapping)
+    const combatRef = state.combat;
+    const armyIndexes = new Set<number>();
+    combatRef.attackerSlots.forEach((armyIndex, i) => {
+      if (!Number.isInteger(armyIndex) || armyIndex < 0 || armyIndex >= ARMY_SLOTS) {
+        throw integrityError(
+          `combat.attackerSlots.${String(i)}`,
+          `invalid army index ${String(armyIndex)}`,
+        );
+      }
+      if (armyIndexes.has(armyIndex)) {
+        throw integrityError(
+          `combat.attackerSlots.${String(i)}`,
+          `duplicate army index ${String(armyIndex)}`,
+        );
+      }
+      armyIndexes.add(armyIndex);
+    });
+    if (combatRef.reason === 'guard') {
+      if (combatRef.defenderSlots.length > 0) {
+        throw integrityError('combat.defenderSlots', 'guard combats keep no defender mapping');
+      }
+    } else {
+      const defenderRefs = new Set<string>();
+      combatRef.defenderSlots.forEach((ref, i) => {
+        if (!Number.isInteger(ref.index) || ref.index < 0 || ref.index >= ARMY_SLOTS) {
+          throw integrityError(
+            `combat.defenderSlots.${String(i)}`,
+            `invalid ${ref.source} index ${String(ref.index)}`,
+          );
+        }
+        const key = `${ref.source}:${String(ref.index)}`;
+        if (defenderRefs.has(key)) {
+          throw integrityError(
+            `combat.defenderSlots.${String(i)}`,
+            `duplicate ${ref.source} index ${String(ref.index)}`,
+          );
+        }
+        defenderRefs.add(key);
+        if (ref.source === 'garrison' && combatRef.defenderTown === null) {
+          throw integrityError(
+            `combat.defenderSlots.${String(i)}`,
+            'garrison slot without a defender town',
+          );
+        }
+        if (ref.source === 'hero' && combatRef.defenderHero === null) {
+          throw integrityError(
+            `combat.defenderSlots.${String(i)}`,
+            'hero slot without a defender hero',
+          );
+        }
+      });
+    }
     // queue/waitQueue are read via getCombatStack (throws on unknown ids)
     // and a stack acts once per round: ids must name distinct real stacks
     const stackIds = new Set<string>();
+    const sideSlots = { attacker: new Set<number>(), defender: new Set<number>() };
     for (const stack of battle.stacks) {
       if (stackIds.has(stack.id)) {
         throw integrityError('combat.combat.stacks', `duplicate stack id ${stack.id}`);
       }
       stackIds.add(stack.id);
+      if (sideSlots[stack.side].has(stack.slot)) {
+        throw integrityError(
+          'combat.combat.stacks',
+          `${stack.side} slot ${String(stack.slot)} is used twice`,
+        );
+      }
+      sideSlots[stack.side].add(stack.slot);
+      // guard combats sync the (single) defender stack without a mapping;
+      // every other stack indexes its side's slot mapping by stack.slot
+      if (stack.side === 'defender' && combatRef.reason === 'guard') continue;
+      const mapping = stack.side === 'attacker' ? 'attackerSlots' : 'defenderSlots';
+      const length = combatRef[mapping].length;
+      if (!Number.isInteger(stack.slot) || stack.slot < 0 || stack.slot >= length) {
+        throw integrityError(
+          'combat.combat.stacks',
+          `${stack.side} stack ${stack.id} has no ${mapping} entry for slot ${String(stack.slot)}`,
+        );
+      }
     }
     const queued = new Set<string>();
     for (const [name, ids] of [

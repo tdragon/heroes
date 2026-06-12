@@ -111,6 +111,28 @@ describe('townless countdown', () => {
   });
 });
 
+describe('simultaneous elimination', () => {
+  it('ends the game when every remaining player is eliminated in the same pass', () => {
+    const state = makeGame();
+    // both players hit the 7-day townless limit on the same evaluation
+    for (const player of state.players) {
+      player.towns = [];
+      player.daysWithoutTown = TOWNLESS_DEFEAT_DAYS;
+    }
+    for (const town of Object.values(state.towns)) town.owner = null;
+    const events: GameEvent[] = [];
+    evaluateVictory(state, data, events);
+    expect(events).toContainEqual({ type: 'playerDefeated', player: 'red' });
+    expect(events).toContainEqual({ type: 'playerDefeated', player: 'blue' });
+    // the player eliminated last in the pass (turn order) wins the tie-break
+    expect(state.status).toEqual({ winner: 'blue' });
+    expect(events).toContainEqual({ type: 'gameOver', winner: 'blue' });
+    expect(() => dispatch(state, { type: 'endTurn', player: 'red' }, data)).toThrow(
+      'game is over',
+    );
+  });
+});
+
 describe('current-player elimination', () => {
   const threePlayerSource: MapSource = {
     id: 'three-way',

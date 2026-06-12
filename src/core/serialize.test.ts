@@ -407,6 +407,100 @@ describe('referential integrity', () => {
     ).toThrow(/combat\.combat\.stacks: duplicate stack id/);
   });
 
+  // finishCombat maps survivors back to armies through attackerSlots /
+  // defenderSlots: malformed mappings must be rejected at load time, not
+  // crash or scramble armies when the restored battle ends
+  it('rejects attacker slot mappings that would corrupt the army after battle', () => {
+    const fighting = makeMidCombatGame();
+    const breakCombat = (mutate: (c: Record<string, unknown>) => void): string => {
+      const raw = JSON.parse(serializeGame(fighting)) as {
+        version: number;
+        state: { combat: Record<string, unknown> };
+      };
+      mutate(raw.state.combat);
+      return JSON.stringify(raw);
+    };
+    expect(() => deserializeGame(breakCombat((c) => (c.attackerSlots = [7])))).toThrow(
+      'combat.attackerSlots.0: invalid army index 7',
+    );
+    expect(() => deserializeGame(breakCombat((c) => (c.attackerSlots = [-1])))).toThrow(
+      'combat.attackerSlots.0: invalid army index -1',
+    );
+    expect(() => deserializeGame(breakCombat((c) => (c.attackerSlots = [0, 0])))).toThrow(
+      'combat.attackerSlots.1: duplicate army index 0',
+    );
+    // every attacker combat stack must have a mapping entry for its slot
+    expect(() => deserializeGame(breakCombat((c) => (c.attackerSlots = [])))).toThrow(
+      /combat\.combat\.stacks: attacker stack .* has no attackerSlots entry for slot 0/,
+    );
+    // guard combats sync the lone defender stack without any mapping
+    expect(() =>
+      deserializeGame(breakCombat((c) => (c.defenderSlots = [{ source: 'garrison', index: 0 }]))),
+    ).toThrow('combat.defenderSlots: guard combats keep no defender mapping');
+    // two stacks of one side sharing a slot would write the same army slot twice
+    expect(() =>
+      deserializeGame(
+        breakCombat((c) => {
+          const battle = c.combat as { stacks: Record<string, unknown>[] };
+          battle.stacks.push({ ...battle.stacks[0], id: 'dup' });
+        }),
+      ),
+    ).toThrow(/combat\.combat\.stacks: (attacker|defender) slot \d+ is used twice/);
+  });
+
+  it('rejects defender slot refs that point nowhere', () => {
+    const fighting = makeMidCombatGame();
+    const realTown = Object.keys(fighting.towns)[0];
+    const breakCombat = (mutate: (c: Record<string, unknown>) => void): string => {
+      const raw = JSON.parse(serializeGame(fighting)) as {
+        version: number;
+        state: { combat: Record<string, unknown> };
+      };
+      mutate(raw.state.combat);
+      return JSON.stringify(raw);
+    };
+    // outside guard combats every defender stack needs a mapping entry
+    expect(() => deserializeGame(breakCombat((c) => (c.reason = 'field')))).toThrow(
+      /combat\.combat\.stacks: defender stack .* has no defenderSlots entry for slot 0/,
+    );
+    expect(() =>
+      deserializeGame(
+        breakCombat((c) => {
+          c.reason = 'field';
+          c.defenderSlots = [{ source: 'hero', index: 0 }];
+        }),
+      ),
+    ).toThrow('combat.defenderSlots.0: hero slot without a defender hero');
+    expect(() =>
+      deserializeGame(
+        breakCombat((c) => {
+          c.reason = 'siege';
+          c.defenderSlots = [{ source: 'garrison', index: 0 }];
+        }),
+      ),
+    ).toThrow('combat.defenderSlots.0: garrison slot without a defender town');
+    expect(() =>
+      deserializeGame(
+        breakCombat((c) => {
+          c.reason = 'field';
+          c.defenderSlots = [{ source: 'hero', index: 9 }];
+        }),
+      ),
+    ).toThrow('combat.defenderSlots.0: invalid hero index 9');
+    expect(() =>
+      deserializeGame(
+        breakCombat((c) => {
+          c.reason = 'siege';
+          c.defenderTown = realTown;
+          c.defenderSlots = [
+            { source: 'garrison', index: 0 },
+            { source: 'garrison', index: 0 },
+          ];
+        }),
+      ),
+    ).toThrow('combat.defenderSlots.1: duplicate garrison index 0');
+  });
+
   it('rejects pendingChoices referencing missing heroes, objects, or players', () => {
     const choice = {
       id: 'c1',
