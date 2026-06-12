@@ -36,13 +36,13 @@ import {
   createReachableCache,
   damageRangeText,
   estimateAttack,
-  hexAtCanvasPoint,
+  hexAtPixel,
   hexCenter,
   sideColor,
 } from '../render/combatRenderer';
 import { TokenPainter } from '../render/painter';
 import { combatShortcut, isTypingTarget } from '../app/shortcuts';
-import { canvasBackingSize } from '../app/viewport';
+import { canvasBackingSize, watchDevicePixelRatio } from '../app/viewport';
 import { el, type UiContext } from './components';
 import { clampPopupPosition } from './helpers';
 import { SpellbookOverlay, spellbookEntries, type SpellbookEntry } from './spellbook';
@@ -51,10 +51,10 @@ export const COMBAT_LOG_LIMIT = 50;
 const AI_ACTION_LIMIT = 400;
 const AUTO_ACTION_LIMIT = 600;
 
-// panel chrome around the canvas that does not depend on the canvas size:
-// paddings, borders, flex gaps and a small breathing margin
-const PANEL_CHROME_X = 36;
-const PANEL_CHROME_Y = 40;
+function parsePx(value: string): number {
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 function stackCells(stack: CombatStack, ctx: UiContext): Hex[] {
   return occupiedHexes(stack, requireCreature(ctx.data, stack.creature));
@@ -75,9 +75,12 @@ export class CombatScreen {
   private readonly attackerPanel: HTMLElement;
   private readonly defenderPanel: HTMLElement;
   private readonly stackStrip: HTMLElement;
+  private readonly panelEl: HTMLElement;
+  private readonly canvasWrapEl: HTMLElement;
   private readonly headerEl: HTMLElement;
   private readonly bottomEl: HTMLElement;
   private readonly resizeObserver: ResizeObserver;
+  private readonly dprAborter = new AbortController();
   private readonly buttons = new Map<string, HTMLButtonElement>();
   private fit = 0;
   private dpr = 0;
@@ -95,6 +98,7 @@ export class CombatScreen {
   constructor(private readonly ctx: UiContext) {
     this.root = el('div', 'combat-overlay', 'combat-screen');
     const box = el('div', 'combat-panel');
+    this.panelEl = box;
 
     const header = el('div', 'combat-header');
     this.headerEl = header;
@@ -104,6 +108,7 @@ export class CombatScreen {
     header.append(this.attackerPanel, this.roundEl, this.defenderPanel);
 
     const canvasWrap = el('div', 'combat-canvas-wrap');
+    this.canvasWrapEl = canvasWrap;
     this.canvas = el('canvas', 'combat-canvas', 'combat-canvas');
     this.tooltip = el('div', 'info-popup', 'combat-tooltip');
     this.tooltip.style.display = 'none';
@@ -148,16 +153,20 @@ export class CombatScreen {
     box.append(header, canvasWrap, bottom, this.stackStrip);
     this.root.appendChild(box);
 
-    this.syncCanvasSize();
     // re-fit when the viewport changes or the header/controls wrap to a
-    // different height (also fires once the overlay is attached to the DOM)
+    // different height (the observer on this.root also delivers the first
+    // measurement once the overlay is attached to the DOM)
     this.resizeObserver = new ResizeObserver(() => {
       this.syncCanvasSize();
     });
     this.resizeObserver.observe(this.root);
     this.resizeObserver.observe(header);
     this.resizeObserver.observe(bottom);
-    window.addEventListener('resize', this.onResize);
+    // the ResizeObserver misses pure devicePixelRatio changes (window dragged
+    // to a monitor with a different scale)
+    watchDevicePixelRatio(() => {
+      this.syncCanvasSize();
+    }, this.dprAborter.signal);
 
     this.bindInput();
     this.update();
@@ -167,21 +176,37 @@ export class CombatScreen {
   destroy(): void {
     this.running = false;
     this.resizeObserver.disconnect();
-    window.removeEventListener('resize', this.onResize);
+    this.dprAborter.abort();
     window.removeEventListener('keydown', this.onKeyDown);
     this.root.remove();
   }
 
-  private readonly onResize = (): void => {
-    this.syncCanvasSize();
-  };
-
   // scale-to-fit: the battlefield does not scroll, so the canvas CSS size is
-  // logical × fit and the backing store css × dpr; chrome heights (header,
-  // log/controls) do not depend on the canvas size, so this converges
+  // logical × fit and the backing store css × dpr; the chrome around the
+  // canvas is measured from the live layout (overlay box, panel computed
+  // style, header/log heights) so CSS changes cannot silently drift the fit.
+  // Chrome heights do not depend on the canvas size, so this converges
   private syncCanvasSize(): void {
-    const chromeH = this.headerEl.offsetHeight + this.bottomEl.offsetHeight + PANEL_CHROME_Y;
-    const fit = combatFitScale(window.innerWidth - PANEL_CHROME_X, window.innerHeight - chromeH);
+    if (!this.root.isConnected) return;
+    const panel = getComputedStyle(this.panelEl);
+    const chromeW =
+      parsePx(panel.paddingLeft) +
+      parsePx(panel.paddingRight) +
+      parsePx(panel.borderLeftWidth) +
+      parsePx(panel.borderRightWidth);
+    const chromeH =
+      parsePx(panel.paddingTop) +
+      parsePx(panel.paddingBottom) +
+      parsePx(panel.borderTopWidth) +
+      parsePx(panel.borderBottomWidth) +
+      parsePx(panel.rowGap) * Math.max(0, this.panelEl.childElementCount - 1) +
+      this.headerEl.offsetHeight +
+      this.bottomEl.offsetHeight +
+      this.stackStrip.offsetHeight;
+    const fit = combatFitScale(
+      this.root.clientWidth - chromeW,
+      this.root.clientHeight - chromeH,
+    );
     const dpr = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
     if (fit === this.fit && dpr === this.dpr) return;
     this.fit = fit;
@@ -434,12 +459,14 @@ export class CombatScreen {
     this.canvas.addEventListener('click', (e) => {
       this.renderer.skipAnimations();
       const [cssX, cssY] = this.canvasPoint(e);
-      const hex = hexAtCanvasPoint(cssX, cssY, this.fit);
-      if (hex) this.handleHexClick(hex, cssX / this.fit, cssY / this.fit);
+      const lx = cssX / this.fit;
+      const ly = cssY / this.fit;
+      const hex = hexAtPixel(lx, ly);
+      if (hex) this.handleHexClick(hex, lx, ly);
     });
     this.canvas.addEventListener('mousemove', (e) => {
       const [cssX, cssY] = this.canvasPoint(e);
-      this.hover = hexAtCanvasPoint(cssX, cssY, this.fit);
+      this.hover = hexAtPixel(cssX / this.fit, cssY / this.fit);
       this.updateTooltip(cssX, cssY);
     });
     this.canvas.addEventListener('mouseleave', () => {
@@ -626,7 +653,7 @@ export class CombatScreen {
     this.onHumanAction({ type: 'cast', spell: entry.spell.id, target: target.id });
   }
 
-  private updateTooltip(px: number, py: number): void {
+  private updateTooltip(cssX: number, cssY: number): void {
     const combat = this.combatState();
     const hover = this.hover;
     if (!combat || !hover || !this.isHumanTurn(combat) || this.targeting) {
@@ -648,15 +675,16 @@ export class CombatScreen {
     this.tooltip.textContent = damageRangeText(estimate);
     this.tooltip.style.display = 'block';
     // measure after display; position relative to the wrap so the tooltip
-    // stays inside it near the right/bottom edge on small screens
-    const wrap = this.tooltip.parentElement;
+    // stays inside it near the right/bottom edge on small screens; ceil the
+    // fractional layout size or the clamp leaves a sub-pixel overhang
+    const rect = this.tooltip.getBoundingClientRect();
     const [tx, ty] = clampPopupPosition(
-      this.canvas.offsetLeft + px + 14,
-      this.canvas.offsetTop + py + 14,
-      this.tooltip.offsetWidth,
-      this.tooltip.offsetHeight,
-      wrap?.clientWidth ?? Number.POSITIVE_INFINITY,
-      wrap?.clientHeight ?? Number.POSITIVE_INFINITY,
+      this.canvas.offsetLeft + cssX + 14,
+      this.canvas.offsetTop + cssY + 14,
+      Math.ceil(rect.width),
+      Math.ceil(rect.height),
+      this.canvasWrapEl.clientWidth,
+      this.canvasWrapEl.clientHeight,
     );
     this.tooltip.style.left = `${String(tx)}px`;
     this.tooltip.style.top = `${String(ty)}px`;

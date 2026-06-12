@@ -1,41 +1,22 @@
 import { expect, test, type Page } from '@playwright/test';
-import { canvasPoint } from './helpers';
-
-test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+import {
+  canvasPoint,
+  expectDrawerClosed,
+  expectDrawerOpen,
+  expectNoHorizontalOverflow,
+  expectWithinViewport,
+  longPressAt,
+} from './helpers';
 
 const VIEW_W = 390;
+const VIEW_H = 844;
+const BOTTOM_BAR_H = 40;
+
+test.use({ viewport: { width: VIEW_W, height: VIEW_H }, hasTouch: true, isMobile: true });
 
 async function bootAdventure(page: Page): Promise<void> {
   await page.goto('/?map=tiny&seed=42');
   await expect(page.getByTestId('adventure-canvas')).toBeVisible();
-}
-
-async function expectNoHorizontalOverflow(page: Page): Promise<void> {
-  const fits = await page.evaluate(
-    () => document.documentElement.scrollWidth <= window.innerWidth,
-  );
-  expect(fits).toBe(true);
-}
-
-async function expectDrawerOpen(page: Page): Promise<void> {
-  await expect(page.getByTestId('sidebar')).toHaveClass(/open/);
-  // the drawer slides in with a CSS transition: poll until it settles on-screen
-  await expect
-    .poll(async () => {
-      const box = await page.getByTestId('sidebar').boundingBox();
-      return box ? box.x + box.width : Number.NaN;
-    })
-    .toBeLessThanOrEqual(VIEW_W);
-}
-
-async function expectDrawerClosed(page: Page): Promise<void> {
-  await expect(page.getByTestId('sidebar')).not.toHaveClass(/open/);
-  await expect
-    .poll(async () => {
-      const box = await page.getByTestId('sidebar').boundingBox();
-      return box ? box.x : Number.NaN;
-    })
-    .toBeGreaterThanOrEqual(VIEW_W);
 }
 
 test('adventure screen fits the phone viewport and the canvas fills its width', async ({
@@ -91,8 +72,8 @@ test('End Turn works from the bottom bar without opening the drawer', async ({ p
   await expect(endTurn).toBeVisible();
   const box = await endTurn.boundingBox();
   if (!box) throw new Error('end turn button not visible');
-  // lives in the 40px bottom bar, fully inside the viewport
-  expect(box.y).toBeGreaterThanOrEqual(844 - 40);
+  // lives in the bottom bar, fully inside the viewport
+  expect(box.y).toBeGreaterThanOrEqual(VIEW_H - BOTTOM_BAR_H);
   expect(box.x + box.width).toBeLessThanOrEqual(VIEW_W);
 
   await endTurn.tap();
@@ -103,6 +84,43 @@ test('End Turn works from the bottom bar without opening the drawer', async ({ p
   // Next Hero is reachable from the bottom bar too
   await expect(page.getByTestId('next-hero-button')).toBeVisible();
   await expectNoHorizontalOverflow(page);
+});
+
+test('crossing the 768px breakpoint relocates buttons and closes the drawer', async ({
+  page,
+}) => {
+  await bootAdventure(page);
+  // narrow boot: action buttons live in the bottom bar, toggle visible
+  await expect(
+    page.locator('[data-testid="resource-bar"] [data-testid="end-turn-button"]'),
+  ).toHaveCount(1);
+  await page.getByTestId('hud-menu-toggle').tap();
+  await expectDrawerOpen(page);
+
+  // widening past the breakpoint closes the drawer and moves the buttons back
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(page.getByTestId('sidebar')).not.toHaveClass(/open/);
+  await expect(page.getByTestId('hud-backdrop')).not.toHaveClass(/open/);
+  await expect(
+    page.locator('[data-testid="sidebar"] [data-testid="end-turn-button"]'),
+  ).toHaveCount(1);
+  await expect(
+    page.locator('[data-testid="sidebar"] [data-testid="next-hero-button"]'),
+  ).toHaveCount(1);
+  await expect(page.getByTestId('hud-menu-toggle')).toBeHidden();
+  // the canvas grew with the viewport mid-game
+  await expect
+    .poll(async () => (await page.getByTestId('adventure-canvas').boundingBox())?.width ?? 0)
+    .toBeGreaterThan(800);
+
+  // narrowing again moves the buttons back to the bottom bar, still working
+  await page.setViewportSize({ width: VIEW_W, height: VIEW_H });
+  await expect(
+    page.locator('[data-testid="resource-bar"] [data-testid="end-turn-button"]'),
+  ).toHaveCount(1);
+  await expect(page.getByTestId('hud-menu-toggle')).toBeVisible();
+  await page.getByTestId('end-turn-button').tap();
+  await expect(page.getByTestId('date-indicator')).toHaveText('Day 2, Week 1, Month 1');
 });
 
 // --- touch gameplay ---
@@ -165,15 +183,8 @@ test('long-press shows tile info and the next tap dismisses it', async ({ page }
   await bootAdventure(page);
   const [hx, hy] = await canvasPoint(page, 2, 2);
 
-  // hold a single touch past LONG_PRESS_MS (500ms) without moving
-  const cdp = await page.context().newCDPSession(page);
-  await cdp.send('Input.dispatchTouchEvent', {
-    type: 'touchStart',
-    touchPoints: [{ x: hx, y: hy, id: 1 }],
-  });
-  await page.waitForTimeout(700);
-  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  await cdp.detach();
+  // hold a single touch past LONG_PRESS_MS without moving
+  await longPressAt(page, hx, hy);
 
   const popup = page.getByTestId('info-popup');
   await expect(popup).toBeVisible();
@@ -182,4 +193,17 @@ test('long-press shows tile info and the next tap dismisses it', async ({ page }
   // the release after a long-press is not a tap; the NEXT tap dismisses
   await page.touchscreen.tap(300, 400);
   await expect(popup).not.toBeVisible();
+});
+
+test('long-press near the right edge keeps the info popup on-screen', async ({ page }) => {
+  await bootAdventure(page);
+
+  // hold a touch 8 css px from the right edge: the naive popup position
+  // (x + 8) would start past the viewport and must flip/clamp inside it
+  await longPressAt(page, VIEW_W - 8, 300);
+
+  const popup = page.getByTestId('info-popup');
+  await expect(popup).toBeVisible();
+  await expectWithinViewport(page, '[data-testid="info-popup"]');
+  await expectNoHorizontalOverflow(page);
 });

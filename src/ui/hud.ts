@@ -19,7 +19,7 @@ export interface HudCallbacks {
 export const MINIMAP_PX = 200;
 
 // matches the narrow-screen breakpoint in index.html
-export const NARROW_SCREEN_QUERY = '(max-width: 768px)';
+const NARROW_SCREEN_QUERY = '(max-width: 768px)';
 
 export class Hud {
   readonly sidebar: HTMLElement;
@@ -257,24 +257,27 @@ export class Hud {
 export class InfoPopup {
   readonly root: HTMLElement;
 
-  constructor() {
+  // the popup positions and clamps itself inside this (positioned) container
+  constructor(private readonly container: HTMLElement) {
     this.root = el('div', 'info-popup', 'info-popup');
     this.root.style.display = 'none';
+    container.appendChild(this.root);
   }
 
   show(text: string, x: number, y: number): void {
     this.root.textContent = text;
     this.root.style.display = 'block';
     // measure after display so a long-press near the right/bottom edge of a
-    // narrow screen keeps the popup inside its positioned container
-    const parent = this.root.parentElement;
+    // narrow screen keeps the popup inside its positioned container; ceil the
+    // fractional layout size or the clamp leaves a sub-pixel overhang
+    const rect = this.root.getBoundingClientRect();
     const [px, py] = clampPopupPosition(
       x,
       y,
-      this.root.offsetWidth,
-      this.root.offsetHeight,
-      parent?.clientWidth ?? Number.POSITIVE_INFINITY,
-      parent?.clientHeight ?? Number.POSITIVE_INFINITY,
+      Math.ceil(rect.width),
+      Math.ceil(rect.height),
+      this.container.clientWidth,
+      this.container.clientHeight,
     );
     this.root.style.left = `${String(px)}px`;
     this.root.style.top = `${String(py)}px`;

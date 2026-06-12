@@ -14,7 +14,6 @@ import {
   damageRangeText,
   estimateAttack,
   HEX_R,
-  hexAtCanvasPoint,
   hexAtPixel,
   hexCenter,
   sideColor,
@@ -98,31 +97,6 @@ describe('combatFitScale', () => {
     expect(combatFitScale(10, 10)).toBe(COMBAT_FIT_MIN);
     expect(combatFitScale(0, 0)).toBe(COMBAT_FIT_MIN);
     expect(combatFitScale(-100, 500)).toBe(COMBAT_FIT_MIN);
-  });
-});
-
-describe('hexAtCanvasPoint', () => {
-  it('matches hexAtPixel at fit 1', () => {
-    const c = hexCenter({ x: 3, y: 4 });
-    expect(hexAtCanvasPoint(c.x, c.y, 1)).toEqual(hexAtPixel(c.x, c.y));
-    expect(hexAtCanvasPoint(c.x, c.y, 1)).toEqual({ x: 3, y: 4 });
-  });
-
-  it('maps CSS px through the fit scale', () => {
-    for (const fit of [0.5, 2]) {
-      const c = hexCenter({ x: 7, y: 5 });
-      expect(hexAtCanvasPoint(c.x * fit, c.y * fit, fit)).toEqual({ x: 7, y: 5 });
-    }
-  });
-
-  it('points off-center stay in the same hex at fit 0.5', () => {
-    const c = hexCenter({ x: 7, y: 5 });
-    expect(hexAtCanvasPoint((c.x + HEX_R * 0.4) * 0.5, c.y * 0.5, 0.5)).toEqual({ x: 7, y: 5 });
-  });
-
-  it('returns null outside the scaled field', () => {
-    expect(hexAtCanvasPoint(0, 0, 0.5)).toBeNull();
-    expect(hexAtCanvasPoint(COMBAT_CANVAS_W * 0.5 + 50, COMBAT_CANVAS_H * 0.5 + 50, 0.5)).toBeNull();
   });
 });
 

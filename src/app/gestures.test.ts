@@ -50,12 +50,31 @@ function mouse(x: number, y: number, button: number): GesturePointer {
 }
 
 describe('GestureRecognizer taps', () => {
-  it('emits tap on touch up within slop', () => {
+  it('emits tap at the press point on touch up within slop', () => {
     const h = harness();
     h.fsm.pointerDown(touch(1, 100, 100));
     h.fsm.pointerMove(touch(1, 103, 102, -1));
     h.fsm.pointerUp(touch(1, 103, 102, -1));
-    expect(h.actions).toEqual([{ type: 'tap', x: 103, y: 102 }]);
+    expect(h.actions).toEqual([{ type: 'tap', x: 100, y: 100 }]);
+    expect(h.fsm.state).toBe('idle');
+  });
+
+  it('slide-off release taps at the press point, not the off-canvas release point', () => {
+    // pointerup is window-level: pressing on the canvas and releasing far away
+    // (moves off-canvas are never observed, so the FSM stays pressed) must not
+    // produce a tap at the release coordinates
+    const h = harness();
+    h.fsm.pointerDown(mouse(630, 470, 0));
+    h.fsm.pointerUp(mouse(900, 600, -1));
+    expect(h.actions).toEqual([{ type: 'tap', x: 630, y: 470 }]);
+    expect(h.fsm.state).toBe('idle');
+  });
+
+  it('fast flick with no intermediate moves taps at the press point', () => {
+    const h = harness();
+    h.fsm.pointerDown(touch(1, 50, 50));
+    h.fsm.pointerUp(touch(1, -200, 400, -1));
+    expect(h.actions).toEqual([{ type: 'tap', x: 50, y: 50 }]);
     expect(h.fsm.state).toBe('idle');
   });
 
@@ -103,7 +122,10 @@ describe('GestureRecognizer panning', () => {
     const h = harness();
     h.fsm.pointerDown(mouse(100, 100, 1));
     h.fsm.pointerMove(mouse(80, 90, -1));
-    expect(h.actions).toEqual([{ type: 'panBy', dx: 20, dy: 10 }]);
+    expect(h.actions).toEqual([
+      { type: 'hover', x: 80, y: 90 },
+      { type: 'panBy', dx: 20, dy: 10 },
+    ]);
   });
 
   it('mouse left-button drag does NOT pan and does not tap after slop', () => {
@@ -147,19 +169,59 @@ describe('GestureRecognizer long press', () => {
 });
 
 describe('GestureRecognizer pinch', () => {
-  it('emits scale ratio and midpoint from two touch pointers', () => {
+  it('emits midpoint pan plus scale ratio from two touch pointers', () => {
     const h = harness();
     h.fsm.pointerDown(touch(1, 100, 100));
     h.fsm.pointerDown(touch(2, 200, 100));
     expect(h.fsm.state).toBe('pinching');
     expect(h.timerPending()).toBe(false);
     h.fsm.pointerMove(touch(2, 300, 100, -1));
-    expect(h.actions).toEqual([{ type: 'pinch', scale: 2, cx: 200, cy: 100 }]);
+    expect(h.actions).toEqual([
+      { type: 'panBy', dx: -50, dy: 0 },
+      { type: 'pinch', scale: 2, cx: 200, cy: 100 },
+    ]);
     h.fsm.pointerMove(touch(1, 200, 100, -1));
-    expect(h.actions[1]).toEqual({ type: 'pinch', scale: 0.5, cx: 250, cy: 100 });
+    expect(h.actions.slice(2)).toEqual([
+      { type: 'panBy', dx: -50, dy: 0 },
+      { type: 'pinch', scale: 0.5, cx: 250, cy: 100 },
+    ]);
   });
 
-  it('continues panning with the remaining finger after one lifts', () => {
+  it('two-finger drag at constant spacing pans without zooming', () => {
+    const h = harness();
+    h.fsm.pointerDown(touch(1, 100, 100));
+    h.fsm.pointerDown(touch(2, 200, 100));
+    // rotate finger 1 around finger 2: spacing stays 100, midpoint moves
+    h.fsm.pointerMove(touch(1, 200, 200, -1));
+    expect(h.actions).toEqual([{ type: 'panBy', dx: -50, dy: -50 }]);
+  });
+
+  it('a second finger landing during a pan switches to pinching', () => {
+    const h = harness();
+    h.fsm.pointerDown(touch(1, 100, 100));
+    h.fsm.pointerMove(touch(1, 150, 100, -1));
+    expect(h.fsm.state).toBe('panning');
+    h.fsm.pointerDown(touch(2, 250, 100));
+    expect(h.fsm.state).toBe('pinching');
+    h.fsm.pointerMove(touch(2, 350, 100, -1));
+    expect(h.actions.slice(1)).toEqual([
+      { type: 'panBy', dx: -50, dy: 0 },
+      { type: 'pinch', scale: 2, cx: 250, cy: 100 },
+    ]);
+  });
+
+  it('a second finger during a suppressed press is ignored', () => {
+    const h = harness();
+    h.fsm.pointerDown(touch(1, 40, 50));
+    h.fireTimer(); // long press fired -> suppressed
+    expect(h.fsm.state).toBe('suppressed');
+    h.fsm.pointerDown(touch(2, 200, 100));
+    expect(h.fsm.state).toBe('suppressed');
+    h.fsm.pointerMove(touch(2, 300, 100, -1));
+    expect(h.actions.map((a) => a.type)).toEqual(['longPress']);
+  });
+
+  it('continues panning with the remaining finger after the primary lifts', () => {
     const h = harness();
     h.fsm.pointerDown(touch(1, 100, 100));
     h.fsm.pointerDown(touch(2, 200, 100));
@@ -169,6 +231,30 @@ describe('GestureRecognizer pinch', () => {
     expect(h.actions).toEqual([{ type: 'panBy', dx: 10, dy: 10 }]);
     h.fsm.pointerUp(touch(2, 190, 90, -1));
     expect(h.fsm.state).toBe('idle');
+  });
+
+  it('continues panning with the primary finger after the secondary lifts', () => {
+    const h = harness();
+    h.fsm.pointerDown(touch(1, 100, 100));
+    h.fsm.pointerDown(touch(2, 200, 100));
+    h.fsm.pointerUp(touch(2, 200, 100, -1));
+    expect(h.fsm.state).toBe('panning');
+    h.fsm.pointerMove(touch(1, 90, 110, -1));
+    expect(h.actions).toEqual([{ type: 'panBy', dx: 10, dy: -10 }]);
+  });
+
+  it('guards against a zero initial pinch distance', () => {
+    const h = harness();
+    h.fsm.pointerDown(touch(1, 100, 100));
+    h.fsm.pointerDown(touch(2, 100, 100));
+    // first spread from coincident fingers: no pinch (no division by zero)
+    h.fsm.pointerMove(touch(2, 150, 100, -1));
+    expect(h.actions.filter((a) => a.type === 'pinch')).toEqual([]);
+    // once a real distance exists, scale is finite
+    h.fsm.pointerMove(touch(2, 200, 100, -1));
+    expect(h.actions.filter((a) => a.type === 'pinch')).toEqual([
+      { type: 'pinch', scale: 2, cx: 150, cy: 100 },
+    ]);
   });
 
   it('ignores a mouse pointer as the second pinch finger', () => {
@@ -214,14 +300,28 @@ describe('GestureRecognizer hover', () => {
     ]);
   });
 
-  it('does not emit hover for touch moves or while panning', () => {
+  it('keeps emitting hover while panning and suppressed so the position never goes stale', () => {
     const h = harness();
-    h.fsm.pointerMove(touch(1, 5, 6, -1));
     h.fsm.pointerDown(mouse(100, 100, 1));
     h.fsm.pointerMove(mouse(50, 50, -1));
     h.fsm.pointerMove(mouse(40, 40, -1));
-    const types = h.actions.map((a) => a.type);
-    expect(types).not.toContain('hover');
-    expect(types.filter((t) => t === 'panBy')).toHaveLength(2);
+    expect(h.actions.filter((a) => a.type === 'hover')).toEqual([
+      { type: 'hover', x: 50, y: 50 },
+      { type: 'hover', x: 40, y: 40 },
+    ]);
+    expect(h.actions.filter((a) => a.type === 'panBy')).toHaveLength(2);
+    h.fsm.pointerUp(mouse(40, 40, -1));
+    h.fsm.pointerDown(mouse(40, 40, 0));
+    h.fsm.pointerMove(mouse(90, 90, -1));
+    expect(h.fsm.state).toBe('suppressed');
+    expect(h.actions[h.actions.length - 1]).toEqual({ type: 'hover', x: 90, y: 90 });
+  });
+
+  it('does not emit hover for touch moves', () => {
+    const h = harness();
+    h.fsm.pointerMove(touch(1, 5, 6, -1));
+    h.fsm.pointerDown(touch(1, 100, 100));
+    h.fsm.pointerMove(touch(1, 150, 100, -1));
+    expect(h.actions.map((a) => a.type)).not.toContain('hover');
   });
 });

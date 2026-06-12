@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { canvasBackingSize, edgeScrollDelta } from './viewport';
+import {
+  canvasBackingSize,
+  edgeScrollDelta,
+  watchDevicePixelRatio,
+  type DprMediaQuery,
+} from './viewport';
 
 describe('canvasBackingSize', () => {
   it('matches CSS size at dpr 1', () => {
@@ -51,5 +56,55 @@ describe('edgeScrollDelta', () => {
     expect(edgeScrollDelta(380, 300, 390, 844, M, S)).toEqual([S, 0]);
     expect(edgeScrollDelta(380, 840, 390, 844, M, S)).toEqual([S, S]);
     expect(edgeScrollDelta(380, 300, W, H, M, S)).toEqual([0, 0]);
+  });
+});
+
+describe('watchDevicePixelRatio', () => {
+  interface FakeMedia {
+    queries: string[];
+    listeners: (() => void)[];
+    matchMedia: (query: string) => DprMediaQuery;
+  }
+
+  function fakeMedia(): FakeMedia {
+    const queries: string[] = [];
+    const listeners: (() => void)[] = [];
+    return {
+      queries,
+      listeners,
+      matchMedia: (query) => {
+        queries.push(query);
+        return {
+          addEventListener: (_type, listener) => {
+            listeners.push(listener);
+          },
+        };
+      },
+    };
+  }
+
+  it('arms a resolution query for the current dpr and re-arms after each change', () => {
+    const media = fakeMedia();
+    let dpr = 1;
+    let changes = 0;
+    watchDevicePixelRatio(
+      () => {
+        changes += 1;
+      },
+      new AbortController().signal,
+      media.matchMedia,
+      () => dpr,
+    );
+    expect(media.queries).toEqual(['(resolution: 1dppx)']);
+
+    dpr = 2;
+    media.listeners[0]?.();
+    expect(changes).toBe(1);
+    expect(media.queries).toEqual(['(resolution: 1dppx)', '(resolution: 2dppx)']);
+
+    dpr = 1.5;
+    media.listeners[1]?.();
+    expect(changes).toBe(2);
+    expect(media.queries[2]).toBe('(resolution: 1.5dppx)');
   });
 });

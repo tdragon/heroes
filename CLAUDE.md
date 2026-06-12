@@ -42,6 +42,9 @@ runtime dependency is `zod`. Full spec: `docs/plans/completed/20260611-heroes3-b
 - Coverage target: >=80% lines in `src/core/` (`npm test -- --coverage`).
 - Golden replay tests (`src/core/replay.test.ts`) pin determinism — if a core change
   legitimately alters rng consumption, regenerate hashes deliberately, never blindly.
+- e2e touch gestures must be trusted events: drive them via CDP
+  `Input.dispatchTouchEvent` (`page.evaluate`-synthesized pointer events are untrusted
+  and bypass `setPointerCapture`) — see `e2e/mobile.spec.ts`.
 
 ## Responsive UI / input
 
@@ -54,7 +57,8 @@ runtime dependency is `zod`. Full spec: `docs/plans/completed/20260611-heroes3-b
 - Single mobile breakpoint: `@media (max-width: 768px)` in `index.html`; the sidebar
   becomes a drawer and `Hud` relocates Next Hero / End Turn via a `matchMedia` listener.
 - e2e position math derives from canvas datasets — keep `data-camera-x`/`data-camera-y`,
-  `data-zoom` (adventure) and `data-fit` (combat) exposed; helpers live in `e2e/helpers.ts`.
+  `data-zoom` (adventure) and `data-fit` (combat) exposed; the shared helpers
+  (`canvasPoint`/`moveHeroTo`, `clickCombatHex`) live in `e2e/helpers.ts`.
 
 ## Style
 

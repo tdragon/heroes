@@ -36,7 +36,7 @@ import { AiDriver } from './aiDriver';
 import { GestureRecognizer, type GestureAction, type GesturePointer } from './gestures';
 import { autosave, type SaveStorage } from './saveload';
 import { adventureShortcut, isTypingTarget, type AdventureShortcutAction } from './shortcuts';
-import { canvasBackingSize, edgeScrollDelta } from './viewport';
+import { canvasBackingSize, edgeScrollDelta, watchDevicePixelRatio } from './viewport';
 import type { Screen } from './screens';
 
 export interface ShellCallbacks {
@@ -49,6 +49,9 @@ const EDGE_SCROLL_MARGIN = 16;
 const EDGE_SCROLL_SPEED = 10;
 const KEY_SCROLL_STEP = TILE_PX;
 const WHEEL_ZOOM_STEP = 1.1;
+// info popup opens slightly off the press point so it doesn't sit under the
+// finger/cursor; InfoPopup.show clamps it back on-screen
+const POPUP_OFFSET_PX = 8;
 
 interface PendingPath {
   dest: Pos;
@@ -140,8 +143,7 @@ export class AdventureScreen implements Screen {
     });
     this.resizeObserver.observe(canvasWrap);
 
-    this.infoPopup = new InfoPopup();
-    canvasWrap.appendChild(this.infoPopup.root);
+    this.infoPopup = new InfoPopup(canvasWrap);
 
     this.dialogs = new DialogQueue(this.uiContext(), () => {
       this.markDirty();
@@ -258,8 +260,8 @@ export class AdventureScreen implements Screen {
   }
 
   // keeps the canvas backing store (CSS size × dpr) and the camera viewport
-  // in sync with the live layout; runs on ResizeObserver, window resize
-  // (devicePixelRatio changes) and onShow
+  // in sync with the live layout; runs on ResizeObserver, devicePixelRatio
+  // changes and onShow
   private syncViewport(): void {
     const rect = this.canvasWrap.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
@@ -924,7 +926,11 @@ export class AdventureScreen implements Screen {
         this.suppressContextmenu = true;
         const tile = tileAtClientPoint(this.camera, action.x, action.y, this.state.map.size);
         if (tile) {
-          this.infoPopup.show(this.describeTile(tile), action.x + 8, action.y + 8);
+          this.infoPopup.show(
+            this.describeTile(tile),
+            action.x + POPUP_OFFSET_PX,
+            action.y + POPUP_OFFSET_PX,
+          );
         }
         break;
       }
@@ -963,6 +969,9 @@ export class AdventureScreen implements Screen {
     this.canvas.addEventListener(
       'pointerdown',
       (e) => {
+        // a long-press suppression that never saw its contextmenu (iOS Safari
+        // synthesizes none) must not swallow the next genuine right-click
+        this.suppressContextmenu = false;
         // middle button: block autoscroll, it pans the map instead
         if (e.button === 1) e.preventDefault();
         this.gestures.pointerDown(this.gesturePointer(e));
@@ -983,14 +992,17 @@ export class AdventureScreen implements Screen {
       },
       opts,
     );
-    this.canvas.addEventListener(
+    // window-level so a mouse released outside the canvas (no capture while
+    // merely pressed/suppressed) still ends the gesture instead of stranding
+    // the FSM until the next on-canvas click
+    window.addEventListener(
       'pointerup',
       (e) => {
         this.gestures.pointerUp(this.gesturePointer(e));
       },
       opts,
     );
-    this.canvas.addEventListener(
+    window.addEventListener(
       'pointercancel',
       (e) => {
         this.gestures.pointerCancel(this.gesturePointer(e));
@@ -1018,7 +1030,7 @@ export class AdventureScreen implements Screen {
         const sy = e.clientY - rect.top;
         const tile = tileAtClientPoint(this.camera, sx, sy, this.state.map.size);
         if (tile) {
-          this.infoPopup.show(this.describeTile(tile), sx + 8, sy + 8);
+          this.infoPopup.show(this.describeTile(tile), sx + POPUP_OFFSET_PX, sy + POPUP_OFFSET_PX);
         }
       },
       opts,
@@ -1036,14 +1048,11 @@ export class AdventureScreen implements Screen {
       { signal: this.inputAborter.signal, passive: false },
     );
 
-    window.addEventListener(
-      'resize',
-      () => {
-        // ResizeObserver misses pure devicePixelRatio changes (browser zoom)
-        this.syncViewport();
-      },
-      opts,
-    );
+    // the ResizeObserver misses pure devicePixelRatio changes (window dragged
+    // to a monitor with a different scale, which need not fire resize)
+    watchDevicePixelRatio(() => {
+      this.syncViewport();
+    }, this.inputAborter.signal);
 
     window.addEventListener(
       'keydown',

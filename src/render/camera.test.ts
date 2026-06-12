@@ -133,6 +133,17 @@ describe('cameraForViewport', () => {
     expect(grown.x).toBe(world - 1000);
     expect(grown.y).toBe(world - 760);
   });
+
+  // the adventure screen boots with a zero-size camera: centerCameraOn stores
+  // the focus point and the first cameraForViewport recovers it as the center
+  it('recovers a focus stored in a zero-size camera once the viewport is known', () => {
+    const zero = cam(0, 0, 0, 0);
+    const focused = centerCameraOn(zero, [10, 10], 36);
+    expect(focused).toMatchObject({ x: 10.5 * TILE_PX, y: 10.5 * TILE_PX });
+    const sized = cameraForViewport(focused, 800, 600, 1, 36);
+    expect(sized.x + sized.width / 2).toBe(10.5 * TILE_PX);
+    expect(sized.y + sized.height / 2).toBe(10.5 * TILE_PX);
+  });
 });
 
 describe('zoomCameraAt', () => {

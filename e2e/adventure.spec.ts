@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { canvasPoint } from './helpers';
+import { canvasPoint, moveHeroTo } from './helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
@@ -72,6 +72,80 @@ test('keyboard shortcuts: E ends turn, H selects hero, Space visits, arrows pan'
   await expect(canvas).toHaveAttribute('data-camera-x', '48');
   await page.keyboard.press('ArrowDown');
   await expect(canvas).toHaveAttribute('data-camera-y', '48');
+});
+
+test('zoom wiring: keys and wheel change data-zoom, hit-testing and pan divide by zoom', async ({
+  page,
+}) => {
+  const canvas = page.getByTestId('adventure-canvas');
+  await expect(canvas).toHaveAttribute('data-zoom', '1');
+  await expect(canvas).toHaveAttribute('data-camera-x', '0');
+
+  // + zooms in about the viewport center
+  await page.keyboard.press('+');
+  await expect(canvas).toHaveAttribute('data-zoom', '1.25');
+
+  // click-to-move at zoom 1.25: the canvasPoint helper multiplies by zoom and
+  // tileAtClientPoint divides it back out, so the hero lands on the tile
+  await page.getByTestId('hero-item-edric').click();
+  const [px, py] = await canvasPoint(page, 8, 5);
+  await page.mouse.click(px, py);
+  await expect(page.getByTestId('status-line')).toHaveText('Click again to move');
+  await page.mouse.click(px, py);
+  await expect(page.getByTestId('hero-pos')).toHaveText('8,5');
+
+  // middle-drag pan: 100 css px left moves the camera +100/zoom = 80 world px
+  const cameraX = Number(await canvas.getAttribute('data-camera-x'));
+  const box = await canvas.boundingBox();
+  if (!box) throw new Error('adventure canvas not visible');
+  const [startX, startY] = [box.x + box.width / 2, box.y + box.height / 2];
+  await page.mouse.move(startX, startY);
+  await page.mouse.down({ button: 'middle' });
+  for (const step of [25, 50, 75, 100]) {
+    await page.mouse.move(startX - step, startY);
+  }
+  await page.mouse.up({ button: 'middle' });
+  await expect(canvas).toHaveAttribute('data-camera-x', String(cameraX + 80));
+
+  // wheel zoom about the cursor
+  await page.mouse.move(startX, startY);
+  await page.mouse.wheel(0, -120);
+  await expect
+    .poll(async () => Number(await canvas.getAttribute('data-zoom')))
+    .toBeCloseTo(1.375, 5);
+  await page.keyboard.press('-');
+  await expect
+    .poll(async () => Number(await canvas.getAttribute('data-zoom')))
+    .toBeCloseTo(1.1, 5);
+});
+
+test.describe('high-dpr rendering (deviceScaleFactor 2)', () => {
+  test.use({ deviceScaleFactor: 2 });
+
+  test('backing store is css x 2 and clicks still hit tiles', async ({ page }) => {
+    // the dataset appears after the first render, i.e. after syncViewport
+    await expect(page.getByTestId('adventure-canvas')).toHaveAttribute('data-zoom', '1');
+    const sizes = await page.evaluate(() => {
+      const canvas = document.querySelector('[data-testid="adventure-canvas"]');
+      if (!(canvas instanceof HTMLCanvasElement)) throw new Error('adventure canvas missing');
+      const rect = canvas.getBoundingClientRect();
+      return {
+        dpr: window.devicePixelRatio,
+        backingW: canvas.width,
+        backingH: canvas.height,
+        cssW: rect.width,
+        cssH: rect.height,
+      };
+    });
+    expect(sizes.dpr).toBe(2);
+    expect(sizes.backingW).toBe(Math.round(sizes.cssW * 2));
+    expect(sizes.backingH).toBe(Math.round(sizes.cssH * 2));
+
+    // hit-testing works in css px regardless of the dpr backing scale
+    await page.getByTestId('hero-item-edric').click();
+    await moveHeroTo(page, 8, 5);
+    await expect(page.getByTestId('hero-pos')).toHaveText('8,5');
+  });
 });
 
 test('right-click shows an info popup for the hovered entity', async ({ page }) => {

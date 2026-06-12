@@ -64,11 +64,6 @@ export function combatFitScale(availW: number, availH: number): number {
   );
 }
 
-// hit-testing on a scaled canvas: CSS px -> logical battlefield px
-export function hexAtCanvasPoint(cssX: number, cssY: number, fit: number): Hex | null {
-  return hexAtPixel(cssX / fit, cssY / fit);
-}
-
 // nearest hex center wins (centers form a triangular lattice whose Voronoi
 // cells are exactly the hexes); null when the point is outside the field
 export function hexAtPixel(px: number, py: number): Hex | null {

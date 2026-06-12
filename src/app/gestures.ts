@@ -11,7 +11,7 @@ export interface GesturePointer {
   x: number;
   y: number;
   pointerType: string; // 'mouse' | 'touch' | 'pen'
-  button: number; // pointerdown button; -1 on moves/ups
+  button: number; // pointerdown button; -1 on moves (unused on up/cancel)
 }
 
 export type GestureAction =
@@ -21,7 +21,8 @@ export type GestureAction =
   | { type: 'panBy'; dx: number; dy: number }
   // incremental scale relative to the previous pinch event + current midpoint
   | { type: 'pinch'; scale: number; cx: number; cy: number }
-  // mouse-only pointer position, feeds edge scroll
+  // mouse-only pointer position, feeds edge scroll; emitted for every mouse
+  // move regardless of state so the position never goes stale
   | { type: 'hover'; x: number; y: number };
 
 // 'suppressed' = the press can no longer become a tap/pan (long-press fired,
@@ -100,6 +101,9 @@ export class GestureRecognizer {
   }
 
   pointerMove(p: GesturePointer): void {
+    if (p.pointerType === 'mouse') {
+      this.emit({ type: 'hover', x: p.x, y: p.y });
+    }
     if (this.current === 'pressed' && this.primary?.id === p.pointerId) {
       this.primary.x = p.x;
       this.primary.y = p.y;
@@ -115,15 +119,7 @@ export class GestureRecognizer {
         } else {
           this.current = 'suppressed';
         }
-        return;
       }
-      if (p.pointerType === 'mouse') {
-        this.emit({ type: 'hover', x: p.x, y: p.y });
-      }
-      return;
-    }
-    if (this.current === 'idle' && p.pointerType === 'mouse') {
-      this.emit({ type: 'hover', x: p.x, y: p.y });
       return;
     }
     if (this.current === 'panning' && this.primary?.id === p.pointerId) {
@@ -140,16 +136,19 @@ export class GestureRecognizer {
             ? this.secondary
             : null;
       if (tracked === null || this.primary === null || this.secondary === null) return;
+      const prevCx = (this.primary.x + this.secondary.x) / 2;
+      const prevCy = (this.primary.y + this.secondary.y) / 2;
       tracked.x = p.x;
       tracked.y = p.y;
+      const cx = (this.primary.x + this.secondary.x) / 2;
+      const cy = (this.primary.y + this.secondary.y) / 2;
+      // two-finger drag pans by the midpoint translation, spread change zooms
+      if (cx !== prevCx || cy !== prevCy) {
+        this.emit({ type: 'panBy', dx: prevCx - cx, dy: prevCy - cy });
+      }
       const dist = distance(this.primary.x, this.primary.y, this.secondary.x, this.secondary.y);
-      if (this.pinchDist > 0 && dist > 0) {
-        this.emit({
-          type: 'pinch',
-          scale: dist / this.pinchDist,
-          cx: (this.primary.x + this.secondary.x) / 2,
-          cy: (this.primary.y + this.secondary.y) / 2,
-        });
+      if (this.pinchDist > 0 && dist > 0 && dist !== this.pinchDist) {
+        this.emit({ type: 'pinch', scale: dist / this.pinchDist, cx, cy });
       }
       this.pinchDist = dist;
     }
@@ -167,11 +166,14 @@ export class GestureRecognizer {
       return;
     }
     if (this.primary?.id !== p.pointerId) return;
-    const tappable = this.primary.tappable;
+    const { tappable, startX, startY } = this.primary;
     const wasPressed = this.current === 'pressed';
     this.reset();
     if (wasPressed && tappable) {
-      this.emit({ type: 'tap', x: p.x, y: p.y });
+      // emit at the press point, not the release point: pointerup is bound at
+      // window level, so a slide-off release (or a fast flick with no observed
+      // moves) would otherwise report coordinates outside the canvas
+      this.emit({ type: 'tap', x: startX, y: startY });
     }
   }
 
