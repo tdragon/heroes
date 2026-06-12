@@ -43,6 +43,19 @@ runtime dependency is `zod`. Full spec: `docs/plans/completed/20260611-heroes3-b
 - Golden replay tests (`src/core/replay.test.ts`) pin determinism — if a core change
   legitimately alters rng consumption, regenerate hashes deliberately, never blindly.
 
+## Responsive UI / input
+
+- The camera stays in world px; `zoom` applies only at the boundaries:
+  `ctx.setTransform(dpr * zoom, ...)` when drawing, divide CSS coords by `zoom` before
+  hit-testing (`tileAtClientPoint`). Combat scale-to-fits via `combatFitScale`.
+- All pointer/touch input flows through the pure gesture FSM in `src/app/gestures.ts`
+  (tap / longPress / panBy / pinch / hover) — keep it DOM-free and unit-tested;
+  `bindInput()` in `adventureScreen.ts` is only a thin adapter.
+- Single mobile breakpoint: `@media (max-width: 768px)` in `index.html`; the sidebar
+  becomes a drawer and `Hud` relocates Next Hero / End Turn via a `matchMedia` listener.
+- e2e position math derives from canvas datasets — keep `data-camera-x`/`data-camera-y`,
+  `data-zoom` (adventure) and `data-fit` (combat) exposed; helpers live in `e2e/helpers.ts`.
+
 ## Style
 
 - Native type syntax: `list`-style generics (`string[]`, `Record<K, V>`), `| null` /

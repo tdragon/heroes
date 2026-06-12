@@ -24,6 +24,19 @@ npm run preview                   # serve the production build
 Dev/e2e boot shortcuts: `?map=<id>&seed=<n>` URL params skip the menu and start a game
 directly (e.g. `/?map=tiny&seed=42`). Plain `/` boots the main menu.
 
+## Controls & mobile support
+
+The UI is fully responsive and playable on phones (390px portrait and up).
+
+- **Desktop:** click to select, click destination twice to move; pan with middle-button
+  drag, arrow keys, or edge scroll; zoom with the mouse wheel or `+`/`-` (0.5×–2×);
+  right-click a tile for info.
+- **Touch:** one-finger drag pans the map, pinch zooms, tap selects (same two-tap move
+  confirmation), long-press shows tile info.
+- On narrow screens (≤768px) the sidebar becomes a slide-in drawer behind a ☰ button;
+  End Turn and Next Hero stay reachable in the bottom bar, and the combat battlefield
+  scales to fit the viewport.
+
 ## Testing
 
 ```sh

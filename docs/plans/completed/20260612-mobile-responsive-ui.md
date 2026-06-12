@@ -459,11 +459,13 @@ via unit tests only if CDP proves flaky. Pinch is covered by unit tests only.
 
 ### Task 9: [Final] Update documentation
 
-- [ ] update README.md: mobile support note (touch controls: drag to pan, pinch to
-      zoom, long-press for info), drawer HUD mention
-- [ ] update CLAUDE.md if new conventions emerged (e.g. gesture FSM pattern,
-      breakpoint value)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update README.md: mobile support note (touch controls: drag to pan, pinch to
+      zoom, long-press for info), drawer HUD mention — new "Controls & mobile support"
+      section
+- [x] update CLAUDE.md if new conventions emerged (e.g. gesture FSM pattern,
+      breakpoint value) — new "Responsive UI / input" section (zoom-at-boundaries,
+      gesture FSM, 768px breakpoint, e2e dataset contract)
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 
