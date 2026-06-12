@@ -156,6 +156,21 @@ test.describe('narrow viewport (390x844)', () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test('pass-device overlay fits the viewport in hotseat', async ({ page }) => {
+    await startTinyGame(page, { hotseat: true });
+    await page.getByTestId('end-turn-button').click();
+    await expect(page.getByTestId('pass-device')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    const box = await page.locator('.pass-overlay .menu-box').boundingBox();
+    if (!box) throw new Error('pass-device box not visible');
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+    expect(box.y + box.height).toBeLessThanOrEqual(844);
+    await page.getByTestId('pass-device-confirm').click();
+    await expect(page.getByTestId('pass-device')).not.toBeVisible();
+  });
+
   test('town panel opens within the viewport bounds', async ({ page }) => {
     await page.goto('/?map=tiny&seed=42');
     await expect(page.getByTestId('adventure-canvas')).toBeVisible();

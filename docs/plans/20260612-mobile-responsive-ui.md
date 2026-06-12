@@ -442,16 +442,20 @@ via unit tests only if CDP proves flaky. Pinch is covered by unit tests only.
 
 ### Task 8: Verify acceptance criteria
 
-- [ ] verify all Overview requirements implemented (responsive canvas, zoom, touch
-      input, overlays fit, drawer HUD, mobile e2e)
-- [ ] verify pass-device and game-over overlays fit a 390px viewport (they reuse
+- [x] verify all Overview requirements implemented (responsive canvas, zoom, touch
+      input, overlays fit, drawer HUD, mobile e2e) — all delivered in tasks 1–7 and
+      covered by unit + e2e suites
+- [x] verify pass-device and game-over overlays fit a 390px viewport (they reuse
       `.menu-box`; confirm via the narrow-viewport e2e or a quick manual dev-server
-      check at a mobile viewport)
-- [ ] verify `src/core/` and `src/data/` untouched (`git diff --stat main -- src/core
+      check at a mobile viewport) — pass-device verified by a new real-flow hotseat
+      test in `e2e/shell.spec.ts` (narrow describe); game-over verified by a
+      dev-server probe at 390×844 (box 12..378 px wide, no page overflow)
+- [x] verify `src/core/` and `src/data/` untouched (`git diff --stat main -- src/core
       src/data` empty) and golden replay tests pass unchanged
-- [ ] run full test suite: `npm run check`
-- [ ] run e2e: `npm run test:e2e`
-- [ ] verify coverage: `npm test -- --coverage` (≥80% lines in `src/core/` still holds)
+- [x] run full test suite: `npm run check` — tsc + eslint + 630 unit tests green
+- [x] run e2e: `npm run test:e2e` — 36 passed (desktop + narrow + mobile)
+- [x] verify coverage: `npm test -- --coverage` (≥80% lines in `src/core/` still holds
+      — 94.1% lines in `core`, 94.2% `core/ai`, 95.8% `core/combat`)
 
 ### Task 9: [Final] Update documentation
 
