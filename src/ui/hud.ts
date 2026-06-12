@@ -3,6 +3,7 @@ import type { GameData } from '../data';
 import { maxMana, monthOf, weekOf, type GameState, type Hero, type Player } from '../core/state';
 import { maxMovementPoints } from '../core/hero';
 import { el } from './components';
+import { clampPopupPosition } from './helpers';
 
 export interface HudCallbacks {
   onEndTurn: () => void;
@@ -191,8 +192,19 @@ export class InfoPopup {
   show(text: string, x: number, y: number): void {
     this.root.textContent = text;
     this.root.style.display = 'block';
-    this.root.style.left = `${String(x)}px`;
-    this.root.style.top = `${String(y)}px`;
+    // measure after display so a long-press near the right/bottom edge of a
+    // narrow screen keeps the popup inside its positioned container
+    const parent = this.root.parentElement;
+    const [px, py] = clampPopupPosition(
+      x,
+      y,
+      this.root.offsetWidth,
+      this.root.offsetHeight,
+      parent?.clientWidth ?? Number.POSITIVE_INFINITY,
+      parent?.clientHeight ?? Number.POSITIVE_INFINITY,
+    );
+    this.root.style.left = `${String(px)}px`;
+    this.root.style.top = `${String(py)}px`;
   }
 
   hide(): void {

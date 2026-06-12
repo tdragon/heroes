@@ -9,6 +9,7 @@ import {
   buildAvailability,
   choiceOptionLabel,
   choiceTitle,
+  clampPopupPosition,
   costText,
   maxTrades,
   recruitMax,
@@ -198,5 +199,27 @@ describe('scaledCost', () => {
   it('multiplies each non-zero resource by the count', () => {
     expect(scaledCost({ gold: 60, wood: 2 }, 3)).toEqual({ gold: 180, wood: 6 });
     expect(scaledCost({ gold: 10 }, 1)).toEqual({ gold: 10 });
+  });
+});
+
+describe('clampPopupPosition', () => {
+  it('keeps an interior position unchanged', () => {
+    expect(clampPopupPosition(100, 80, 120, 40, 400, 300)).toEqual([100, 80]);
+  });
+
+  it('flips across the anchor at the right and bottom edges', () => {
+    // 350 + 120 > 400 -> flip left of the anchor
+    expect(clampPopupPosition(350, 80, 120, 40, 400, 300)).toEqual([230, 80]);
+    // 280 + 40 > 300 -> flip above the anchor
+    expect(clampPopupPosition(100, 280, 120, 40, 400, 300)).toEqual([100, 240]);
+    expect(clampPopupPosition(350, 280, 120, 40, 400, 300)).toEqual([230, 240]);
+  });
+
+  it('clamps to zero when flipping would go past the left/top edge', () => {
+    expect(clampPopupPosition(50, 10, 120, 40, 100, 300)).toEqual([0, 10]);
+  });
+
+  it('pins a popup larger than the bounds to the origin', () => {
+    expect(clampPopupPosition(20, 20, 500, 400, 390, 300)).toEqual([0, 0]);
   });
 });

@@ -33,6 +33,7 @@ import { adventureSpellbookEntries, SpellbookOverlay, type SpellbookEntry } from
 import { SystemPanel } from '../ui/systemPanel';
 import { TownScreen } from '../ui/townScreen';
 import { AiDriver } from './aiDriver';
+import { GestureRecognizer, type GestureAction, type GesturePointer } from './gestures';
 import { autosave, type SaveStorage } from './saveload';
 import { adventureShortcut, isTypingTarget, type AdventureShortcutAction } from './shortcuts';
 import { canvasBackingSize, edgeScrollDelta } from './viewport';
@@ -78,8 +79,21 @@ export class AdventureScreen implements Screen {
   private pendingPath: PendingPath | null = null;
   private dirty = true;
   private mousePos: [number, number] | null = null;
-  private dragFrom: [number, number] | null = null;
   private running = false;
+  // set when a touch long-press already showed the info popup, so the
+  // synthetic contextmenu that follows on some platforms is swallowed
+  private suppressContextmenu = false;
+  private readonly gestures = new GestureRecognizer(
+    (action) => {
+      this.applyGesture(action);
+    },
+    (cb, ms) => {
+      const id = window.setTimeout(cb, ms);
+      return () => {
+        window.clearTimeout(id);
+      };
+    },
+  );
   private readonly aiDriver: AiDriver;
   // aborting detaches every canvas/window listener bound in bindInput()
   private readonly inputAborter = new AbortController();
@@ -236,6 +250,7 @@ export class AdventureScreen implements Screen {
     this.running = false;
     this.resizeObserver.disconnect();
     this.inputAborter.abort();
+    this.gestures.reset();
     this.dialogs.destroy();
     this.combatPanel?.destroy();
     this.combatPanel = null;
@@ -895,20 +910,96 @@ export class AdventureScreen implements Screen {
 
   // --- input ---
 
+  // pointer events → gesture FSM → semantic actions
+  private applyGesture(action: GestureAction): void {
+    switch (action.type) {
+      case 'tap': {
+        this.infoPopup.hide();
+        const tile = tileAtClientPoint(this.camera, action.x, action.y, this.state.map.size);
+        if (tile) this.handleTileClick(tile);
+        break;
+      }
+      case 'longPress': {
+        this.suppressContextmenu = true;
+        const tile = tileAtClientPoint(this.camera, action.x, action.y, this.state.map.size);
+        if (tile) {
+          this.infoPopup.show(this.describeTile(tile), action.x + 8, action.y + 8);
+        }
+        break;
+      }
+      case 'panBy':
+        // CSS px → world px so the map tracks the pointer 1:1 at any zoom
+        this.camera = panCamera(
+          this.camera,
+          action.dx / this.camera.zoom,
+          action.dy / this.camera.zoom,
+          this.state.map.size,
+        );
+        this.markDirty();
+        break;
+      case 'pinch':
+        this.applyZoom(action.scale, action.cx, action.cy);
+        break;
+      case 'hover':
+        this.mousePos = [action.x, action.y];
+        break;
+    }
+  }
+
+  private gesturePointer(e: PointerEvent): GesturePointer {
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      pointerId: e.pointerId,
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      pointerType: e.pointerType,
+      button: e.button,
+    };
+  }
+
   private bindInput(): void {
     const opts = { signal: this.inputAborter.signal };
     this.canvas.addEventListener(
-      'click',
+      'pointerdown',
       (e) => {
-        this.infoPopup.hide();
-        const rect = this.canvas.getBoundingClientRect();
-        const tile = tileAtClientPoint(
-          this.camera,
-          e.clientX - rect.left,
-          e.clientY - rect.top,
-          this.state.map.size,
-        );
-        if (tile) this.handleTileClick(tile);
+        // middle button: block autoscroll, it pans the map instead
+        if (e.button === 1) e.preventDefault();
+        this.gestures.pointerDown(this.gesturePointer(e));
+      },
+      opts,
+    );
+    this.canvas.addEventListener(
+      'pointermove',
+      (e) => {
+        this.gestures.pointerMove(this.gesturePointer(e));
+        const state = this.gestures.state;
+        if (
+          (state === 'panning' || state === 'pinching') &&
+          !this.canvas.hasPointerCapture(e.pointerId)
+        ) {
+          this.canvas.setPointerCapture(e.pointerId);
+        }
+      },
+      opts,
+    );
+    this.canvas.addEventListener(
+      'pointerup',
+      (e) => {
+        this.gestures.pointerUp(this.gesturePointer(e));
+      },
+      opts,
+    );
+    this.canvas.addEventListener(
+      'pointercancel',
+      (e) => {
+        this.gestures.pointerCancel(this.gesturePointer(e));
+      },
+      opts,
+    );
+    this.canvas.addEventListener(
+      'pointerleave',
+      (e) => {
+        if (e.pointerType === 'mouse') this.mousePos = null;
       },
       opts,
     );
@@ -917,6 +1008,10 @@ export class AdventureScreen implements Screen {
       'contextmenu',
       (e) => {
         e.preventDefault();
+        if (this.suppressContextmenu) {
+          this.suppressContextmenu = false;
+          return;
+        }
         const rect = this.canvas.getBoundingClientRect();
         const sx = e.clientX - rect.left;
         const sy = e.clientY - rect.top;
@@ -924,54 +1019,6 @@ export class AdventureScreen implements Screen {
         if (tile) {
           this.infoPopup.show(this.describeTile(tile), sx + 8, sy + 8);
         }
-      },
-      opts,
-    );
-
-    this.canvas.addEventListener(
-      'mousemove',
-      (e) => {
-        const rect = this.canvas.getBoundingClientRect();
-        const sx = e.clientX - rect.left;
-        const sy = e.clientY - rect.top;
-        if (this.dragFrom) {
-          // CSS px → world px so the map tracks the cursor 1:1 at any zoom
-          this.camera = panCamera(
-            this.camera,
-            (this.dragFrom[0] - sx) / this.camera.zoom,
-            (this.dragFrom[1] - sy) / this.camera.zoom,
-            this.state.map.size,
-          );
-          this.dragFrom = [sx, sy];
-          this.markDirty();
-        }
-        this.mousePos = [sx, sy];
-      },
-      opts,
-    );
-    this.canvas.addEventListener(
-      'mouseleave',
-      () => {
-        this.mousePos = null;
-        this.dragFrom = null;
-      },
-      opts,
-    );
-    this.canvas.addEventListener(
-      'mousedown',
-      (e) => {
-        if (e.button === 1) {
-          e.preventDefault();
-          const rect = this.canvas.getBoundingClientRect();
-          this.dragFrom = [e.clientX - rect.left, e.clientY - rect.top];
-        }
-      },
-      opts,
-    );
-    this.canvas.addEventListener(
-      'mouseup',
-      (e) => {
-        if (e.button === 1) this.dragFrom = null;
       },
       opts,
     );
@@ -1086,7 +1133,9 @@ export class AdventureScreen implements Screen {
   }
 
   private edgeScroll(): void {
-    if (!this.mousePos || this.dragFrom) return;
+    // mousePos is only fed by mouse hover actions, so touch never edge-scrolls
+    const gesture = this.gestures.state;
+    if (!this.mousePos || gesture === 'panning' || gesture === 'pinching') return;
     const [sx, sy] = this.mousePos;
     // bounds in live CSS px, pan delta a world-px constant
     const [dx, dy] = edgeScrollDelta(

@@ -324,24 +324,24 @@ via unit tests only if CDP proves flaky. Pinch is covered by unit tests only.
 - Modify: `src/ui/helpers.ts` + `src/ui/helpers.test.ts` (`clampPopupPosition`)
 - Modify: `index.html` (`touch-action: none` on the adventure canvas)
 
-- [ ] implement the gesture FSM per Technical Details (tap / longPress / panBy /
+- [x] implement the gesture FSM per Technical Details (tap / longPress / panBy /
       pinch / hover; injected timer; slop 8px; long-press 500ms; mouse pan stays
       middle-button-only, touch pans with one finger)
-- [ ] replace the mouse listeners in `bindInput()` with pointer-event listeners
+- [x] replace the mouse listeners in `bindInput()` with pointer-event listeners
       feeding the FSM; map actions: tap → existing click logic, longPress → info
       popup, panBy → `panCamera`, pinch → `zoomCameraAt`, hover → edge-scroll
       `mousePos`; `setPointerCapture` during pans; suppress synthetic `contextmenu`
       after a handled long-press, keep real right-click info
-- [ ] gate edge scroll on `pointerType === 'mouse'`; add `touch-action: none` CSS
-- [ ] add `clampPopupPosition` to `src/ui/helpers.ts` and use it in `InfoPopup.show`
+- [x] gate edge scroll on `pointerType === 'mouse'`; add `touch-action: none` CSS
+- [x] add `clampPopupPosition` to `src/ui/helpers.ts` and use it in `InfoPopup.show`
       so long-press info near the right/bottom edge stays on-screen
-- [ ] write FSM tests: tap within slop, drag past slop emits panBy (and no tap on
+- [x] write FSM tests: tap within slop, drag past slop emits panBy (and no tap on
       release), long-press fires once and suppresses tap, movement cancels long-press,
       pinch ratio/midpoint from two pointers, pointer-cancel resets state, mouse
       left-button drag does NOT pan (preserves click semantics)
-- [ ] write `clampPopupPosition` tests (interior, right/bottom edge flip, popup larger
+- [x] write `clampPopupPosition` tests (interior, right/bottom edge flip, popup larger
       than bounds)
-- [ ] run `npm run check` and `npm run test:e2e` (desktop specs must still pass:
+- [x] run `npm run check` and `npm run test:e2e` (desktop specs must still pass:
       click-to-move, right-click info) - must pass before task 4
 
 ### Task 4: Overlay screens fit the viewport
