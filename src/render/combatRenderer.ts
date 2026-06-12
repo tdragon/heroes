@@ -53,6 +53,22 @@ export function hexCenter(hex: Hex): Pixel {
   };
 }
 
+// uniform scale-to-fit for the non-scrolling battlefield: never upscale past
+// 1, never shrink below the floor
+export const COMBAT_FIT_MIN = 0.35;
+
+export function combatFitScale(availW: number, availH: number): number {
+  return Math.max(
+    COMBAT_FIT_MIN,
+    Math.min(1, availW / COMBAT_CANVAS_W, availH / COMBAT_CANVAS_H),
+  );
+}
+
+// hit-testing on a scaled canvas: CSS px -> logical battlefield px
+export function hexAtCanvasPoint(cssX: number, cssY: number, fit: number): Hex | null {
+  return hexAtPixel(cssX / fit, cssY / fit);
+}
+
 // nearest hex center wins (centers form a triangular lattice whose Voronoi
 // cells are exactly the hexes); null when the point is outside the field
 export function hexAtPixel(px: number, py: number): Hex | null {
@@ -295,12 +311,20 @@ function hexPath(ctx: CanvasRenderingContext2D, center: Pixel, r: number): void 
 export class CombatRenderer {
   private tweens: MoveTween[] = [];
   private floats: FloatingText[] = [];
+  private fit = 1;
+  private dpr = 1;
 
   constructor(
     private readonly ctx: CanvasRenderingContext2D,
     private readonly painter: Painter,
     private readonly data: GameData,
   ) {}
+
+  // backing store is logical size × fit × dpr; drawing stays in logical px
+  setViewScale(fit: number, dpr: number): void {
+    this.fit = fit;
+    this.dpr = dpr;
+  }
 
   addMoveTween(stack: string, from: Hex, to: Hex, now: number): void {
     this.tweens.push({ stack, from, to, start: now });
@@ -329,8 +353,11 @@ export class CombatRenderer {
     this.prune(now);
     const { ctx } = this;
     const { combat } = view;
+    const scale = this.fit * this.dpr;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#171c24';
-    ctx.fillRect(0, 0, COMBAT_CANVAS_W, COMBAT_CANVAS_H);
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
     for (let y = 0; y < FIELD_HEIGHT; y++) {
       for (let x = 0; x < FIELD_WIDTH; x++) {

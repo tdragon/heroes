@@ -31,12 +31,15 @@ async function moveHeroTo(page: Page, tileX: number, tileY: number): Promise<voi
   await page.mouse.click(px, py);
 }
 
+// the combat canvas is scale-to-fit: logical hex coordinates map to CSS px
+// through the live `data-fit` factor exposed by the screen
 async function clickCombatHex(page: Page, hexX: number, hexY: number): Promise<void> {
   const canvas = page.getByTestId('combat-canvas');
   const box = await canvas.boundingBox();
   if (!box) throw new Error('combat canvas not visible');
+  const fit = Number((await canvas.getAttribute('data-fit')) ?? '1');
   const [cx, cy] = hexCenter(hexX, hexY);
-  await page.mouse.click(box.x + cx, box.y + cy);
+  await page.mouse.click(box.x + cx * fit, box.y + cy * fit);
 }
 
 async function stackHex(stack: Locator): Promise<[number, number]> {

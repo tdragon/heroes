@@ -8,10 +8,13 @@ import {
   combatEventText,
   COMBAT_CANVAS_H,
   COMBAT_CANVAS_W,
+  COMBAT_FIT_MIN,
+  combatFitScale,
   createReachableCache,
   damageRangeText,
   estimateAttack,
   HEX_R,
+  hexAtCanvasPoint,
   hexAtPixel,
   hexCenter,
   sideColor,
@@ -67,6 +70,59 @@ describe('hex pixel math', () => {
         expect(c.y).toBeLessThan(COMBAT_CANVAS_H - HEX_R / 2);
       }
     }
+  });
+});
+
+describe('combatFitScale', () => {
+  it('is 1 when the battlefield fits exactly', () => {
+    expect(combatFitScale(COMBAT_CANVAS_W, COMBAT_CANVAS_H)).toBe(1);
+  });
+
+  it('never upscales past 1 on huge viewports', () => {
+    expect(combatFitScale(10000, 10000)).toBe(1);
+  });
+
+  it('scales down by the constraining width', () => {
+    expect(combatFitScale(COMBAT_CANVAS_W / 2, 10000)).toBeCloseTo(0.5);
+  });
+
+  it('scales down by the constraining height', () => {
+    expect(combatFitScale(10000, COMBAT_CANVAS_H * 0.6)).toBeCloseTo(0.6);
+  });
+
+  it('takes the smaller of the two ratios', () => {
+    expect(combatFitScale(COMBAT_CANVAS_W * 0.8, COMBAT_CANVAS_H * 0.5)).toBeCloseTo(0.5);
+  });
+
+  it('floors at COMBAT_FIT_MIN for tiny and degenerate inputs', () => {
+    expect(combatFitScale(10, 10)).toBe(COMBAT_FIT_MIN);
+    expect(combatFitScale(0, 0)).toBe(COMBAT_FIT_MIN);
+    expect(combatFitScale(-100, 500)).toBe(COMBAT_FIT_MIN);
+  });
+});
+
+describe('hexAtCanvasPoint', () => {
+  it('matches hexAtPixel at fit 1', () => {
+    const c = hexCenter({ x: 3, y: 4 });
+    expect(hexAtCanvasPoint(c.x, c.y, 1)).toEqual(hexAtPixel(c.x, c.y));
+    expect(hexAtCanvasPoint(c.x, c.y, 1)).toEqual({ x: 3, y: 4 });
+  });
+
+  it('maps CSS px through the fit scale', () => {
+    for (const fit of [0.5, 2]) {
+      const c = hexCenter({ x: 7, y: 5 });
+      expect(hexAtCanvasPoint(c.x * fit, c.y * fit, fit)).toEqual({ x: 7, y: 5 });
+    }
+  });
+
+  it('points off-center stay in the same hex at fit 0.5', () => {
+    const c = hexCenter({ x: 7, y: 5 });
+    expect(hexAtCanvasPoint((c.x + HEX_R * 0.4) * 0.5, c.y * 0.5, 0.5)).toEqual({ x: 7, y: 5 });
+  });
+
+  it('returns null outside the scaled field', () => {
+    expect(hexAtCanvasPoint(0, 0, 0.5)).toBeNull();
+    expect(hexAtCanvasPoint(COMBAT_CANVAS_W * 0.5 + 50, COMBAT_CANVAS_H * 0.5 + 50, 0.5)).toBeNull();
   });
 });
 

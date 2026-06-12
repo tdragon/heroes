@@ -374,20 +374,24 @@ via unit tests only if CDP proves flaky. Pinch is covered by unit tests only.
   may be < 1 even on the desktop e2e viewport)
 - Modify: `index.html` (combat panel CSS on narrow screens)
 
-- [ ] implement pure `combatFitScale(availW, availH)` (≤1, floor 0.35) and apply
+- [x] implement pure `combatFitScale(availW, availH)` (≤1, floor 0.35) and apply
       `ctx.setTransform(fit * dpr, ...)` in the combat renderer
-- [ ] combat canvas backing store = logical size × fit × dpr, CSS size = logical ×
+- [x] combat canvas backing store = logical size × fit × dpr, CSS size = logical ×
       fit; recompute on `ResizeObserver`/window resize; expose `data-fit` on the
       combat canvas
-- [ ] divide click/tap coordinates by `fit` before hex lookup in `combatScreen.ts`;
+- [x] divide click/tap coordinates by `fit` before hex lookup in `combatScreen.ts`;
       clamp the combat tooltip via `clampPopupPosition`
-- [ ] update `e2e/combat.spec.ts` hex-click helper to scale its `hexCenter` mirror by
+- [x] update `e2e/combat.spec.ts` hex-click helper to scale its `hexCenter` mirror by
       the live `data-fit` and canvas box
-- [ ] narrow-screen combat CSS: panel fits `100vw/100dvh`, hero panels/controls wrap,
+- [x] narrow-screen combat CSS: panel fits `100vw/100dvh`, hero panels/controls wrap,
       log shrinks
-- [ ] write tests: `combatFitScale` (wide, tall, tiny, huge inputs; floor), hit-test
-      coordinate mapping at fit 0.5/1
-- [ ] run `npm run check` and `npm run test:e2e` (combat spec) - must pass before task 6
+- [x] write tests: `combatFitScale` (wide, tall, tiny, huge inputs; floor), hit-test
+      coordinate mapping at fit 0.5/1 (`hexAtCanvasPoint`)
+- [x] run `npm run check` and `npm run test:e2e` (combat spec) - must pass before task 6
+- ➕ chrome around the canvas (header, log/controls) is measured from the live
+      elements + constant paddings so the fit computation cannot feed back on the
+      canvas size; verified mid-combat resize 1280×800 → 390×844 → back (fit
+      1 → 0.40 → 1, no page overflow) via a dev-server probe
 
 ### Task 6: Mobile HUD — drawer sidebar and bottom bar
 
