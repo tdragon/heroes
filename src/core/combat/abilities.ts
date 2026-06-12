@@ -4,12 +4,13 @@
 
 import type { GameData } from '../../data';
 import type { Creature, SpecialType } from '../../data/schema';
-import { hexDistance } from './grid';
+import { hexDistance, type Hex } from './grid';
 import {
   heroInfoFor,
   livingStacks,
   occupiedHexes,
   oppositeSide,
+  tailOffset,
   type CombatSideId,
   type CombatStack,
   type CombatState,
@@ -35,6 +36,27 @@ export function hasSpecial(creature: Creature, type: SpecialType): boolean {
 
 export function specialValue(creature: Creature, type: SpecialType): number | undefined {
   return creature.specials.find((s) => s.type === type)?.value;
+}
+
+// --- grid geometry shared by the engine, the combat policies and the AI ---
+
+export function stackCells(stack: CombatStack, data: GameData): Hex[] {
+  return occupiedHexes(stack, requireCreature(data, stack.creature));
+}
+
+// cells a (possibly wide) creature would occupy with its head at `head`
+export function cellsFor(head: Hex, wide: boolean, side: CombatSideId): Hex[] {
+  return wide ? [head, { x: head.x + tailOffset(side), y: head.y }] : [head];
+}
+
+export function minCellDistance(a: readonly Hex[], b: readonly Hex[]): number {
+  let min = Infinity;
+  for (const ha of a) {
+    for (const hb of b) {
+      min = Math.min(min, hexDistance(ha, hb));
+    }
+  }
+  return min;
 }
 
 // --- stack effects ---

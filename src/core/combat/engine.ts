@@ -5,6 +5,7 @@ import { rollChance, rollRange, type RngState } from '../rng';
 import { skillValue, type Hero } from '../state';
 import {
   addEffect,
+  cellsFor,
   damageStack,
   effectiveAttack,
   effectiveDefense,
@@ -15,12 +16,14 @@ import {
   healTopCreature,
   isBlinded,
   isBound,
+  minCellDistance,
   MORALE_LUCK_DIE,
   ON_HIT_EFFECT_ROUNDS,
   requireCreature,
   resurrectStack,
   sideLuck,
   specialValue,
+  stackCells,
   stackHpPool,
   stackMorale,
   type DamageOutcome,
@@ -65,7 +68,6 @@ import {
   livingStacks,
   occupiedHexes,
   oppositeSide,
-  tailOffset,
   type CombatEvent,
   type CombatHeroInfo,
   type CombatSideId,
@@ -529,21 +531,13 @@ function buildCanStand(
     }
   }
   return (head: Hex): boolean => {
-    const cells = wide ? [head, { x: head.x + tailOffset(stack.side), y: head.y }] : [head];
+    const cells = cellsFor(head, wide, stack.side);
     return cells.every((c) => inField(c) && !blocked.has(hexKey(c)));
   };
 }
 
 function minStackDistance(a: CombatStack, b: CombatStack, data: GameData): number {
-  const aHexes = occupiedHexes(a, requireCreature(data, a.creature));
-  const bHexes = occupiedHexes(b, requireCreature(data, b.creature));
-  let min = Infinity;
-  for (const ha of aHexes) {
-    for (const hb of bHexes) {
-      min = Math.min(min, hexDistance(ha, hb));
-    }
-  }
-  return min;
+  return minCellDistance(stackCells(a, data), stackCells(b, data));
 }
 
 function hexesAdjacentToStack(
@@ -553,11 +547,10 @@ function hexesAdjacentToStack(
   target: CombatStack,
   data: GameData,
 ): boolean {
-  const attackerCells = wide
-    ? [head, { x: head.x + tailOffset(attacker.side), y: head.y }]
-    : [head];
-  const targetCells = occupiedHexes(target, requireCreature(data, target.creature));
-  return attackerCells.some((a) => targetCells.some((t) => hexDistance(a, t) === 1));
+  const targetCells = stackCells(target, data);
+  return cellsFor(head, wide, attacker.side).some((a) =>
+    targetCells.some((t) => hexDistance(a, t) === 1),
+  );
 }
 
 function hasAdjacentEnemy(combat: CombatState, stack: CombatStack, data: GameData): boolean {
@@ -574,12 +567,19 @@ interface StrikeOptions {
   retaliationPenaltyMult?: number;
 }
 
+// The special's data value is always the proc chance (%); `value` is stored on
+// the resulting StackEffect and its meaning depends on the kind (see comments).
 const ON_HIT_EFFECTS = [
-  // the special's data value is the proc chance; the effect value is the extra
-  // reduction below minimum damage (0 = basic curse: forced minimum, spec §7.5)
+  // curse: extra % reduction below minimum damage; 0 = basic curse, i.e. the
+  // victim is merely forced to minimum damage (spec §7.5)
   { special: 'curse', kind: 'curse', skipUndead: true, value: 0 },
+  // disease: flat reduction applied to BOTH attack and defense (-2 each)
   { special: 'disease', kind: 'disease', skipUndead: false, value: 2 },
+  // blind: % damage penalty on the retaliation when a hit breaks the blind
+  // (50 = half damage); 100 would suppress the retaliation entirely
   { special: 'blind', kind: 'blind', skipUndead: true, value: 50 },
+  // aging: value unused — halved HP is keyed on the effect's presence
+  // (effectiveHp in abilities.ts)
   { special: 'aging', kind: 'aging', skipUndead: false, value: 0 },
 ] as const;
 
@@ -626,6 +626,92 @@ function applyOnHitEffects(
   }
 }
 
+// bless forces max damage, curse forces (reduced) min damage, otherwise roll
+function rollStrikeBase(
+  combat: CombatState,
+  attacker: CombatStack,
+  attackerCreature: Creature,
+): number {
+  const curse = getEffect(attacker, 'curse');
+  if (curse) {
+    return attacker.count * attackerCreature.dmgMin * (1 - curse.value / 100);
+  }
+  const bless = getEffect(attacker, 'bless');
+  if (bless) {
+    return attacker.count * (attackerCreature.dmgMax + bless.value);
+  }
+  const [rolled, nextRng] = rollBaseDamage(
+    combat.rngState,
+    attackerCreature.dmgMin,
+    attackerCreature.dmgMax,
+    attacker.count,
+  );
+  combat.rngState = nextRng;
+  return rolled;
+}
+
+function rollStrikeLuck(
+  combat: CombatState,
+  attacker: CombatStack,
+  events: CombatEvent[],
+): boolean {
+  const luck = sideLuck(combat, attacker.side);
+  if (luck <= 0) return false;
+  const [lucky, nextRng] = rollChance(combat.rngState, luck / MORALE_LUCK_DIE);
+  combat.rngState = nextRng;
+  if (lucky) {
+    events.push({ type: 'luck', stack: attacker.id });
+  }
+  return lucky;
+}
+
+function rollStrikeDoubleDamage(
+  combat: CombatState,
+  attacker: CombatStack,
+  attackerCreature: Creature,
+  events: CombatEvent[],
+): boolean {
+  const doubleChance = specialValue(attackerCreature, 'doubleDamage');
+  if (doubleChance === undefined) return false;
+  const [doubled, nextRng] = rollChance(combat.rngState, doubleChance / 100);
+  combat.rngState = nextRng;
+  if (doubled) {
+    events.push({ type: 'abilityTriggered', stack: attacker.id, ability: 'doubleDamage' });
+  }
+  return doubled;
+}
+
+// combined multiplier from shield/forgetfulness and the retaliation penalty
+function strikeEffectMult(attacker: CombatStack, target: CombatStack, opts: StrikeOptions): number {
+  let effectMult = opts.retaliationPenaltyMult ?? 1;
+  const shield = getEffect(target, 'shield');
+  if (shield && !opts.ranged) {
+    effectMult *= 1 - shield.value / 100;
+  }
+  if (opts.ranged) {
+    const forget = getEffect(attacker, 'forgetfulness');
+    if (forget && forget.value < 100) {
+      effectMult *= 0.5;
+    }
+  }
+  return effectMult;
+}
+
+// vampires etc. heal/revive by the damage they just dealt
+function applyLifeDrain(
+  attacker: CombatStack,
+  attackerCreature: Creature,
+  damage: number,
+  events: CombatEvent[],
+): void {
+  if (!hasSpecial(attackerCreature, 'lifeDrain') || damage <= 0 || !isStackAlive(attacker)) {
+    return;
+  }
+  const revived = resurrectStack(attacker, effectiveHp(attacker, attackerCreature), damage);
+  events.push({ type: 'abilityTriggered', stack: attacker.id, ability: 'lifeDrain' });
+  events.push({ type: 'stackResurrected', stack: attacker.id, revived });
+}
+
 // returns total damage dealt
 function strike(
   combat: CombatState,
@@ -646,58 +732,9 @@ function strike(
     defense = Math.floor(defense * (1 + DEFEND_DEFENSE_BONUS));
   }
 
-  // bless forces max damage, curse forces (reduced) min damage
-  const curse = getEffect(attacker, 'curse');
-  const bless = getEffect(attacker, 'bless');
-  let base: number;
-  if (curse) {
-    base = attacker.count * attackerCreature.dmgMin * (1 - curse.value / 100);
-  } else if (bless) {
-    base = attacker.count * (attackerCreature.dmgMax + bless.value);
-  } else {
-    const [rolled, nextRng] = rollBaseDamage(
-      combat.rngState,
-      attackerCreature.dmgMin,
-      attackerCreature.dmgMax,
-      attacker.count,
-    );
-    combat.rngState = nextRng;
-    base = rolled;
-  }
-
-  let lucky = false;
-  const luck = sideLuck(combat, attacker.side);
-  if (luck > 0) {
-    const [rolledLucky, nextRng] = rollChance(combat.rngState, luck / MORALE_LUCK_DIE);
-    combat.rngState = nextRng;
-    lucky = rolledLucky;
-    if (lucky) {
-      events.push({ type: 'luck', stack: attacker.id });
-    }
-  }
-
-  let doubled = false;
-  const doubleChance = specialValue(attackerCreature, 'doubleDamage');
-  if (doubleChance !== undefined) {
-    const [rolledDouble, nextRng] = rollChance(combat.rngState, doubleChance / 100);
-    combat.rngState = nextRng;
-    doubled = rolledDouble;
-    if (doubled) {
-      events.push({ type: 'abilityTriggered', stack: attacker.id, ability: 'doubleDamage' });
-    }
-  }
-
-  let effectMult = opts.retaliationPenaltyMult ?? 1;
-  const shield = getEffect(target, 'shield');
-  if (shield && !opts.ranged) {
-    effectMult *= 1 - shield.value / 100;
-  }
-  if (opts.ranged) {
-    const forget = getEffect(attacker, 'forgetfulness');
-    if (forget && forget.value < 100) {
-      effectMult *= 0.5;
-    }
-  }
+  const base = rollStrikeBase(combat, attacker, attackerCreature);
+  const lucky = rollStrikeLuck(combat, attacker, events);
+  const doubled = rollStrikeDoubleDamage(combat, attacker, attackerCreature, events);
 
   const isShooter = attackerCreature.shots !== undefined;
   const ctx: DamageContext = {
@@ -714,7 +751,7 @@ function strike(
     wallPenalty: opts.wallPenalty ?? false,
     lucky,
     doubleDamage: doubled,
-    effectMult,
+    effectMult: strikeEffectMult(attacker, target, opts),
     joustingHexes: opts.joustingHexes,
   };
   const breakdown = computeDamage(ctx);
@@ -733,16 +770,7 @@ function strike(
   if (isStackAlive(target)) {
     applyOnHitEffects(combat, attackerCreature, target, targetCreature, events);
   }
-
-  if (hasSpecial(attackerCreature, 'lifeDrain') && breakdown.total > 0 && isStackAlive(attacker)) {
-    const revived = resurrectStack(
-      attacker,
-      effectiveHp(attacker, attackerCreature),
-      breakdown.total,
-    );
-    events.push({ type: 'abilityTriggered', stack: attacker.id, ability: 'lifeDrain' });
-    events.push({ type: 'stackResurrected', stack: attacker.id, revived });
-  }
+  applyLifeDrain(attacker, attackerCreature, breakdown.total, events);
 
   return breakdown.total;
 }
@@ -1033,9 +1061,7 @@ function applyAttackWall(
   }
   const creature = requireCreature(data, stack.creature);
   const wide = creature.flags.includes('wide');
-  const cells = wide
-    ? [action.from, { x: action.from.x + tailOffset(stack.side), y: action.from.y }]
-    : [action.from];
+  const cells = cellsFor(action.from, wide, stack.side);
   if (!cells.some((c) => hexDistance(c, segment.pos) === 1)) {
     throw new CombatRuleError('not adjacent to the gate');
   }

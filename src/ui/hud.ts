@@ -2,6 +2,7 @@ import { RESOURCE_IDS } from '../data/schema';
 import type { GameData } from '../data';
 import { maxMana, monthOf, weekOf, type GameState, type Hero, type Player } from '../core/state';
 import { maxMovementPoints } from '../core/hero';
+import { el } from './components';
 
 export interface HudCallbacks {
   onEndTurn: () => void;
@@ -14,17 +15,6 @@ export interface HudCallbacks {
 }
 
 export const MINIMAP_PX = 200;
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className: string,
-  testId?: string,
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  node.className = className;
-  if (testId !== undefined) node.dataset.testid = testId;
-  return node;
-}
 
 export class Hud {
   readonly sidebar: HTMLElement;

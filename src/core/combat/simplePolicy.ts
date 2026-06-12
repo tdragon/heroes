@@ -4,29 +4,10 @@
 // game itself uses the real combat AI in src/core/ai/combatAI.ts.
 
 import type { GameData } from '../../data';
-import { isBound, requireCreature } from './abilities';
+import { cellsFor, isBound, minCellDistance, requireCreature, stackCells } from './abilities';
 import { activeCombatStack, reachableHexesFor, type CombatAction } from './engine';
-import { hexDistance, type Hex } from './grid';
-import {
-  livingStacks,
-  occupiedHexes,
-  oppositeSide,
-  tailOffset,
-  type CombatStack,
-  type CombatState,
-} from './state';
-
-function stackCells(stack: CombatStack, data: GameData): Hex[] {
-  return occupiedHexes(stack, requireCreature(data, stack.creature));
-}
-
-function attackerCells(head: Hex, wide: boolean, side: CombatStack['side']): Hex[] {
-  return wide ? [head, { x: head.x + tailOffset(side), y: head.y }] : [head];
-}
-
-function minDistanceToEnemies(from: Hex, enemyCells: Hex[]): number {
-  return enemyCells.reduce((min, cell) => Math.min(min, hexDistance(from, cell)), Infinity);
-}
+import type { Hex } from './grid';
+import { livingStacks, oppositeSide, type CombatState } from './state';
 
 export function chooseSimpleCombatAction(combat: CombatState, data: GameData): CombatAction {
   const stack = activeCombatStack(combat);
@@ -40,7 +21,7 @@ export function chooseSimpleCombatAction(combat: CombatState, data: GameData): C
   }
   const allEnemyCells = enemies.flatMap((enemy) => stackCells(enemy, data));
   const adjacentEnemy = allEnemyCells.some(
-    (cell) => minDistanceToEnemies(cell, stackCells(stack, data)) === 1,
+    (cell) => minCellDistance([cell], stackCells(stack, data)) === 1,
   );
 
   if (creature.shots !== undefined && stack.shots > 0 && !adjacentEnemy) {
@@ -55,8 +36,8 @@ export function chooseSimpleCombatAction(combat: CombatState, data: GameData): C
   for (const enemy of enemies) {
     const cells = stackCells(enemy, data);
     for (const from of candidates) {
-      const reaches = attackerCells(from, wide, stack.side).some(
-        (cell) => minDistanceToEnemies(cell, cells) === 1,
+      const reaches = cellsFor(from, wide, stack.side).some(
+        (cell) => minCellDistance([cell], cells) === 1,
       );
       if (reaches) {
         return { type: 'melee', target: enemy.id, from };
@@ -65,9 +46,9 @@ export function chooseSimpleCombatAction(combat: CombatState, data: GameData): C
   }
 
   let best: Hex | null = null;
-  let bestDistance = minDistanceToEnemies(stack.pos, allEnemyCells);
+  let bestDistance = minCellDistance([stack.pos], allEnemyCells);
   for (const hex of candidates) {
-    const distance = minDistanceToEnemies(hex, allEnemyCells);
+    const distance = minCellDistance([hex], allEnemyCells);
     if (distance < bestDistance) {
       bestDistance = distance;
       best = hex;

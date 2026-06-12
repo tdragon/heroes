@@ -1,6 +1,5 @@
 import type { GameData } from '../data';
 import type { Pos } from '../maps/schema';
-import { chooseAICommand } from '../core/ai/adventureAI';
 import { CommandRejectedError, dispatch, type Command, type GameEvent } from '../core/commands';
 import { CombatRuleError } from '../core/combat/state';
 import { visibleTiles } from '../core/fog';
@@ -17,23 +16,14 @@ import {
 import { TokenPainter } from '../render/painter';
 import { splitPathByDays, type PathStepPreview } from '../render/pathPreview';
 import { CombatScreen } from '../ui/combatScreen';
-import { button, el, type UiContext } from '../ui/components';
+import type { UiContext } from '../ui/components';
 import { DialogQueue } from '../ui/dialogs';
 import { HeroScreen } from '../ui/heroScreen';
 import { Hud, InfoPopup, MINIMAP_PX } from '../ui/hud';
+import { SystemPanel } from '../ui/systemPanel';
 import { TownScreen } from '../ui/townScreen';
-import {
-  autosave,
-  buildExportFile,
-  describeSlot,
-  importSave,
-  listAutosaves,
-  listSlots,
-  loadAutosave,
-  loadFromSlot,
-  saveToSlot,
-  type SaveStorage,
-} from './saveload';
+import { AiDriver } from './aiDriver';
+import { autosave, type SaveStorage } from './saveload';
 import { adventureShortcut, isTypingTarget, type AdventureShortcutAction } from './shortcuts';
 import type { Screen } from './screens';
 
@@ -49,10 +39,6 @@ export const CANVAS_H = 760;
 const EDGE_SCROLL_MARGIN = 16;
 const EDGE_SCROLL_SPEED = 10;
 const KEY_SCROLL_STEP = TILE_PX;
-const AI_COMMAND_LIMIT = 2000;
-// off-screen AI-vs-AI battles are force-resolved past this many rounds so a
-// stalemate cannot eat the whole AI command budget
-const AI_COMBAT_ROUND_CAP = 200;
 
 interface PendingPath {
   dest: Pos;
@@ -79,7 +65,7 @@ export class AdventureScreen implements Screen {
   private mousePos: [number, number] | null = null;
   private dragFrom: [number, number] | null = null;
   private running = false;
-  private aiTurnRunning = false;
+  private readonly aiDriver: AiDriver;
   // aborting detaches every canvas/window listener bound in bindInput()
   private readonly inputAborter = new AbortController();
   // hotseat: the human player whose perspective is rendered; a "pass device"
@@ -87,7 +73,7 @@ export class AdventureScreen implements Screen {
   private viewPlayerId: string;
   private readonly passOverlay: HTMLElement;
   private readonly gameOverOverlay: HTMLElement;
-  private systemPanel: HTMLElement | null = null;
+  private systemPanel: SystemPanel | null = null;
 
   constructor(
     private readonly data: GameData,
@@ -187,11 +173,23 @@ export class AdventureScreen implements Screen {
 
     this.bindInput();
 
+    this.aiDriver = new AiDriver(
+      {
+        getState: () => this.state,
+        runCommand: (command) => this.runCommand(command),
+        humanInCombat: () => this.humanInCombat(),
+        setStatus: (text) => {
+          this.hud.setStatus(text);
+        },
+      },
+      this.data,
+    );
+
     // a loaded save can be mid-combat or mid-AI-turn: bring the combat panel
     // and the AI turn driver up immediately or the session is unplayable
     this.syncCombatPanel();
     this.combatPanel?.ensureAiActs();
-    this.maybeResumeAiTurns();
+    this.aiDriver.maybeResumeAiTurns();
     this.checkPassDevice();
   }
 
@@ -316,7 +314,7 @@ export class AdventureScreen implements Screen {
       this.combatPanel.consume(events);
       this.combatPanel.ensureAiActs();
     }
-    this.maybeResumeAiTurns();
+    this.aiDriver.maybeResumeAiTurns();
     this.checkPassDevice();
   }
 
@@ -423,106 +421,6 @@ export class AdventureScreen implements Screen {
     );
   }
 
-  // --- AI turns ---
-
-  // run AI players until it is a human's turn again, the game ends, or a
-  // battle / pending choice needs the human's attention; also resolves
-  // choices owned by AI players that arise off-turn (e.g. an AI defender's
-  // level-up after surviving the human's attack)
-  private maybeResumeAiTurns(): void {
-    if (this.aiTurnRunning) return;
-    this.aiTurnRunning = true;
-    try {
-      // per-AI-turn command budget plus an absolute stop; both recovery paths
-      // (rejected command, exhausted budget) force endTurn for the stuck AI
-      // instead of freezing the game on "Enemy turn"
-      let total = 0;
-      let turnCommands = 0;
-      let turnOf = this.state.currentPlayer;
-      while (total++ < AI_COMMAND_LIMIT * 4 && this.state.status === 'running') {
-        if (this.state.currentPlayer !== turnOf) {
-          turnOf = this.state.currentPlayer;
-          turnCommands = 0;
-        }
-        if (this.state.combat !== null && this.humanInCombat()) break;
-        if (this.state.combat !== null && this.state.combat.combat.round > AI_COMBAT_ROUND_CAP) {
-          // stalemated off-screen battle: the attacker withdraws (flee), so
-          // the round cap acts as an auto-resolve rule
-          console.warn(
-            `off-screen combat exceeded ${String(AI_COMBAT_ROUND_CAP)} rounds — attacker flees`,
-          );
-          if (!this.fleeAiAttacker()) break;
-          continue;
-        }
-        const aiChoice = this.state.pendingChoices.find(
-          (c) => this.state.players.find((p) => p.id === c.player)?.isHuman === false,
-        );
-        if (aiChoice) {
-          const resolve: Command = {
-            type: 'resolveChoice',
-            player: aiChoice.player,
-            choiceId: aiChoice.id,
-            option: 0,
-          };
-          if (!this.runCommand(resolve)) break;
-          continue;
-        }
-        if (this.state.pendingChoices.length > 0) break;
-        const player = this.state.players.find((p) => p.id === this.state.currentPlayer);
-        if (!player || player.isHuman || player.defeated) break;
-        this.hud.setStatus(`Enemy turn — ${player.id}…`);
-        const exhausted = turnCommands++ >= AI_COMMAND_LIMIT;
-        if (exhausted || !this.runCommand(chooseAICommand(this.state, this.data))) {
-          console.warn(
-            exhausted
-              ? `AI command limit exhausted for ${player.id} — forcing endTurn`
-              : `AI command rejected for ${player.id} — forcing endTurn`,
-          );
-          // a stuck battle is abandoned first (the turn cannot end mid-combat)
-          if (this.state.combat !== null) {
-            if (!this.fleeAiAttacker()) break;
-            continue;
-          }
-          if (!this.forceEndAiTurn()) break;
-        }
-      }
-    } finally {
-      this.aiTurnRunning = false;
-    }
-  }
-
-  // dispatch rejects endTurn while pending choices exist, so the forced
-  // endTurn recovery must clear AI-owned choices first (option 0); a
-  // human-owned choice is a clean stop — the dialog queue will surface it
-  private forceEndAiTurn(): boolean {
-    while (this.state.status === 'running') {
-      const choice = this.state.pendingChoices[0];
-      if (!choice) break;
-      if (this.state.players.find((p) => p.id === choice.player)?.isHuman !== false) return false;
-      const resolve: Command = {
-        type: 'resolveChoice',
-        player: choice.player,
-        choiceId: choice.id,
-        option: 0,
-      };
-      if (!this.runCommand(resolve)) return false;
-      // resolving a choice can start a battle (e.g. guardAttack "fight"):
-      // hand control back to the main loop, which drives/aborts combats
-      if (this.state.combat !== null) return true;
-    }
-    if (this.state.status !== 'running') return true;
-    return this.runCommand({ type: 'endTurn', player: this.state.currentPlayer });
-  }
-
-  // withdraw the attacker from an off-screen AI battle (recovery/auto-resolve)
-  private fleeAiAttacker(): boolean {
-    const combat = this.state.combat;
-    if (!combat) return false;
-    const owner = combat.combat.attackerHero.player;
-    const actor = this.state.players.find((p) => p.id === owner)?.id ?? this.state.currentPlayer;
-    return this.runCommand({ type: 'combatAction', player: actor, action: { type: 'flee' } });
-  }
-
   private combatResultText(
     event: Extract<GameEvent, { type: 'combatResolved' }>,
     xpGained: number,
@@ -568,119 +466,22 @@ export class AdventureScreen implements Screen {
   // --- system panel (save / load / export / import / quit) ---
 
   private closeSystemPanel(): void {
-    this.systemPanel?.remove();
+    this.systemPanel?.root.remove();
     this.systemPanel = null;
   }
 
   private openSystemPanel(): void {
     this.closeSystemPanel();
-    const overlay = el('div', 'panel-overlay', 'system-panel');
-    const panel = el('div', 'panel system-panel-box');
-
-    const header = el('div', 'panel-header');
-    const title = el('div', 'panel-title');
-    title.textContent = 'System';
-    const close = button('Close', 'system-close', () => {
-      this.closeSystemPanel();
+    this.systemPanel = new SystemPanel({
+      storage: this.shell.storage,
+      getState: () => this.state,
+      onLoad: this.shell.onLoad,
+      onExit: this.shell.onExit,
+      onClose: () => {
+        this.closeSystemPanel();
+      },
     });
-    header.append(title, close);
-    panel.appendChild(header);
-
-    const status = el('div', 'panel-status', 'system-status');
-
-    const slots = el('div', 'panel-section');
-    const renderSlots = (): void => {
-      slots.replaceChildren();
-      const sectionTitle = el('div', 'section-title');
-      sectionTitle.textContent = 'Save Slots';
-      slots.appendChild(sectionTitle);
-      listSlots(this.shell.storage).forEach((meta, i) => {
-        const slot = i + 1;
-        const row = el('div', 'slot-row');
-        const label = el('span', 'slot-label', `slot-info-${String(slot)}`);
-        label.textContent = `Slot ${String(slot)}: ${describeSlot(meta)}`;
-        const save = button('Save', `save-slot-${String(slot)}`, () => {
-          try {
-            saveToSlot(this.shell.storage, slot, this.state);
-            status.textContent = `Saved to slot ${String(slot)}`;
-          } catch {
-            status.textContent = `Could not save to slot ${String(slot)} (storage full?)`;
-          }
-          renderSlots();
-        });
-        const load = button('Load', `load-slot-${String(slot)}`, () => {
-          this.tryLoad(status, () => loadFromSlot(this.shell.storage, slot));
-        });
-        load.disabled = meta === null;
-        row.append(label, save, load);
-        slots.appendChild(row);
-      });
-      for (const { slot, meta } of listAutosaves(this.shell.storage)) {
-        const row = el('div', 'slot-row');
-        const label = el('span', 'slot-label');
-        label.textContent = `Autosave: ${describeSlot(meta)}`;
-        const load = button('Load', `load-autosave-${String(slot)}`, () => {
-          this.tryLoad(status, () => loadAutosave(this.shell.storage, slot));
-        });
-        row.append(label, load);
-        slots.appendChild(row);
-      }
-    };
-    renderSlots();
-    panel.appendChild(slots);
-
-    const fileSection = el('div', 'panel-section');
-    const fileTitle = el('div', 'section-title');
-    fileTitle.textContent = 'Export / Import';
-    const fileRow = el('div', 'slot-row');
-    const exportButton = button('Export Save', 'export-save', () => {
-      const file = buildExportFile(this.state);
-      const url = URL.createObjectURL(new Blob([file.json], { type: 'application/json' }));
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = file.filename;
-      anchor.click();
-      URL.revokeObjectURL(url);
-    });
-    const importInput = el('input', 'import-input', 'import-save-input');
-    importInput.type = 'file';
-    importInput.accept = 'application/json';
-    importInput.addEventListener('change', () => {
-      const file = importInput.files?.[0];
-      if (!file) return;
-      file.text().then(
-        (text) => {
-          this.tryLoad(status, () => importSave(text));
-        },
-        () => {
-          status.textContent = 'Could not read the selected file';
-        },
-      );
-    });
-    fileRow.append(exportButton, importInput);
-    fileSection.append(fileTitle, fileRow);
-    panel.appendChild(fileSection);
-
-    const quitRow = el('div', 'panel-section');
-    quitRow.appendChild(
-      button('Quit to Menu', 'quit-to-menu', () => {
-        this.shell.onExit();
-      }),
-    );
-    panel.appendChild(quitRow);
-
-    panel.appendChild(status);
-    overlay.appendChild(panel);
-    this.systemPanel = overlay;
-    this.root.appendChild(overlay);
-  }
-
-  private tryLoad(status: HTMLElement, load: () => GameState): void {
-    try {
-      this.shell.onLoad(load());
-    } catch (err) {
-      status.textContent = err instanceof Error ? err.message : String(err);
-    }
+    this.root.appendChild(this.systemPanel.root);
   }
 
   private endTurn(): void {

@@ -7,6 +7,7 @@ import type { Spell, SpellTier } from '../data/schema';
 import type { Pos } from '../maps/schema';
 import { CommandRejectedError, type Command, type GameEvent } from './commands';
 import { isExplored, revealFor, sightRadius } from './fog';
+import { requireOwnHero } from './hero';
 import { buildMoveContext, isEnterable } from './movement';
 import {
   addEffect,
@@ -91,13 +92,7 @@ export function buySpellbookCommand(
   data: GameData,
   events: GameEvent[],
 ): void {
-  const hero = state.heroes[command.hero];
-  if (!hero) {
-    throw new CommandRejectedError(`unknown hero: ${command.hero}`);
-  }
-  if (hero.owner !== command.player) {
-    throw new CommandRejectedError(`hero ${hero.id} belongs to ${hero.owner}`);
-  }
+  const hero = requireOwnHero(state, command.hero, command.player);
   const town = state.towns[command.town];
   if (!town) {
     throw new CommandRejectedError(`unknown town: ${command.town}`);
@@ -673,13 +668,7 @@ export function castAdventureSpell(
   data: GameData,
   events: GameEvent[],
 ): void {
-  const hero = state.heroes[command.hero];
-  if (!hero) {
-    throw new CommandRejectedError(`unknown hero: ${command.hero}`);
-  }
-  if (hero.owner !== command.player) {
-    throw new CommandRejectedError(`hero ${hero.id} belongs to ${hero.owner}`);
-  }
+  const hero = requireOwnHero(state, command.hero, command.player);
   const spell = data.spells[command.spell];
   if (!spell) {
     throw new CommandRejectedError(`unknown spell: ${command.spell}`);

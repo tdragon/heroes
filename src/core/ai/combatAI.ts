@@ -7,13 +7,16 @@
 import type { GameData } from '../../data';
 import type { Creature, Spell } from '../../data/schema';
 import {
+  cellsFor,
   effectiveAttack,
   effectiveDefense,
   effectiveHp,
   getEffect,
   hasSpecial,
   isBound,
+  minCellDistance,
   requireCreature,
+  stackCells,
   stackHpPool,
 } from '../combat/abilities';
 import { computeDamage, RANGED_PENALTY_DISTANCE } from '../combat/damage';
@@ -28,31 +31,11 @@ import { isSpellImmune, schoolTier, spellCost } from '../magic';
 import {
   heroInfoFor,
   livingStacks,
-  occupiedHexes,
   oppositeSide,
-  tailOffset,
   type CombatSideId,
   type CombatStack,
   type CombatState,
 } from '../combat/state';
-
-function stackCells(stack: CombatStack, data: GameData): Hex[] {
-  return occupiedHexes(stack, requireCreature(data, stack.creature));
-}
-
-function cellsFor(head: Hex, wide: boolean, side: CombatSideId): Hex[] {
-  return wide ? [head, { x: head.x + tailOffset(side), y: head.y }] : [head];
-}
-
-function minCellDistance(a: readonly Hex[], b: readonly Hex[]): number {
-  let min = Infinity;
-  for (const ha of a) {
-    for (const hb of b) {
-      min = Math.min(min, hexDistance(ha, hb));
-    }
-  }
-  return min;
-}
 
 function stackPower(stack: CombatStack, data: GameData): number {
   return stack.count * requireCreature(data, stack.creature).aiValue;

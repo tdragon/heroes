@@ -8,21 +8,11 @@ import {
   type SaveStorage,
 } from './saveload';
 import type { Screen } from './screens';
+import { el } from '../ui/components';
 
 export interface MainMenuCallbacks {
   onNewGame: () => void;
   onLoadGame: (state: GameState) => void;
-}
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className: string,
-  testId?: string,
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  node.className = className;
-  if (testId !== undefined) node.dataset.testid = testId;
-  return node;
 }
 
 export class MainMenu implements Screen {

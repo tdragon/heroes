@@ -349,7 +349,7 @@ export function transferStack(
 
 // --- army / artifact commands (dispatch-level wrappers) ---
 
-function requireOwnHero(state: GameState, heroId: HeroId, player: PlayerId): Hero {
+export function requireOwnHero(state: GameState, heroId: HeroId, player: PlayerId): Hero {
   const hero = state.heroes[heroId];
   if (!hero) {
     throw new CommandRejectedError(`unknown hero: ${heroId}`);
