@@ -401,21 +401,26 @@ via unit tests only if CDP proves flaky. Pinch is covered by unit tests only.
 - Modify: `src/app/adventureScreen.ts` (only if wiring requires it)
 - Create: `e2e/mobile.spec.ts`
 
-- [ ] add drawer behavior to `Hud`: ☰ toggle button in the bottom bar
+- [x] add drawer behavior to `Hud`: ☰ toggle button in the bottom bar
       (`data-testid="hud-menu-toggle"`, CSS-hidden on wide screens), `open` class on
       the sidebar, backdrop that closes on tap; selecting a hero/town from the drawer
       closes it
-- [ ] keep End Turn and Next Hero reachable on narrow screens without opening the
+- [x] keep End Turn and Next Hero reachable on narrow screens without opening the
       drawer: MOVE the existing buttons into the bottom bar under the breakpoint (CSS
       reparenting/order or a single relocated element) — do NOT duplicate them, or
       `getByTestId` breaks on two matches; desktop sidebar/testids unchanged
-- [ ] drawer CSS: right-anchored slide-over with transition, sized
+- [x] drawer CSS: right-anchored slide-over with transition, sized
       `min(280px, 85vw)`, scrollable
-- [ ] create `e2e/mobile.spec.ts` (`test.use({ viewport: {width: 390, height: 844},
+- [x] create `e2e/mobile.spec.ts` (`test.use({ viewport: {width: 390, height: 844},
       hasTouch: true, isMobile: true })`): adventure screen boots via
       `?map=tiny&seed=42` with no page overflow, canvas fills viewport width, drawer
       opens/closes via ☰ and backdrop, End Turn reachable and works
-- [ ] run `npm run check` and `npm run test:e2e` - must pass before task 7
+- [x] run `npm run check` and `npm run test:e2e` - must pass before task 7
+- ➕ a `matchMedia('(max-width: 768px)')` listener in `Hud` physically relocates the
+      Next Hero / End Turn buttons between sidebar and bottom bar (CSS cannot reparent
+      across containers); resources got a `.resource-cells` scrollable wrapper so the
+      relocated buttons + ☰ stay visible on 390px; `Hud.destroy()` (called from
+      `AdventureScreen.destroy`) removes the listener
 
 ### Task 7: Touch gameplay e2e
 

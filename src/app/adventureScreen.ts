@@ -192,7 +192,7 @@ export class AdventureScreen implements Screen {
     this.gameOverOverlay.dataset.testid = 'game-over';
     this.gameOverOverlay.style.display = 'none';
 
-    main.append(canvasWrap, this.hud.sidebar);
+    main.append(canvasWrap, this.hud.backdrop, this.hud.sidebar);
     this.root.append(
       main,
       this.hud.bottomBar,
@@ -251,6 +251,7 @@ export class AdventureScreen implements Screen {
     this.resizeObserver.disconnect();
     this.inputAborter.abort();
     this.gestures.reset();
+    this.hud.destroy();
     this.dialogs.destroy();
     this.combatPanel?.destroy();
     this.combatPanel = null;

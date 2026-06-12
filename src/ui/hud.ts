@@ -18,9 +18,14 @@ export interface HudCallbacks {
 
 export const MINIMAP_PX = 200;
 
+// matches the narrow-screen breakpoint in index.html
+export const NARROW_SCREEN_QUERY = '(max-width: 768px)';
+
 export class Hud {
   readonly sidebar: HTMLElement;
   readonly bottomBar: HTMLElement;
+  // tap-to-close scrim behind the slide-in sidebar drawer on narrow screens
+  readonly backdrop: HTMLElement;
   readonly minimapCanvas: HTMLCanvasElement;
   private readonly dateIndicator: HTMLElement;
   private readonly heroList: HTMLElement;
@@ -28,6 +33,19 @@ export class Hud {
   private readonly heroPanel: HTMLElement;
   private readonly statusLine: HTMLElement;
   private readonly resourceCells = new Map<string, HTMLElement>();
+  // End Turn / Next Hero live in the sidebar on wide screens and move into
+  // the bottom bar on narrow ones so they stay reachable without the drawer
+  private readonly hudButtons: HTMLElement;
+  private readonly nextHeroButton: HTMLButtonElement;
+  private readonly endTurnButton: HTMLButtonElement;
+  private readonly spellbookButton: HTMLButtonElement;
+  private readonly systemButton: HTMLButtonElement;
+  private readonly menuToggle: HTMLButtonElement;
+  private readonly narrowQuery: MediaQueryList;
+  private readonly onNarrowChange = (e: MediaQueryListEvent): void => {
+    this.placeActionButtons(e.matches);
+    if (!e.matches) this.closeDrawer();
+  };
 
   constructor(
     private readonly data: GameData,
@@ -59,34 +77,45 @@ export class Hud {
     this.heroPanel = el('div', 'hero-panel', 'hero-panel');
     this.sidebar.appendChild(this.heroPanel);
 
-    const buttons = el('div', 'hud-buttons');
-    const nextHero = el('button', 'hud-button', 'next-hero-button');
-    nextHero.textContent = 'Next Hero';
-    nextHero.addEventListener('click', () => {
+    this.hudButtons = el('div', 'hud-buttons');
+    this.nextHeroButton = el('button', 'hud-button', 'next-hero-button');
+    this.nextHeroButton.textContent = 'Next Hero';
+    this.nextHeroButton.addEventListener('click', () => {
       this.callbacks.onNextHero();
     });
-    const spellbook = el('button', 'hud-button', 'spellbook-button');
-    spellbook.textContent = 'Spellbook';
-    spellbook.addEventListener('click', () => {
+    this.spellbookButton = el('button', 'hud-button', 'spellbook-button');
+    this.spellbookButton.textContent = 'Spellbook';
+    this.spellbookButton.addEventListener('click', () => {
       this.callbacks.onOpenSpellbook();
     });
-    const endTurn = el('button', 'hud-button', 'end-turn-button');
-    endTurn.textContent = 'End Turn';
-    endTurn.addEventListener('click', () => {
+    this.endTurnButton = el('button', 'hud-button', 'end-turn-button');
+    this.endTurnButton.textContent = 'End Turn';
+    this.endTurnButton.addEventListener('click', () => {
       this.callbacks.onEndTurn();
     });
-    const system = el('button', 'hud-button', 'system-button');
-    system.textContent = 'System';
-    system.addEventListener('click', () => {
+    this.systemButton = el('button', 'hud-button', 'system-button');
+    this.systemButton.textContent = 'System';
+    this.systemButton.addEventListener('click', () => {
       this.callbacks.onOpenSystem();
     });
-    buttons.append(nextHero, spellbook, endTurn, system);
-    this.sidebar.appendChild(buttons);
+    this.hudButtons.append(
+      this.nextHeroButton,
+      this.spellbookButton,
+      this.endTurnButton,
+      this.systemButton,
+    );
+    this.sidebar.appendChild(this.hudButtons);
 
     this.statusLine = el('div', 'status-line', 'status-line');
     this.sidebar.appendChild(this.statusLine);
 
+    this.backdrop = el('div', 'hud-backdrop', 'hud-backdrop');
+    this.backdrop.addEventListener('click', () => {
+      this.closeDrawer();
+    });
+
     this.bottomBar = el('div', 'bottom-bar', 'resource-bar');
+    const cells = el('div', 'resource-cells');
     for (const id of RESOURCE_IDS) {
       const cell = el('span', 'resource-cell', `resource-${id}`);
       const label = el('span', 'resource-label');
@@ -94,8 +123,50 @@ export class Hud {
       const value = el('span', 'resource-value');
       cell.append(label, value);
       this.resourceCells.set(id, value);
-      this.bottomBar.appendChild(cell);
+      cells.appendChild(cell);
     }
+    this.menuToggle = el('button', 'hud-button hud-menu-toggle', 'hud-menu-toggle');
+    this.menuToggle.textContent = '☰';
+    this.menuToggle.setAttribute('aria-label', 'Toggle menu');
+    this.menuToggle.addEventListener('click', () => {
+      this.toggleDrawer();
+    });
+    this.bottomBar.append(cells, this.menuToggle);
+
+    this.narrowQuery = window.matchMedia(NARROW_SCREEN_QUERY);
+    this.narrowQuery.addEventListener('change', this.onNarrowChange);
+    this.placeActionButtons(this.narrowQuery.matches);
+  }
+
+  destroy(): void {
+    this.narrowQuery.removeEventListener('change', this.onNarrowChange);
+  }
+
+  // --- narrow-screen drawer ---
+
+  private placeActionButtons(narrow: boolean): void {
+    if (narrow) {
+      this.bottomBar.insertBefore(this.nextHeroButton, this.menuToggle);
+      this.bottomBar.insertBefore(this.endTurnButton, this.menuToggle);
+    } else {
+      this.hudButtons.insertBefore(this.nextHeroButton, this.spellbookButton);
+      this.hudButtons.insertBefore(this.endTurnButton, this.systemButton);
+    }
+  }
+
+  private toggleDrawer(): void {
+    if (this.sidebar.classList.contains('open')) this.closeDrawer();
+    else this.openDrawer();
+  }
+
+  private openDrawer(): void {
+    this.sidebar.classList.add('open');
+    this.backdrop.classList.add('open');
+  }
+
+  private closeDrawer(): void {
+    this.sidebar.classList.remove('open');
+    this.backdrop.classList.remove('open');
   }
 
   setStatus(text: string): void {
@@ -125,6 +196,7 @@ export class Hud {
       const pct = maxMp > 0 ? Math.round((hero.movementPoints / maxMp) * 100) : 0;
       item.textContent = `${hero.name} (MP ${String(pct)}%)`;
       item.addEventListener('click', () => {
+        this.closeDrawer();
         this.callbacks.onSelectHero(hero.id);
       });
       this.heroList.appendChild(item);
@@ -139,6 +211,7 @@ export class Hud {
       const item = el('button', 'town-item', `town-item-${town.id}`);
       item.textContent = town.name;
       item.addEventListener('click', () => {
+        this.closeDrawer();
         this.callbacks.onSelectTown(town.id);
       });
       this.townList.appendChild(item);

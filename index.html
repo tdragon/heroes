@@ -129,6 +129,29 @@
         border-top: 1px solid #4a5568;
         font-size: 13px;
       }
+      .resource-cells {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        overflow-x: auto;
+      }
+      /* action buttons relocated into the bottom bar keep their natural size */
+      .bottom-bar .hud-button {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+      .hud-menu-toggle {
+        display: none;
+      }
+      .hud-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 20;
+        display: none;
+      }
       .info-popup {
         position: absolute;
         background: #f7e8c4;
@@ -665,6 +688,38 @@
       }
       /* narrow screens: overlays stack/wrap so everything fits a 390px portrait phone */
       @media (max-width: 768px) {
+        /* sidebar becomes a right-anchored slide-in drawer over the map */
+        .adventure-main {
+          position: relative;
+          overflow: hidden;
+        }
+        .sidebar {
+          position: absolute;
+          top: 0;
+          right: 0;
+          height: 100%;
+          width: min(280px, 85vw);
+          z-index: 25;
+          transform: translateX(100%);
+          transition: transform 0.2s ease;
+          box-shadow: -4px 0 12px rgba(0, 0, 0, 0.5);
+        }
+        .sidebar.open {
+          transform: translateX(0);
+        }
+        .hud-backdrop.open {
+          display: block;
+        }
+        .hud-menu-toggle {
+          display: block;
+        }
+        .bottom-bar {
+          gap: 8px;
+          padding: 0 8px;
+        }
+        .resource-cells {
+          gap: 10px;
+        }
         .menu-box {
           padding: 12px;
         }
