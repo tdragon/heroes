@@ -25,6 +25,10 @@ export class DialogQueue {
     window.addEventListener('keydown', this.onKeyDown);
   }
 
+  destroy(): void {
+    window.removeEventListener('keydown', this.onKeyDown);
+  }
+
   enqueueInfo(message: string): void {
     this.info.push(message);
   }

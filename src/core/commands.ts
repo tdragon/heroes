@@ -105,6 +105,7 @@ export type GameEvent =
   | { type: 'areaRevealed'; object: ObjectId; player: PlayerId }
   | { type: 'heroReleased'; hero: HeroId; player: PlayerId }
   | { type: 'townCaptured'; town: TownId; player: PlayerId; previousOwner: PlayerId | null }
+  | { type: 'capitolDowngraded'; town: TownId }
   | {
       type: 'combatStarted';
       attacker: HeroId;

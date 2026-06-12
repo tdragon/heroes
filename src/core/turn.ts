@@ -31,6 +31,14 @@ export function dailyIncome(state: GameState, playerId: PlayerId, data: GameData
       if (building.income) {
         addResources(income, building.income);
       }
+      // Resource Silo: +1 of the faction-specific rare resource per day (spec §5.1)
+      if (building.kind === 'silo') {
+        const faction = data.factions[town.faction];
+        if (!faction) {
+          throw new Error(`town ${town.id}: unknown faction ${town.faction}`);
+        }
+        income[faction.siloResource] += 1;
+      }
     }
   }
   for (const obj of state.map.objects) {

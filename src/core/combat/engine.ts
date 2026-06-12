@@ -575,6 +575,8 @@ interface StrikeOptions {
 }
 
 const ON_HIT_EFFECTS = [
+  // the special's data value is the proc chance; the effect value is the extra
+  // reduction below minimum damage (0 = basic curse: forced minimum, spec §7.5)
   { special: 'curse', kind: 'curse', skipUndead: true, value: 0 },
   { special: 'disease', kind: 'disease', skipUndead: false, value: 2 },
   { special: 'blind', kind: 'blind', skipUndead: true, value: 50 },
@@ -838,10 +840,12 @@ function applyMelee(
   }
   const joustingHexes = hasSpecial(creature, 'jousting') ? hexDistance(origin, action.from) : 0;
 
-  // capture blind state before the hit: damage wakes the target, which then
-  // retaliates at the blind penalty (no retaliation at 100)
+  // capture blind/bind state before the hit: damage wakes a blind target,
+  // which then retaliates at the blind penalty (no retaliation at 100), and a
+  // dendroid's own on-hit bind must not suppress this very retaliation
   const blind = getEffect(target, 'blind');
   const blindMult = blind ? (blind.value >= 100 ? 0 : 1 - blind.value / 100) : 1;
+  const wasBound = isBound(target);
 
   const strikeOnce = (): void => {
     strike(combat, stack, target, { ranged: false, retaliation: false, joustingHexes }, data, events);
@@ -850,10 +854,12 @@ function applyMelee(
   strikeOnce();
 
   const targetCreature = requireCreature(data, target.creature);
+  // spec §7.3: no retaliation when the defender is blinded, bound, or dead
   const canRetaliate =
     isStackAlive(target) &&
     isStackAlive(stack) &&
     blindMult > 0 &&
+    !wasBound &&
     !hasSpecial(creature, 'noRetaliation') &&
     (hasSpecial(targetCreature, 'unlimitedRetaliation') || target.retaliationsLeft > 0);
   if (canRetaliate) {

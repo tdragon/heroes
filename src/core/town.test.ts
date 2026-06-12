@@ -651,6 +651,62 @@ describe('town capture', () => {
     });
   });
 
+  it('downgrades a captured capitol when the captor already owns one', () => {
+    const state = makeGame();
+    redTown(state).buildings = ['capitol'];
+    blueTown(state).buildings = ['capitol'];
+    blueTown(state).visitingHero = null;
+    heroOf(state, 'mortus').pos = [0, 11];
+    heroOf(state, 'edric').pos = [9, 8];
+    const { state: next, events } = run(state, {
+      type: 'moveHero',
+      player: 'red',
+      hero: 'edric',
+      path: [[9, 9]],
+    });
+    expect(blueTown(next).owner).toBe('red');
+    expect(blueTown(next).buildings).toEqual(['city_hall']);
+    expect(redTown(next).buildings).toEqual(['capitol']);
+    expect(events).toContainEqual({ type: 'capitolDowngraded', town: BLUE_TOWN });
+  });
+
+  it('keeps a captured capitol when the captor has none', () => {
+    const state = makeGame();
+    blueTown(state).buildings = ['capitol'];
+    blueTown(state).visitingHero = null;
+    heroOf(state, 'mortus').pos = [0, 11];
+    heroOf(state, 'edric').pos = [9, 8];
+    const { state: next, events } = run(state, {
+      type: 'moveHero',
+      player: 'red',
+      hero: 'edric',
+      path: [[9, 9]],
+    });
+    expect(blueTown(next).buildings).toEqual(['capitol']);
+    expect(events.some((e) => e.type === 'capitolDowngraded')).toBe(false);
+  });
+
+  it('re-rolls tavern offers for the captor and keeps the daily build lock', () => {
+    const state = makeGame();
+    const blue = blueTown(state);
+    blue.buildings.push('tavern');
+    blue.tavernHeroes = [];
+    blue.builtToday = true;
+    blue.visitingHero = null;
+    heroOf(state, 'mortus').pos = [0, 11];
+    heroOf(state, 'edric').pos = [9, 8];
+    const { state: next, events } = run(state, {
+      type: 'moveHero',
+      player: 'red',
+      hero: 'edric',
+      path: [[9, 9]],
+    });
+    expect(blueTown(next).tavernHeroes).toHaveLength(TAVERN_OFFER_COUNT);
+    expect(events.some((e) => e.type === 'tavernRefreshed' && e.town === BLUE_TOWN)).toBe(true);
+    // one build per town per day, even across a change of ownership
+    expect(blueTown(next).builtToday).toBe(true);
+  });
+
   it('a garrisoned town defends itself in a siege before capture', () => {
     const state = makeGame();
     const blue = blueTown(state);

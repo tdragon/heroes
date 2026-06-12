@@ -77,6 +77,8 @@ export class AdventureScreen implements Screen {
   private dragFrom: [number, number] | null = null;
   private running = false;
   private aiTurnRunning = false;
+  // aborting detaches every canvas/window listener bound in bindInput()
+  private readonly inputAborter = new AbortController();
   // hotseat: the human player whose perspective is rendered; a "pass device"
   // overlay gates the switch when another human's turn starts
   private viewPlayerId: string;
@@ -191,6 +193,14 @@ export class AdventureScreen implements Screen {
 
   onHide(): void {
     this.running = false;
+  }
+
+  destroy(): void {
+    this.running = false;
+    this.inputAborter.abort();
+    this.dialogs.destroy();
+    this.combatPanel?.destroy();
+    this.combatPanel = null;
   }
 
   // --- state / commands ---
@@ -720,78 +730,107 @@ export class AdventureScreen implements Screen {
   // --- input ---
 
   private bindInput(): void {
-    this.canvas.addEventListener('click', (e) => {
-      this.infoPopup.hide();
-      const rect = this.canvas.getBoundingClientRect();
-      const tile = tileAtScreen(
-        this.camera,
-        e.clientX - rect.left,
-        e.clientY - rect.top,
-        this.state.map.size,
-      );
-      if (tile) this.handleTileClick(tile);
-    });
-
-    this.canvas.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      const rect = this.canvas.getBoundingClientRect();
-      const sx = e.clientX - rect.left;
-      const sy = e.clientY - rect.top;
-      const tile = tileAtScreen(this.camera, sx, sy, this.state.map.size);
-      if (tile) {
-        this.infoPopup.show(this.describeTile(tile), sx + 8, sy + 8);
-      }
-    });
-
-    this.canvas.addEventListener('mousemove', (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      const sx = e.clientX - rect.left;
-      const sy = e.clientY - rect.top;
-      if (this.dragFrom) {
-        this.camera = panCamera(
+    const opts = { signal: this.inputAborter.signal };
+    this.canvas.addEventListener(
+      'click',
+      (e) => {
+        this.infoPopup.hide();
+        const rect = this.canvas.getBoundingClientRect();
+        const tile = tileAtScreen(
           this.camera,
-          this.dragFrom[0] - sx,
-          this.dragFrom[1] - sy,
+          e.clientX - rect.left,
+          e.clientY - rect.top,
           this.state.map.size,
         );
-        this.dragFrom = [sx, sy];
-        this.markDirty();
-      }
-      this.mousePos = [sx, sy];
-    });
-    this.canvas.addEventListener('mouseleave', () => {
-      this.mousePos = null;
-      this.dragFrom = null;
-    });
-    this.canvas.addEventListener('mousedown', (e) => {
-      if (e.button === 1) {
+        if (tile) this.handleTileClick(tile);
+      },
+      opts,
+    );
+
+    this.canvas.addEventListener(
+      'contextmenu',
+      (e) => {
         e.preventDefault();
         const rect = this.canvas.getBoundingClientRect();
-        this.dragFrom = [e.clientX - rect.left, e.clientY - rect.top];
-      }
-    });
-    this.canvas.addEventListener('mouseup', (e) => {
-      if (e.button === 1) this.dragFrom = null;
-    });
+        const sx = e.clientX - rect.left;
+        const sy = e.clientY - rect.top;
+        const tile = tileAtScreen(this.camera, sx, sy, this.state.map.size);
+        if (tile) {
+          this.infoPopup.show(this.describeTile(tile), sx + 8, sy + 8);
+        }
+      },
+      opts,
+    );
 
-    window.addEventListener('keydown', (e) => {
-      if (!this.running || isTypingTarget(e.target)) return;
-      if (e.key === 'Escape' && this.dialogs.root.style.display === 'none') {
-        if (this.systemPanel) {
-          this.closeSystemPanel();
-          return;
+    this.canvas.addEventListener(
+      'mousemove',
+      (e) => {
+        const rect = this.canvas.getBoundingClientRect();
+        const sx = e.clientX - rect.left;
+        const sy = e.clientY - rect.top;
+        if (this.dragFrom) {
+          this.camera = panCamera(
+            this.camera,
+            this.dragFrom[0] - sx,
+            this.dragFrom[1] - sy,
+            this.state.map.size,
+          );
+          this.dragFrom = [sx, sy];
+          this.markDirty();
         }
-        if (this.activePanel) {
-          this.closePanel();
-          return;
+        this.mousePos = [sx, sy];
+      },
+      opts,
+    );
+    this.canvas.addEventListener(
+      'mouseleave',
+      () => {
+        this.mousePos = null;
+        this.dragFrom = null;
+      },
+      opts,
+    );
+    this.canvas.addEventListener(
+      'mousedown',
+      (e) => {
+        if (e.button === 1) {
+          e.preventDefault();
+          const rect = this.canvas.getBoundingClientRect();
+          this.dragFrom = [e.clientX - rect.left, e.clientY - rect.top];
         }
-      }
-      if (this.shortcutsBlocked()) return;
-      const action = adventureShortcut(e.key, KEY_SCROLL_STEP);
-      if (!action) return;
-      e.preventDefault();
-      this.applyShortcut(action);
-    });
+      },
+      opts,
+    );
+    this.canvas.addEventListener(
+      'mouseup',
+      (e) => {
+        if (e.button === 1) this.dragFrom = null;
+      },
+      opts,
+    );
+
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        if (!this.running || isTypingTarget(e.target)) return;
+        if (e.key === 'Escape' && this.dialogs.root.style.display === 'none') {
+          if (this.systemPanel) {
+            this.closeSystemPanel();
+            return;
+          }
+          if (this.activePanel) {
+            this.closePanel();
+            return;
+          }
+        }
+        if (this.shortcutsBlocked()) return;
+        const action = adventureShortcut(e.key, KEY_SCROLL_STEP);
+        if (!action) return;
+        e.preventDefault();
+        this.applyShortcut(action);
+      },
+      opts,
+    );
   }
 
   // overlays own the keyboard while they are visible

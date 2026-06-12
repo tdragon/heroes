@@ -2,6 +2,9 @@ export interface Screen {
   readonly root: HTMLElement;
   onShow?: () => void;
   onHide?: () => void;
+  // releases window-level listeners etc.; called when the screen instance is
+  // discarded (replaced by a new registration), never before another onShow
+  destroy?: () => void;
 }
 
 export class ScreenRouter {
@@ -14,10 +17,13 @@ export class ScreenRouter {
   // the old adventure screen); the active screen is hidden first if replaced
   register(name: string, screen: Screen): void {
     const previous = this.screens.get(name);
-    if (previous && previous === this.active) {
-      previous.onHide?.();
-      previous.root.remove();
-      this.active = null;
+    if (previous) {
+      if (previous === this.active) {
+        previous.onHide?.();
+        previous.root.remove();
+        this.active = null;
+      }
+      previous.destroy?.();
     }
     this.screens.set(name, screen);
   }

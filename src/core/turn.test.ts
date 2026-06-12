@@ -66,6 +66,21 @@ describe('endTurn', () => {
     expect(start).toEqual(snapshot);
   });
 
+  it('resource silo pays +1 of the faction rare resource per day', () => {
+    const start = makeGame();
+    const town = start.towns[RED_TOWN];
+    if (!town) throw new Error('missing red town');
+    town.buildings.push('resource_silo');
+    const { state, events } = fullRotation(start);
+    expect(state.players[0]?.resources.gems).toBe(6); // castle silo: +1 gems
+    expect(state.players[1]?.resources.gems).toBe(5);
+    expect(events).toContainEqual({
+      type: 'income',
+      player: 'red',
+      amounts: { gold: 500, wood: 0, ore: 0, mercury: 0, sulfur: 0, crystal: 0, gems: 1 },
+    });
+  });
+
   it('pays mine income to the mine owner only', () => {
     const start = makeGame();
     const mine = start.map.objects.find((o) => o.type === 'mine');

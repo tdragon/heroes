@@ -254,11 +254,12 @@ describe('bind', () => {
       rounds: 1,
       value: 0,
     });
+    // the bind lands with the hit: this very attack is still retaliated
+    expect(events.some((e) => e.type === 'stackAttacked' && e.retaliation)).toBe(true);
     expect(reachableHexesFor(combat, 'd0', data)).toEqual([]);
     expect(() => combatAct(combat, { type: 'move', to: { x: 9, y: 5 } }, data)).toThrow(
       CombatRuleError,
     );
-    // bound stacks may still fight back in melee
     expect(getEffect(wolves, 'bind')).not.toBeNull();
 
     // kill the dendroid: bind is released at the next round start
@@ -268,6 +269,23 @@ describe('bind', () => {
     const roundEvents = combatAct(combat, { type: 'defend' }, data); // a1 ends the round
     expect(roundEvents).toContainEqual({ type: 'effectExpired', stack: 'd0', kind: 'bind' });
     expect(getEffect(wolves, 'bind')).toBeNull();
+  });
+
+  it('an already bound defender does not retaliate (spec 7.3)', () => {
+    const combat = makeCombat(
+      [{ creature: 'pikeman', count: 5 }],
+      [{ creature: 'wolf', count: 5 }],
+    );
+    place(combat, 'a0', { x: 5, y: 5 });
+    const wolves = place(combat, 'd0', { x: 6, y: 5 });
+    addEffect(wolves, { kind: 'bind', positive: false, rounds: 1, value: 0 });
+    expect(activeCombatStack(combat)?.id).toBe('d0'); // wolves are faster
+    combatAct(combat, { type: 'defend' }, data);
+    const events = combatAct(combat, { type: 'melee', target: 'd0', from: { x: 5, y: 5 } }, data);
+    const attacks = attackEvents(events);
+    expect(attacks).toHaveLength(1);
+    expect(attacks[0]?.retaliation).toBe(false);
+    expect(wolves.retaliationsLeft).toBe(1);
   });
 });
 

@@ -265,8 +265,7 @@ function applyDamageSpell(
   events: CombatEvent[],
 ): void {
   const creature = requireCreature(data, target.creature);
-  // death ripple harms only the living
-  if (spell.id === 'death_ripple' && creature.flags.includes('undead')) return;
+  // undead immunity to death ripple is handled upstream by isSpellImmune
   const outcome = damageStack(target, creature, damage);
   events.push({ type: 'spellDamage', stack: target.id, spell: spell.id, damage, kills: outcome.kills });
   if (outcome.blindBroken) {

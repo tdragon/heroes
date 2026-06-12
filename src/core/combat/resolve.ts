@@ -7,7 +7,12 @@ import type { Guard } from '../../maps/schema';
 import type { GameEvent } from '../commands';
 import { giveExperience } from '../hero';
 import { learnGuildSpells } from '../magic';
-import { defenderLuckBonus, NECROMANCY_AMPLIFIER_BONUS, tavernMoraleBonus } from '../town';
+import {
+  defenderLuckBonus,
+  NECROMANCY_AMPLIFIER_BONUS,
+  rollTavernOffers,
+  tavernMoraleBonus,
+} from '../town';
 import { revealFor, TOWN_SIGHT_RADIUS } from '../fog';
 import {
   getPlayer,
@@ -96,6 +101,21 @@ export function captureTown(
   town.visitingHero = hero.id;
   revealFor(state, player, town.pos, TOWN_SIGHT_RADIUS);
   events.push({ type: 'townCaptured', town: town.id, player: hero.owner, previousOwner });
+  // Capitol is unique per player (spec §5.1): like HoMM3, a captured Capitol
+  // is downgraded to a City Hall when the captor already owns one elsewhere
+  if (
+    town.buildings.includes('capitol') &&
+    player.towns.some((id) => id !== town.id && state.towns[id]?.buildings.includes('capitol'))
+  ) {
+    town.buildings = town.buildings.map((id) => (id === 'capitol' ? 'city_hall' : id));
+    events.push({ type: 'capitolDowngraded', town: town.id });
+  }
+  // the old tavern offers were rolled for the previous owner: re-roll for the
+  // captor; builtToday is intentionally kept (one build per town per day)
+  if (town.buildings.includes('tavern')) {
+    rollTavernOffers(state, town, data);
+    events.push({ type: 'tavernRefreshed', town: town.id, heroes: [...town.tavernHeroes] });
+  }
   const learned = learnGuildSpells(hero, town, data);
   if (learned.length > 0) {
     events.push({ type: 'spellsLearned', hero: hero.id, spells: learned });
