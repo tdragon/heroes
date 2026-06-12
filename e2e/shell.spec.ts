@@ -1,15 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
-
-const TILE = 48;
+import {
+  canvasPoint,
+  expectDrawerClosed,
+  expectDrawerOpen,
+  expectNoHorizontalOverflow,
+  expectWithinViewport,
+  moveHeroTo,
+} from './helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
-
-async function canvasPoint(page: Page, tileX: number, tileY: number): Promise<[number, number]> {
-  const canvas = page.getByTestId('adventure-canvas');
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error('adventure canvas not visible');
-  return [box.x + (tileX + 0.5) * TILE, box.y + (tileY + 0.5) * TILE];
-}
 
 async function startTinyGame(page: Page, opts: { hotseat?: boolean } = {}): Promise<void> {
   await page.goto('/');
@@ -130,4 +129,121 @@ test('hotseat: pass-device screen appears and switches the viewed player', async
   await page.getByTestId('pass-device-confirm').click();
   await expect(page.getByTestId('date-indicator')).toHaveText('Day 2, Week 1, Month 1');
   await expect(page.getByTestId('hero-item-edric')).toBeVisible();
+});
+
+test.describe('narrow viewport (390x844)', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('main menu renders without horizontal page overflow', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('main-menu')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectWithinViewport(page, '.menu-box');
+  });
+
+  test('new-game setup is usable and starts a game', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('menu-new-game').click();
+    await expect(page.getByTestId('new-game-setup')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await page.getByTestId('map-option-tiny').click();
+    await page.getByTestId('seed-input').fill('42');
+    await page.getByTestId('start-game').click();
+    await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test('pass-device overlay fits the viewport in hotseat', async ({ page }) => {
+    await startTinyGame(page, { hotseat: true });
+    await page.getByTestId('end-turn-button').click();
+    await expect(page.getByTestId('pass-device')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectWithinViewport(page, '.pass-overlay .menu-box');
+    await page.getByTestId('pass-device-confirm').click();
+    await expect(page.getByTestId('pass-device')).not.toBeVisible();
+  });
+
+  test('town panel opens within the viewport bounds', async ({ page }) => {
+    await page.goto('/?map=tiny&seed=42');
+    await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+    await page.getByTestId('town-item-town-2-2').click();
+    await expect(page.getByTestId('town-screen')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await expectWithinViewport(page, '.town-panel');
+  });
+
+  test('count dialog and hero screen fit the viewport', async ({ page }) => {
+    await page.goto('/?map=tutorial-valley&seed=42');
+    await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+    // hero panel lives in the drawer at this width
+    await page.getByTestId('hud-menu-toggle').click();
+    await expectDrawerOpen(page);
+    await page.getByTestId('hero-item-edric').click();
+    await expectDrawerClosed(page);
+    await page.getByTestId('hud-menu-toggle').click();
+    await expectDrawerOpen(page);
+    await page.getByTestId('open-hero-screen').click();
+    await expect(page.getByTestId('hero-screen')).toBeVisible();
+    await expectWithinViewport(page, '.panel');
+
+    // splitting a stack opens the count dialog: slider and buttons reachable
+    await page.getByTestId('army-slot-edric-0').click();
+    await page.getByTestId('army-slot-edric-3').click();
+    await expect(page.getByTestId('count-dialog')).toBeVisible();
+    await expectWithinViewport(page, '.count-dialog-box');
+    await expectWithinViewport(page, '[data-testid="count-slider"]');
+    await expectWithinViewport(page, '[data-testid="count-confirm"]');
+    await expectNoHorizontalOverflow(page);
+    await page.getByTestId('count-cancel').click();
+    await expect(page.getByTestId('count-dialog')).not.toBeVisible();
+  });
+
+  test('spellbook and system panel boxes fit the viewport', async ({ page }) => {
+    await page.goto('/?map=combat-arena&seed=5');
+    await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+    await page.getByTestId('hud-menu-toggle').click();
+    await expectDrawerOpen(page);
+    await page.getByTestId('hero-item-beatrice').click();
+    await expectDrawerClosed(page);
+    await page.getByTestId('hud-menu-toggle').click();
+    await expectDrawerOpen(page);
+
+    await page.getByTestId('spellbook-button').click();
+    await expect(page.getByTestId('spellbook-overlay')).toBeVisible();
+    await expectWithinViewport(page, '.spellbook-box');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('spellbook-overlay')).toHaveCount(0);
+
+    // the drawer stays open underneath the overlay: System is still reachable
+    await page.getByTestId('system-button').click();
+    await expect(page.getByTestId('system-panel')).toBeVisible();
+    await expectWithinViewport(page, '.system-panel-box');
+    await expectNoHorizontalOverflow(page);
+    await page.getByTestId('system-close').click();
+  });
+
+  test('game-over overlay fits the viewport after a final defeat', async ({ page }) => {
+    await page.goto('/?map=tiny&seed=42');
+    await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+
+    // day 1: walk off the town tile so the blue AI captures it on day 2
+    await moveHeroTo(page, 4, 2);
+    await page.getByTestId('end-turn-button').click();
+    await expect(page.getByTestId('modal-message')).toContainText('captured by blue');
+    await page.getByTestId('dialog-ok').click();
+
+    // day 2: attack the roaming wolves and flee — red loses its last hero
+    await moveHeroTo(page, 6, 6);
+    await expect(page.getByTestId('modal-message')).toContainText('would you like to attack?');
+    await page.getByTestId('choice-option-0').click();
+    await expect(page.getByTestId('combat-screen')).toBeVisible();
+    await expect(page.getByTestId('combat-flee-button')).toBeEnabled();
+    // fleeing forfeits red's last hero: instant elimination, blue wins
+    await page.getByTestId('combat-flee-button').click();
+
+    await expect(page.getByTestId('game-over')).toBeVisible();
+    await expect(page.getByTestId('game-over-message')).toContainText('Defeat');
+    await expectWithinViewport(page, '[data-testid="game-over"] .menu-box');
+    await expectNoHorizontalOverflow(page);
+  });
 });

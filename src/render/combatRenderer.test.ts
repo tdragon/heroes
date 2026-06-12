@@ -8,6 +8,8 @@ import {
   combatEventText,
   COMBAT_CANVAS_H,
   COMBAT_CANVAS_W,
+  COMBAT_FIT_MIN,
+  combatFitScale,
   createReachableCache,
   damageRangeText,
   estimateAttack,
@@ -67,6 +69,34 @@ describe('hex pixel math', () => {
         expect(c.y).toBeLessThan(COMBAT_CANVAS_H - HEX_R / 2);
       }
     }
+  });
+});
+
+describe('combatFitScale', () => {
+  it('is 1 when the battlefield fits exactly', () => {
+    expect(combatFitScale(COMBAT_CANVAS_W, COMBAT_CANVAS_H)).toBe(1);
+  });
+
+  it('never upscales past 1 on huge viewports', () => {
+    expect(combatFitScale(10000, 10000)).toBe(1);
+  });
+
+  it('scales down by the constraining width', () => {
+    expect(combatFitScale(COMBAT_CANVAS_W / 2, 10000)).toBeCloseTo(0.5);
+  });
+
+  it('scales down by the constraining height', () => {
+    expect(combatFitScale(10000, COMBAT_CANVAS_H * 0.6)).toBeCloseTo(0.6);
+  });
+
+  it('takes the smaller of the two ratios', () => {
+    expect(combatFitScale(COMBAT_CANVAS_W * 0.8, COMBAT_CANVAS_H * 0.5)).toBeCloseTo(0.5);
+  });
+
+  it('floors at COMBAT_FIT_MIN for tiny and degenerate inputs', () => {
+    expect(combatFitScale(10, 10)).toBe(COMBAT_FIT_MIN);
+    expect(combatFitScale(0, 0)).toBe(COMBAT_FIT_MIN);
+    expect(combatFitScale(-100, 500)).toBe(COMBAT_FIT_MIN);
   });
 });
 

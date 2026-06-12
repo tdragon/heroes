@@ -10,6 +10,8 @@
       body {
         margin: 0;
         height: 100%;
+        height: 100dvh;
+        overflow: hidden;
         background: #1a202c;
         color: #e2e8f0;
         font-family: system-ui, sans-serif;
@@ -19,13 +21,15 @@
         align-items: flex-start;
         justify-content: center;
         height: 100%;
+        height: 100dvh;
       }
       .adventure-screen {
         position: relative;
         display: flex;
         flex-direction: column;
-        width: 1280px;
-        height: 800px;
+        width: 100vw;
+        height: 100%;
+        height: 100dvh;
       }
       .adventure-main {
         display: flex;
@@ -34,11 +38,16 @@
       }
       .canvas-wrap {
         position: relative;
-        width: 1000px;
-        height: 760px;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
       }
       .canvas-wrap canvas {
         display: block;
+        width: 100%;
+        height: 100%;
+        /* the gesture FSM owns all touch input: no browser pan/zoom */
+        touch-action: none;
       }
       .sidebar {
         width: 280px;
@@ -111,6 +120,7 @@
       }
       .bottom-bar {
         height: 40px;
+        box-sizing: border-box;
         display: flex;
         align-items: center;
         gap: 16px;
@@ -118,6 +128,29 @@
         background: #2d3748;
         border-top: 1px solid #4a5568;
         font-size: 13px;
+      }
+      .resource-cells {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        overflow-x: auto;
+      }
+      /* action buttons relocated into the bottom bar keep their natural size */
+      .bottom-bar .hud-button {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+      .hud-menu-toggle {
+        display: none;
+      }
+      .hud-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 20;
+        display: none;
       }
       .info-popup {
         position: absolute;
@@ -146,7 +179,10 @@
         border: 2px solid #b7791f;
         border-radius: 6px;
         padding: 16px 20px;
-        max-width: 420px;
+        box-sizing: border-box;
+        max-width: min(420px, calc(100vw - 16px));
+        max-height: calc(100dvh - 16px);
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -174,8 +210,9 @@
         border: 2px solid #b7791f;
         border-radius: 8px;
         padding: 14px 18px;
-        width: 960px;
-        max-height: 740px;
+        box-sizing: border-box;
+        width: min(960px, calc(100vw - 16px));
+        max-height: min(740px, calc(100dvh - 16px));
         overflow-y: auto;
         display: flex;
         flex-direction: column;
@@ -381,6 +418,10 @@
         border: 2px solid #b7791f;
         border-radius: 8px;
         padding: 8px 12px;
+        box-sizing: border-box;
+        max-width: 100vw;
+        max-height: 100dvh;
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
         gap: 6px;
@@ -405,6 +446,8 @@
       }
       .combat-canvas-wrap {
         position: relative;
+        display: flex;
+        justify-content: center;
       }
       .combat-canvas {
         display: block;
@@ -458,8 +501,9 @@
         border: 2px solid #b7791f;
         border-radius: 6px;
         padding: 12px 16px;
-        width: 460px;
-        max-height: 540px;
+        box-sizing: border-box;
+        width: min(460px, calc(100vw - 16px));
+        max-height: min(540px, calc(100dvh - 16px));
         overflow-y: auto;
         display: flex;
         flex-direction: column;
@@ -496,17 +540,19 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 1280px;
-        height: 800px;
+        width: 100vw;
+        height: 100%;
+        height: 100dvh;
       }
       .menu-box {
         background: #2d3748;
         border: 2px solid #b7791f;
         border-radius: 8px;
         padding: 24px 32px;
-        min-width: 420px;
-        max-width: 720px;
-        max-height: 740px;
+        box-sizing: border-box;
+        min-width: min(420px, calc(100vw - 24px));
+        max-width: min(720px, calc(100vw - 24px));
+        max-height: calc(100dvh - 24px);
         overflow-y: auto;
         display: flex;
         flex-direction: column;
@@ -515,7 +561,7 @@
       .menu-title {
         display: block;
         width: 100%;
-        max-width: 480px;
+        max-width: min(480px, 100%);
         margin: 0 auto;
         border-radius: 6px;
       }
@@ -634,11 +680,105 @@
         z-index: 70;
       }
       .system-panel-box {
-        width: 560px;
+        width: min(560px, calc(100vw - 16px));
       }
       .import-input {
         font-size: 12px;
         color: #a0aec0;
+      }
+      /* narrow screens: overlays stack/wrap so everything fits a 390px portrait phone */
+      @media (max-width: 768px) {
+        /* sidebar becomes a right-anchored slide-in drawer over the map */
+        .adventure-main {
+          position: relative;
+          overflow: hidden;
+        }
+        .sidebar {
+          position: absolute;
+          top: 0;
+          right: 0;
+          height: 100%;
+          width: min(280px, 85vw);
+          z-index: 25;
+          transform: translateX(100%);
+          transition: transform 0.2s ease;
+          box-shadow: -4px 0 12px rgba(0, 0, 0, 0.5);
+        }
+        .sidebar.open {
+          transform: translateX(0);
+        }
+        .hud-backdrop.open {
+          display: block;
+        }
+        .hud-menu-toggle {
+          display: block;
+        }
+        .bottom-bar {
+          gap: 8px;
+          padding: 0 8px;
+        }
+        .resource-cells {
+          gap: 10px;
+        }
+        .menu-box {
+          padding: 12px;
+        }
+        .setup-options {
+          flex-wrap: wrap;
+          gap: 10px;
+        }
+        .hero-columns {
+          flex-direction: column;
+        }
+        .building-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .army-row-wrap,
+        .army-row,
+        .recruit-row,
+        .trade-row,
+        .backpack-row {
+          flex-wrap: wrap;
+        }
+        .count-row {
+          flex-wrap: wrap;
+        }
+        .count-slider {
+          flex: 1 1 100%;
+          min-height: 28px;
+        }
+        .count-input {
+          min-height: 28px;
+          box-sizing: border-box;
+        }
+        .count-buttons .ui-button {
+          padding: 8px 14px;
+        }
+        .combat-panel {
+          width: 100vw;
+          padding: 6px;
+          border-left: 0;
+          border-right: 0;
+          border-radius: 0;
+        }
+        .combat-header {
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+        .combat-hero-panel {
+          min-width: 0;
+          flex: 1 1 40%;
+          font-size: 11px;
+        }
+        .combat-bottom {
+          flex-direction: column;
+        }
+        .combat-side {
+          width: auto;
+        }
+        .combat-log {
+          height: 64px;
+        }
       }
     </style>
   </head>

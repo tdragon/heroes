@@ -12,6 +12,26 @@ export function capitalize(text: string): string {
   return text.length > 0 ? `${text[0]?.toUpperCase() ?? ''}${text.slice(1)}` : text;
 }
 
+// place a popup whose preferred top-left corner is (x, y) inside a
+// boundsW×boundsH container: flip across the anchor when it overflows
+// right/bottom, then clamp inside the bounds (pinned to 0 when larger)
+export function clampPopupPosition(
+  x: number,
+  y: number,
+  popupW: number,
+  popupH: number,
+  boundsW: number,
+  boundsH: number,
+): [number, number] {
+  let px = x;
+  let py = y;
+  if (px + popupW > boundsW) px = x - popupW;
+  if (py + popupH > boundsH) py = y - popupH;
+  px = Math.min(Math.max(px, 0), Math.max(0, boundsW - popupW));
+  py = Math.min(Math.max(py, 0), Math.max(0, boundsH - popupH));
+  return [px, py];
+}
+
 export function costText(cost: Cost): string {
   const parts: string[] = [];
   for (const id of RESOURCE_IDS) {

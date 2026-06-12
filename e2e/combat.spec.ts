@@ -1,43 +1,14 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
-
-const TILE = 48;
-
-// combat battlefield hex layout — mirrors src/render/combatRenderer.ts
-const HEX_R = 30;
-const HEX_W = Math.sqrt(3) * HEX_R;
-const FIELD_MARGIN_X = 36;
-const FIELD_MARGIN_Y = 28;
-
-function hexCenter(x: number, y: number): [number, number] {
-  return [
-    FIELD_MARGIN_X + HEX_W * (x + 0.5 * (y % 2)) + HEX_W / 2,
-    FIELD_MARGIN_Y + HEX_R * (1 + 1.5 * y),
-  ];
-}
+import { expect, test, type Locator } from '@playwright/test';
+import {
+  clickCombatHex,
+  expectDrawerClosed,
+  expectDrawerOpen,
+  expectNoHorizontalOverflow,
+  expectWithinViewport,
+  moveHeroTo,
+} from './helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
-
-async function canvasPoint(page: Page, tileX: number, tileY: number): Promise<[number, number]> {
-  const canvas = page.getByTestId('adventure-canvas');
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error('adventure canvas not visible');
-  return [box.x + (tileX + 0.5) * TILE, box.y + (tileY + 0.5) * TILE];
-}
-
-async function moveHeroTo(page: Page, tileX: number, tileY: number): Promise<void> {
-  const [px, py] = await canvasPoint(page, tileX, tileY);
-  await page.mouse.click(px, py);
-  await expect(page.getByTestId('status-line')).toHaveText('Click again to move');
-  await page.mouse.click(px, py);
-}
-
-async function clickCombatHex(page: Page, hexX: number, hexY: number): Promise<void> {
-  const canvas = page.getByTestId('combat-canvas');
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error('combat canvas not visible');
-  const [cx, cy] = hexCenter(hexX, hexY);
-  await page.mouse.click(box.x + cx, box.y + cy);
-}
 
 async function stackHex(stack: Locator): Promise<[number, number]> {
   const x = Number(await stack.getAttribute('data-x'));
@@ -153,4 +124,48 @@ test('wait and defend buttons advance the turn queue', async ({ page }) => {
   await expect(page.getByTestId('combat-log')).toContainText('defend');
   await expect(screen).toHaveAttribute('data-round', '2');
   await expect(screen).toHaveAttribute('data-active-side', 'attacker');
+});
+
+test.describe('narrow viewport (390x844)', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test('combat scales to fit below 1 and fit-scaled clicks land', async ({ page }) => {
+    await page.goto('/?map=combat-arena&seed=5');
+    await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+    // the sidebar is a drawer at this width: open it to select the hero
+    await page.getByTestId('hud-menu-toggle').click();
+    await expectDrawerOpen(page);
+    await page.getByTestId('hero-item-beatrice').click();
+    // wait for the closing drawer to slide off-screen before canvas clicks
+    await expectDrawerClosed(page);
+
+    await moveHeroTo(page, 5, 2);
+    await page.getByTestId('choice-option-0').click();
+    await expect(page.getByTestId('combat-screen')).toBeVisible();
+
+    // the battlefield is wider than 390 css px: fit < 1, nothing overflows
+    const canvas = page.getByTestId('combat-canvas');
+    await expect(canvas).toHaveAttribute('data-fit', /.+/);
+    const fit = Number(await canvas.getAttribute('data-fit'));
+    expect(fit).toBeLessThan(1);
+    expect(fit).toBeGreaterThanOrEqual(0.35);
+    await expectWithinViewport(page, '[data-testid="combat-canvas"]');
+    await expectNoHorizontalOverflow(page);
+
+    // a fit-scaled click lands on the intended hex: Magic Arrow the wolves
+    await expect(page.getByTestId('combat-screen')).toHaveAttribute(
+      'data-active-side',
+      'attacker',
+    );
+    await page.getByTestId('combat-spellbook-button').click();
+    await page.getByTestId('spell-cast-magic_arrow').click();
+    await expect(page.getByTestId('combat-status')).toContainText('Select a target');
+    const [wx, wy] = await stackHex(page.getByTestId('combat-stack-d0'));
+    await clickCombatHex(page, wx, wy);
+    await expect(page.getByTestId('combat-stack-d0')).toHaveAttribute('data-count', '2');
+
+    // widening the viewport mid-combat re-fits back to 1
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expect(canvas).toHaveAttribute('data-fit', '1');
+  });
 });
