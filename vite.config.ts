@@ -1,6 +1,7 @@
 import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  base: process.env.PAGES_BASE_PATH ?? '/',
   test: {
     include: ['src/**/*.test.ts'],
     // the slow balance simulation runs separately via `npm run test:balance`
