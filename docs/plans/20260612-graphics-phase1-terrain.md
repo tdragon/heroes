@@ -206,28 +206,35 @@ Key decisions:
 - Create: `src/render/spritePainter.test.ts`
 - Create: `src/render/adventureRenderer.test.ts` (first renderer unit test)
 
-- [ ] extend `Painter.terrain`/`Painter.road` signatures with ids (see
+- [x] extend `Painter.terrain`/`Painter.road` signatures with ids (see
       Technical Details); update `TokenPainter` (ignores ids) and the two
       call sites in `adventureRenderer.ts` (`drawTerrain` lines ~100/103,
       plus minimap path); compile-time only — no existing tests reference
-      the painter (verified)
-- [ ] implement `SpritePainter` wrapping a `TokenPainter` + `SpriteAtlas`:
+      the painter (verified; minimap path needed no change — it fills colors
+      directly without the painter; `TokenPainter.road` keeps the shorter
+      compatible signature to avoid an unused param)
+- [x] implement `SpritePainter` wrapping a `TokenPainter` + `SpriteAtlas`:
       `terrain`/`road` draw from atlas when `size >= 12` and bitmap exists,
       else delegate; `shroud` fills `#16100c`; `dimmed` fills
-      `rgba(22, 16, 12, 0.5)`; everything else delegates
-- [ ] wire up in `adventureScreen.ts`: instantiate `SpritePainter` (combat
+      `rgba(22, 16, 12, 0.5)`; everything else delegates (atlas dependency
+      typed as a minimal `SpriteLookup` interface for cast-free fakes)
+- [x] wire up in `adventureScreen.ts`: instantiate `SpritePainter` (combat
       screen keeps `TokenPainter`); when `atlas.ready` resolves, set
       `data-sprites-ready` on the map canvas **and** trigger the screen's
       existing dirty/redraw path so a sprite frame actually paints (first
       frames legitimately draw fallback art)
-- [ ] write tests for `SpritePainter` with fake atlas + recording 2D-context
+- [x] write tests for `SpritePainter` with fake atlas + recording 2D-context
       stub: drawImage path (sprite exists, size ≥ 12), flat-color fallback
-      (size < 12, missing sprite, pre-load), fog fill colors
-- [ ] write `adventureRenderer.test.ts` with a recording painter stub:
+      (size < 12, missing sprite, pre-load), fog fill colors (plus threshold
+      boundary and full delegation matrix — 10 tests)
+- [x] write `adventureRenderer.test.ts` with a recording painter stub:
       asserts the renderer forwards the correct terrain id and resolved road
       id per tile, and the explored/shroud branch — the id plumbing is the
-      likeliest regression point and has zero coverage today
-- [ ] run `npm test` — must pass before task 4
+      likeliest regression point and has zero coverage today (also covers
+      unknown terrain/road chars → `''`/black fallback and the dimmed
+      branch — 5 tests)
+- [x] run `npm test` — must pass before task 4 (619 tests, 34 files, green;
+      `npm run check` also passes)
 
 ### Task 4: e2e — adventure map renders the woodcut land
 

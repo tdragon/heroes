@@ -22,6 +22,9 @@ import {
   type AdventureView,
 } from '../render/adventureRenderer';
 import { TokenPainter } from '../render/painter';
+import { rasterizeSvg, SpriteAtlas } from '../render/spriteAtlas';
+import { SpritePainter } from '../render/spritePainter';
+import { woodcutSprites } from '../assets/themes/woodcut';
 import { splitPathByDays, type PathStepPreview } from '../render/pathPreview';
 import { CombatScreen } from '../ui/combatScreen';
 import { el, openCountDialog, type UiContext } from '../ui/components';
@@ -151,7 +154,18 @@ export class AdventureScreen implements Screen {
 
     const ctx = this.canvas.getContext('2d');
     if (!ctx) throw new Error('canvas 2d context unavailable');
-    this.renderer = new AdventureRenderer(ctx, new TokenPainter(), this.data);
+    const atlas = new SpriteAtlas(woodcutSprites, rasterizeSvg);
+    this.renderer = new AdventureRenderer(
+      ctx,
+      new SpritePainter(atlas, new TokenPainter()),
+      this.data,
+    );
+    // until the atlas is ready the painter draws fallback art; repaint once
+    // the bitmaps exist and flag readiness for the e2e suite
+    void atlas.load().then(() => {
+      this.canvas.dataset.spritesReady = 'true';
+      this.markDirty();
+    });
 
     this.hud = new Hud(this.data, {
       onEndTurn: () => {

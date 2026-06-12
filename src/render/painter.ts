@@ -1,11 +1,22 @@
 import type { PlayerColor } from '../maps/schema';
 
+export interface TerrainStyle {
+  id: string;
+  color: string;
+}
+
 // Placeholder token art system (§10): every entity is a simple labeled shape
 // drawn in a flat color. All drawing goes through this interface so real art
 // can be swapped in later without touching the renderer.
 export interface Painter {
-  terrain(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string): void;
-  road(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void;
+  terrain(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    terrain: TerrainStyle,
+  ): void;
+  road(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, roadId: string): void;
   creatureToken(
     ctx: CanvasRenderingContext2D,
     cx: number,
@@ -66,8 +77,14 @@ function tileHash(x: number, y: number, i: number): number {
 }
 
 export class TokenPainter implements Painter {
-  terrain(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string): void {
-    ctx.fillStyle = color;
+  terrain(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    terrain: TerrainStyle,
+  ): void {
+    ctx.fillStyle = terrain.color;
     ctx.fillRect(x, y, size, size);
     const tx = Math.round(x / size);
     const ty = Math.round(y / size);
@@ -79,6 +96,7 @@ export class TokenPainter implements Painter {
     }
   }
 
+  // declares no roadId param: the placeholder band is the same for every road
   road(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
     ctx.fillStyle = 'rgba(160, 140, 110, 0.85)';
     const w = size * 0.4;

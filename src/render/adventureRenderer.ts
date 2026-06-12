@@ -102,10 +102,14 @@ export class AdventureRenderer {
         }
         const i = y * size + x;
         const terrain = this.terrainByChar.get(state.map.terrain[i] ?? '');
-        this.painter.terrain(this.ctx, rect.x, rect.y, rect.size, terrain?.color ?? '#000000');
+        this.painter.terrain(this.ctx, rect.x, rect.y, rect.size, {
+          id: terrain?.id ?? '',
+          color: terrain?.color ?? '#000000',
+        });
         const roadChar = state.map.roads[i] ?? NO_ROAD_CHAR;
         if (roadChar !== NO_ROAD_CHAR) {
-          this.painter.road(this.ctx, rect.x, rect.y, rect.size);
+          const roadId = this.roadByChar.get(roadChar)?.id ?? '';
+          this.painter.road(this.ctx, rect.x, rect.y, rect.size, roadId);
         }
       }
     }
