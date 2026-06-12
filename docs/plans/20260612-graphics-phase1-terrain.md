@@ -241,10 +241,14 @@ Key decisions:
 **Files:**
 - Modify: e2e adventure-map spec (existing Playwright suite)
 
-- [ ] add smoke assertions: map canvas gains `data-sprites-ready` after load;
-      no console errors during initial render and scroll
-- [ ] verify existing e2e selectors/flows still pass unchanged
-- [ ] run `npm run test:e2e` — must pass before task 5
+- [x] add smoke assertions: map canvas gains `data-sprites-ready` after load;
+      no console errors during initial render and scroll (new test in
+      `e2e/adventure.spec.ts` — reloads with console/pageerror listeners
+      attached, waits for `data-sprites-ready="true"`, arrow-key scrolls,
+      asserts zero errors)
+- [x] verify existing e2e selectors/flows still pass unchanged (all prior
+      24 tests green, no selector changes)
+- [x] run `npm run test:e2e` — must pass before task 5 (25 passed)
 
 ### Task 5: Verify acceptance criteria
 

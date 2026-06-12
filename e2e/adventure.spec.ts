@@ -8,6 +8,34 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByTestId('adventure-canvas')).toBeVisible();
 });
 
+test('woodcut sprites load and render without console errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') errors.push(msg.text());
+  });
+  page.on('pageerror', (err) => {
+    errors.push(err.message);
+  });
+
+  // beforeEach already navigated; reload with listeners attached to catch
+  // errors from the initial render as well
+  await page.goto('/?map=tutorial-valley&seed=42');
+  const canvas = page.getByTestId('adventure-canvas');
+  await expect(canvas).toBeVisible();
+
+  // sprite atlas finishes rasterizing and the screen flags readiness
+  await expect(canvas).toHaveAttribute('data-sprites-ready', 'true');
+
+  // scroll across the map so every terrain/road sprite path gets exercised
+  await expect(canvas).toHaveAttribute('data-camera-x', '0');
+  await page.keyboard.press('ArrowRight');
+  await expect(canvas).toHaveAttribute('data-camera-x', '48');
+  await page.keyboard.press('ArrowDown');
+  await expect(canvas).toHaveAttribute('data-camera-y', '48');
+
+  expect(errors).toEqual([]);
+});
+
 test('select hero and move with click-confirm-click', async ({ page }) => {
   await page.getByTestId('hero-item-edric').click();
   await expect(page.getByTestId('hero-pos')).toHaveText('4,5');
