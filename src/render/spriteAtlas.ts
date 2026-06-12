@@ -1,88 +1,52 @@
-// Sprite atlas: rasterizes id-keyed SVG sources once per zoom bucket and
-// serves bitmaps synchronously. A `null` result means "not (yet) available" —
-// the painter falls back to flat-color drawing, so the render path never waits.
+// Sprite atlas: rasterizes id-keyed SVG sources once and serves bitmaps
+// synchronously. A `null` result means "not (yet) available" — the painter
+// falls back to flat-color drawing, so the render path never waits.
 
 export type Rasterize = (svg: string, px: number) => Promise<CanvasImageSource>;
 
-// Zoom buckets in CSS px, ascending. Lookup picks the smallest bucket >= the
-// requested size, else the largest (live tile size 48 -> the 64 bucket).
-export const ATLAS_BUCKETS: readonly number[] = [32, 64];
-export const MAX_DPR = 2;
-
-function bucketFor(sizePx: number): number {
-  let largest = 0;
-  for (const bucket of ATLAS_BUCKETS) {
-    if (bucket >= sizePx) return bucket;
-    if (bucket > largest) largest = bucket;
-  }
-  return largest;
-}
-
-function slotOf(key: string, bucket: number): string {
-  return `${key}@${String(bucket)}`;
-}
-
-function effectiveDpr(): number {
-  // node (vitest) has no devicePixelRatio (the DOM lib types it as a plain
-  // `number`); Number.isFinite also rejects NaN from exotic embedders
-  const dpr = Number.isFinite(globalThis.devicePixelRatio) ? globalThis.devicePixelRatio : 1;
-  return Math.min(dpr, MAX_DPR);
-}
+// Rasterization size in px. The live tile size is 48 (`TILE_PX`); 64 matches
+// the SVG viewBox so strokes land on authored pixels and the slight downscale
+// stays crisp. The adventure canvas backing store is not DPR-scaled, so
+// rasterizing larger would only waste bitmap memory.
+export const RASTER_PX = 64;
 
 export class SpriteAtlas {
-  /** Resolves once every key x bucket finished rasterizing (failures included). */
-  readonly ready: Promise<void>;
-
   private readonly sources: Record<string, string>;
   private readonly rasterize: Rasterize;
   private readonly bitmaps = new Map<string, CanvasImageSource>();
-  private readonly resolveReady: () => void;
-  private started = false;
-  private warned = false;
+  private loadPromise: Promise<void> | null = null;
+  private failures = 0;
 
   constructor(sources: Record<string, string>, rasterize: Rasterize) {
     this.sources = sources;
     this.rasterize = rasterize;
-    let resolveReady: () => void = () => undefined;
-    this.ready = new Promise((resolve) => {
-      resolveReady = resolve;
-    });
-    this.resolveReady = resolveReady;
   }
 
-  /** Kicks off rasterization for all keys x buckets; idempotent. */
+  /** Sprites that failed to rasterize; final once `load()` resolves. */
+  get failureCount(): number {
+    return this.failures;
+  }
+
+  /** Kicks off rasterization for all keys; idempotent (memoized promise). */
   load(): Promise<void> {
-    if (!this.started) {
-      this.started = true;
-      const dpr = effectiveDpr();
-      const jobs: Promise<void>[] = [];
-      for (const [key, svg] of Object.entries(this.sources)) {
-        for (const bucket of ATLAS_BUCKETS) {
-          jobs.push(this.fill(key, svg, bucket, dpr));
-        }
-      }
-      void Promise.all(jobs).then(() => {
-        this.resolveReady();
-      });
-    }
-    return this.ready;
+    this.loadPromise ??= Promise.all(
+      Object.entries(this.sources).map(([key, svg]) => this.fill(key, svg)),
+    ).then(() => undefined);
+    return this.loadPromise;
   }
 
   /** Sync lookup; `null` for unknown keys, pending loads, and failed sprites. */
-  get(key: string, sizePx: number): CanvasImageSource | null {
-    return this.bitmaps.get(slotOf(key, bucketFor(sizePx))) ?? null;
+  get(key: string): CanvasImageSource | null {
+    return this.bitmaps.get(key) ?? null;
   }
 
-  private async fill(key: string, svg: string, bucket: number, dpr: number): Promise<void> {
+  private async fill(key: string, svg: string): Promise<void> {
     try {
-      const image = await this.rasterize(svg, Math.round(bucket * dpr));
-      this.bitmaps.set(slotOf(key, bucket), image);
+      this.bitmaps.set(key, await this.rasterize(svg, RASTER_PX));
     } catch (error) {
       // permanent miss: get() keeps returning null and the painter falls back
-      if (!this.warned) {
-        this.warned = true;
-        console.warn(`sprite rasterization failed (first: ${slotOf(key, bucket)})`, error);
-      }
+      this.failures += 1;
+      console.warn(`sprite rasterization failed: ${key}`, error);
     }
   }
 }
@@ -90,8 +54,13 @@ export class SpriteAtlas {
 // The theme SVGs carry only a viewBox; give the root explicit pixel dimensions
 // so the browser decodes the Image at the target raster size (and Firefox's
 // createImageBitmap, which rejects intrinsically unsized SVGs, is satisfied).
+// Pre-existing root width/height attributes are replaced, not duplicated.
 export function withRasterSize(svg: string, px: number): string {
-  return svg.replace(/<svg(\s)/, `<svg width="${String(px)}" height="${String(px)}"$1`);
+  const open = /<svg([^>]*)>/.exec(svg);
+  if (!open) return svg;
+  const attrs = (open[1] ?? '').replace(/\s+(?:width|height)="[^"]*"/g, '');
+  const tag = `<svg width="${String(px)}" height="${String(px)}"${attrs}>`;
+  return svg.slice(0, open.index) + tag + svg.slice(open.index + open[0].length);
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {
@@ -123,9 +92,15 @@ export const rasterizeSvg: Rasterize = async (svg, px) => {
   const url = URL.createObjectURL(blob);
   try {
     const image = await loadImage(url);
-    // older browsers (e.g. Safari < 15) lack createImageBitmap
+    // older browsers (e.g. Safari < 15) lack createImageBitmap; partial
+    // implementations may reject this source — the image already decoded,
+    // so fall back to canvas drawing in both cases
     if (typeof globalThis.createImageBitmap === 'function') {
-      return await globalThis.createImageBitmap(image);
+      try {
+        return await globalThis.createImageBitmap(image);
+      } catch {
+        // fall through to drawToCanvas
+      }
     }
     return drawToCanvas(image, px);
   } finally {

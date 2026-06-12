@@ -23,7 +23,7 @@ describe('woodcut theme coverage', () => {
 
   it('contains no sprite keys outside terrain/ and road/', () => {
     for (const key of Object.keys(woodcutSprites)) {
-      expect(key).toMatch(/^(terrain|road)\/[a-z_]+$/);
+      expect(key).toMatch(/^(terrain|road)\/[a-z][a-z0-9_]*$/);
     }
   });
 });

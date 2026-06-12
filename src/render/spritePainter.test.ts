@@ -1,156 +1,51 @@
 import { describe, expect, it } from 'vitest';
-import type { Painter, TerrainStyle } from './painter';
+import type { RoadConnections } from './painter';
 import {
   FOG_DIMMED_COLOR,
   FOG_SHROUD_COLOR,
-  SPRITE_MIN_TILE_PX,
   SpritePainter,
   type SpriteLookup,
 } from './spritePainter';
+import { asCtx, RecordingContext, RecordingPainter, stubBitmap } from './testSupport';
 
-interface CtxOp {
-  op: 'fillRect' | 'drawImage';
-  fillStyle: string;
-  args: number[];
-  image?: CanvasImageSource;
+interface FakeAtlas extends SpriteLookup {
+  /** keys requested from the atlas, in call order */
+  readonly lookups: string[];
 }
 
-// node has no CanvasRenderingContext2D; record the only members the painter
-// touches and widen the stub for the call (test-only seam)
-class RecordingContext {
-  fillStyle = '';
-  readonly ops: CtxOp[] = [];
-
-  fillRect(x: number, y: number, w: number, h: number): void {
-    this.ops.push({ op: 'fillRect', fillStyle: this.fillStyle, args: [x, y, w, h] });
-  }
-
-  drawImage(image: CanvasImageSource, x: number, y: number, w: number, h: number): void {
-    this.ops.push({ op: 'drawImage', fillStyle: this.fillStyle, args: [x, y, w, h], image });
-  }
+function fakeAtlas(sprites: Record<string, CanvasImageSource>): FakeAtlas {
+  const lookups: string[] = [];
+  return {
+    lookups,
+    get: (key) => {
+      lookups.push(key);
+      return sprites[key] ?? null;
+    },
+  };
 }
 
-function asCtx(stub: RecordingContext): CanvasRenderingContext2D {
-  return stub as unknown as CanvasRenderingContext2D;
-}
-
-function stubBitmap(px: number): ImageBitmap {
-  return { width: px, height: px, close: () => undefined };
-}
-
-function fakeAtlas(sprites: Record<string, CanvasImageSource>): SpriteLookup {
-  return { get: (key) => sprites[key] ?? null };
-}
-
-class RecordingPainter implements Painter {
-  readonly calls: { method: string; args: unknown[] }[] = [];
-
-  private record(method: string, args: unknown[]): void {
-    this.calls.push({ method, args });
-  }
-
-  terrain(
-    _ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    size: number,
-    terrain: TerrainStyle,
-  ): void {
-    this.record('terrain', [x, y, size, terrain]);
-  }
-
-  road(_ctx: CanvasRenderingContext2D, x: number, y: number, size: number, roadId: string): void {
-    this.record('road', [x, y, size, roadId]);
-  }
-
-  creatureToken(
-    _ctx: CanvasRenderingContext2D,
-    cx: number,
-    cy: number,
-    r: number,
-    color: string,
-    initials: string,
-    tier: number,
-  ): void {
-    this.record('creatureToken', [cx, cy, r, color, initials, tier]);
-  }
-
-  heroToken(
-    _ctx: CanvasRenderingContext2D,
-    cx: number,
-    cy: number,
-    r: number,
-    color: string,
-    initial: string,
-  ): void {
-    this.record('heroToken', [cx, cy, r, color, initial]);
-  }
-
-  townToken(
-    _ctx: CanvasRenderingContext2D,
-    cx: number,
-    cy: number,
-    r: number,
-    color: string,
-  ): void {
-    this.record('townToken', [cx, cy, r, color]);
-  }
-
-  objectToken(
-    _ctx: CanvasRenderingContext2D,
-    cx: number,
-    cy: number,
-    r: number,
-    color: string,
-    label: string,
-  ): void {
-    this.record('objectToken', [cx, cy, r, color, label]);
-  }
-
-  flag(_ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string): void {
-    this.record('flag', [x, y, size, color]);
-  }
-
-  shroud(_ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-    this.record('shroud', [x, y, size]);
-  }
-
-  dimmed(_ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
-    this.record('dimmed', [x, y, size]);
-  }
-
-  selectionRing(_ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
-    this.record('selectionRing', [cx, cy, r]);
-  }
-
-  pathDot(_ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
-    this.record('pathDot', [cx, cy, r]);
-  }
-
-  dayMarker(_ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, day: number): void {
-    this.record('dayMarker', [cx, cy, r, day]);
-  }
-}
-
-const GRASS: TerrainStyle = { id: 'grass', color: '#4a7c2f' };
+const GRASS_COLOR = '#4a7c2f';
 
 function setup(sprites: Record<string, CanvasImageSource>): {
   painter: SpritePainter;
+  atlas: FakeAtlas;
   fallback: RecordingPainter;
   stub: RecordingContext;
   ctx: CanvasRenderingContext2D;
 } {
   const fallback = new RecordingPainter();
-  const painter = new SpritePainter(fakeAtlas(sprites), fallback);
+  const atlas = fakeAtlas(sprites);
+  const painter = new SpritePainter(atlas, fallback);
   const stub = new RecordingContext();
-  return { painter, fallback, stub, ctx: asCtx(stub) };
+  return { painter, atlas, fallback, stub, ctx: asCtx(stub) };
 }
 
 describe('SpritePainter.terrain', () => {
-  it('draws the terrain sprite when the bitmap exists and size >= threshold', () => {
+  it('looks up the terrain key and draws the sprite when the bitmap exists', () => {
     const bitmap = stubBitmap(64);
-    const { painter, fallback, stub, ctx } = setup({ 'terrain/grass': bitmap });
-    painter.terrain(ctx, 96, 48, 48, GRASS);
+    const { painter, atlas, fallback, stub, ctx } = setup({ 'terrain/grass': bitmap });
+    painter.terrain(ctx, 96, 48, 48, 'grass', GRASS_COLOR);
+    expect(atlas.lookups).toEqual(['terrain/grass']);
     expect(stub.ops).toEqual([
       { op: 'drawImage', fillStyle: '', args: [96, 48, 48, 48], image: bitmap },
     ]);
@@ -158,52 +53,98 @@ describe('SpritePainter.terrain', () => {
   });
 
   it('falls back to flat color when the sprite is missing (pre-load / unknown id)', () => {
-    const { painter, fallback, stub, ctx } = setup({});
-    painter.terrain(ctx, 0, 0, 48, GRASS);
+    const { painter, atlas, fallback, stub, ctx } = setup({});
+    painter.terrain(ctx, 0, 0, 48, 'grass', GRASS_COLOR);
+    expect(atlas.lookups).toEqual(['terrain/grass']);
     expect(stub.ops).toEqual([]);
-    expect(fallback.calls).toEqual([{ method: 'terrain', args: [0, 0, 48, GRASS] }]);
-  });
-
-  it('falls back below the minimap size threshold even when the sprite exists', () => {
-    const { painter, fallback, stub, ctx } = setup({ 'terrain/grass': stubBitmap(64) });
-    painter.terrain(ctx, 0, 0, SPRITE_MIN_TILE_PX - 1, GRASS);
-    expect(stub.ops).toEqual([]);
-    expect(fallback.calls).toEqual([
-      { method: 'terrain', args: [0, 0, SPRITE_MIN_TILE_PX - 1, GRASS] },
-    ]);
-  });
-
-  it('uses the sprite exactly at the size threshold', () => {
-    const { painter, fallback, stub, ctx } = setup({ 'terrain/grass': stubBitmap(32) });
-    painter.terrain(ctx, 0, 0, SPRITE_MIN_TILE_PX, GRASS);
-    expect(stub.ops).toHaveLength(1);
-    expect(fallback.calls).toEqual([]);
+    expect(fallback.calls).toEqual([{ method: 'terrain', args: [0, 0, 48, 'grass', GRASS_COLOR] }]);
   });
 });
 
+function conn(dirs: string): RoadConnections {
+  return {
+    n: dirs.includes('n'),
+    e: dirs.includes('e'),
+    s: dirs.includes('s'),
+    w: dirs.includes('w'),
+  };
+}
+
 describe('SpritePainter.road', () => {
-  it('draws the road sprite when available', () => {
+  it('draws the full band for an isolated road tile', () => {
     const bitmap = stubBitmap(64);
-    const { painter, fallback, stub, ctx } = setup({ 'road/dirt_road': bitmap });
-    painter.road(ctx, 48, 0, 48, 'dirt_road');
+    const { painter, atlas, fallback, stub, ctx } = setup({ 'road/dirt_road': bitmap });
+    painter.road(ctx, 48, 0, 48, 'dirt_road', conn(''));
+    expect(atlas.lookups).toEqual(['road/dirt_road']);
     expect(stub.ops).toEqual([
       { op: 'drawImage', fillStyle: '', args: [48, 0, 48, 48], image: bitmap },
     ]);
     expect(fallback.calls).toEqual([]);
   });
 
-  it('delegates to the fallback for unknown road ids', () => {
-    const { painter, fallback, stub, ctx } = setup({ 'road/dirt_road': stubBitmap(64) });
-    painter.road(ctx, 0, 0, 48, 'lost_road');
-    expect(stub.ops).toEqual([]);
-    expect(fallback.calls).toEqual([{ method: 'road', args: [0, 0, 48, 'lost_road'] }]);
+  it('draws the full band unrotated for a straight horizontal road', () => {
+    const bitmap = stubBitmap(64);
+    const { painter, stub, ctx } = setup({ 'road/dirt_road': bitmap });
+    painter.road(ctx, 0, 0, 48, 'dirt_road', conn('ew'));
+    expect(stub.ops).toEqual([
+      { op: 'drawImage', fillStyle: '', args: [0, 0, 48, 48], image: bitmap },
+    ]);
   });
 
-  it('delegates below the size threshold', () => {
+  it('draws the full band rotated 90 degrees for a straight vertical road', () => {
+    const bitmap = stubBitmap(64);
+    const { painter, stub, ctx } = setup({ 'road/dirt_road': bitmap });
+    painter.road(ctx, 48, 96, 48, 'dirt_road', conn('ns'));
+    expect(stub.ops.map((o) => o.op)).toEqual([
+      'save',
+      'translate',
+      'rotate',
+      'drawImage',
+      'restore',
+    ]);
+    expect(stub.ops[1]?.args).toEqual([72, 120]); // tile center
+    expect(stub.ops[2]?.args).toEqual([Math.PI / 2]);
+    // full source (no crop), centered dest
+    expect(stub.ops[3]?.args).toEqual([0, 0, 64, 64, -24, -24, 48, 48]);
+  });
+
+  it('composes a corner from rotated east-half arms plus a center seam patch', () => {
+    const bitmap = stubBitmap(64);
+    const { painter, stub, ctx } = setup({ 'road/dirt_road': bitmap });
+    painter.road(ctx, 0, 0, 48, 'dirt_road', conn('es'));
+    const draws = stub.ops.filter((o) => o.op === 'drawImage');
+    const rotations = stub.ops.filter((o) => o.op === 'rotate').map((o) => o.args[0]);
+    // one arm per connected direction (E then S) plus the seam patch
+    expect(draws).toHaveLength(3);
+    expect(rotations).toEqual([0, Math.PI / 2]);
+    // arms crop the east half of the source band and extend center -> edge
+    expect(draws[0]?.args).toEqual([32, 0, 32, 64, 0, -24, 24, 48]);
+    expect(draws[1]?.args).toEqual([32, 0, 32, 64, 0, -24, 24, 48]);
+    // unrotated middle slice of the band covers the seam
+    expect(draws[2]?.args).toEqual([24, 0, 16, 64, 18, 0, 12, 48]);
+    expect(stub.ops.filter((o) => o.op === 'save')).toHaveLength(2);
+    expect(stub.ops.filter((o) => o.op === 'restore')).toHaveLength(2);
+  });
+
+  it('draws four arms for a crossroads', () => {
+    const bitmap = stubBitmap(64);
+    const { painter, stub, ctx } = setup({ 'road/dirt_road': bitmap });
+    painter.road(ctx, 0, 0, 48, 'dirt_road', conn('nesw'));
+    const draws = stub.ops.filter((o) => o.op === 'drawImage');
+    expect(draws).toHaveLength(5); // 4 arms + seam patch
+    expect(stub.ops.filter((o) => o.op === 'rotate').map((o) => o.args[0])).toEqual([
+      0,
+      Math.PI / 2,
+      Math.PI,
+      -Math.PI / 2,
+    ]);
+  });
+
+  it('delegates to the fallback for unknown road ids, connections included', () => {
     const { painter, fallback, stub, ctx } = setup({ 'road/dirt_road': stubBitmap(64) });
-    painter.road(ctx, 0, 0, 8, 'dirt_road');
+    painter.road(ctx, 0, 0, 48, 'lost_road', conn('ns'));
     expect(stub.ops).toEqual([]);
-    expect(fallback.calls).toEqual([{ method: 'road', args: [0, 0, 8, 'dirt_road'] }]);
+    expect(fallback.calls).toEqual([{ method: 'road', args: [0, 0, 48, 'lost_road', conn('ns')] }]);
   });
 });
 
@@ -220,7 +161,9 @@ describe('SpritePainter fog', () => {
   it('fills dimmed tiles with the warm dark overlay', () => {
     const { painter, fallback, stub, ctx } = setup({});
     painter.dimmed(ctx, 0, 0, 48);
-    expect(stub.ops).toEqual([{ op: 'fillRect', fillStyle: FOG_DIMMED_COLOR, args: [0, 0, 48, 48] }]);
+    expect(stub.ops).toEqual([
+      { op: 'fillRect', fillStyle: FOG_DIMMED_COLOR, args: [0, 0, 48, 48] },
+    ]);
     expect(fallback.calls).toEqual([]);
   });
 });

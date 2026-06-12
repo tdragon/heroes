@@ -124,6 +124,12 @@ Key decisions:
 - Road sprites are horizontal-band overlays (from the concept); phase 1 draws
   the same band for all directions — directional/corner road variants are a
   ➕ candidate for a later phase, matching today's non-directional road art.
+- ➕ Directional road rendering was pulled into phase 1 after user feedback
+  (vertical roads rendered as disconnected "ladder rungs"): the renderer now
+  computes a 4-direction connectivity mask from the road grid and the painter
+  composes the single band bitmap per tile — full band for straights (rotated
+  90° for vertical), rotated east-half arms plus a center seam patch for
+  corners/junctions (`Painter.road(..., connections)`).
 - `src/data/terrain.json` colors stay: minimap, fallback fill, and the
   concept's ramp bases derive from them.
 
@@ -294,3 +300,24 @@ Key decisions:
 - phase ii: creature seal tokens (51 emblems); phase iii: map objects +
   resource icons; directional road variants; `theme.json` manifest when a
   second theme appears
+
+## Post-review amendments (2026-06-12)
+
+Code review after completion simplified the atlas and hardened the tests:
+
+- Zoom buckets and DPR scaling removed: the game has no zoom and the adventure
+  canvas backing store is not DPR-scaled, so sprites rasterize once at 64 px
+  (`RASTER_PX`) and `get(key)` is bucket-free.
+- `ready` field dropped in favor of a memoized `load()` promise; failures warn
+  per key and are counted (`failureCount`).
+- `data-sprites-ready` reports `'true'` only when every sprite rasterized
+  (`'failed'` otherwise); the e2e smoke test also pixel-checks that the ready
+  repaint actually shows woodcut texture, so a broken pipeline fails CI.
+- The atlas is shared across `AdventureScreen` instances (module-level memo) —
+  no re-rasterization or abandoned bitmaps on new game / load game.
+- `Painter.terrain` takes `(terrainId, color)` scalars (no per-tile object);
+  the dead `SPRITE_MIN_TILE_PX` threshold was removed; `withRasterSize`
+  replaces pre-existing root width/height instead of duplicating attributes.
+- New unit tests: production `rasterizeSvg` paths (createImageBitmap, canvas
+  fallback, decode failure, URL revocation), terrain-under-road ordering, and
+  the flat-color minimap.

@@ -1,22 +1,37 @@
 import type { PlayerColor } from '../maps/schema';
 
-export interface TerrainStyle {
-  id: string;
-  color: string;
+// 4-direction road connectivity of a tile to its orthogonal neighbors
+export interface RoadConnections {
+  n: boolean;
+  e: boolean;
+  s: boolean;
+  w: boolean;
 }
 
-// Placeholder token art system (§10): every entity is a simple labeled shape
-// drawn in a flat color. All drawing goes through this interface so real art
-// can be swapped in later without touching the renderer.
+export function hasAnyConnection(c: RoadConnections): boolean {
+  return c.n || c.e || c.s || c.w;
+}
+
+// All canvas drawing goes through this interface: SpritePainter draws themed
+// art for the adventure land layer, TokenPainter draws flat-color labeled
+// tokens for everything else (and serves as the fallback).
 export interface Painter {
   terrain(
     ctx: CanvasRenderingContext2D,
     x: number,
     y: number,
     size: number,
-    terrain: TerrainStyle,
+    terrainId: string,
+    color: string,
   ): void;
-  road(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, roadId: string): void;
+  road(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    roadId: string,
+    connections: RoadConnections,
+  ): void;
   creatureToken(
     ctx: CanvasRenderingContext2D,
     cx: number,
@@ -82,9 +97,10 @@ export class TokenPainter implements Painter {
     x: number,
     y: number,
     size: number,
-    terrain: TerrainStyle,
+    _terrainId: string,
+    color: string,
   ): void {
-    ctx.fillStyle = terrain.color;
+    ctx.fillStyle = color;
     ctx.fillRect(x, y, size, size);
     const tx = Math.round(x / size);
     const ty = Math.round(y / size);
@@ -96,12 +112,29 @@ export class TokenPainter implements Painter {
     }
   }
 
-  // declares no roadId param: the placeholder band is the same for every road
-  road(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+  // the placeholder look is the same for every road id; only connectivity matters
+  road(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    size: number,
+    _roadId: string,
+    connections: RoadConnections,
+  ): void {
     ctx.fillStyle = 'rgba(160, 140, 110, 0.85)';
-    const w = size * 0.4;
-    ctx.fillRect(x + (size - w) / 2, y + (size - w) / 2, w, w);
-    ctx.fillRect(x, y + (size - w * 0.6) / 2, size, w * 0.6);
+    const square = size * 0.4;
+    ctx.fillRect(x + (size - square) / 2, y + (size - square) / 2, square, square);
+    const band = square * 0.6;
+    const off = (size - band) / 2;
+    if (!hasAnyConnection(connections)) {
+      ctx.fillRect(x, y + off, size, band);
+      return;
+    }
+    const half = size / 2;
+    if (connections.w) ctx.fillRect(x, y + off, half, band);
+    if (connections.e) ctx.fillRect(x + half, y + off, half, band);
+    if (connections.n) ctx.fillRect(x + off, y, band, half);
+    if (connections.s) ctx.fillRect(x + off, y + half, band, half);
   }
 
   creatureToken(
