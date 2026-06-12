@@ -144,25 +144,28 @@ Key decisions:
 - Create: `src/assets/themes/woodcut/index.ts` (glob loader → `Record<spriteKey, svgText>`)
 - Create: `src/assets/themes/woodcut/index.test.ts`
 
-- [ ] spike first: confirm `import.meta.glob('./terrain/*.svg', { query:
+- [x] spike first: confirm `import.meta.glob('./terrain/*.svg', { query:
       '?raw', eager: true })` returns raw SVG **strings** under `vitest run`
       (first use of glob imports in this repo); fall back to `as: 'raw'` if
-      the `query` form misbehaves
-- [ ] port the 8 terrain `<symbol>`s from `docs/design/graphics-concept.html`
+      the `query` form misbehaves — confirmed: `query: '?raw', import:
+      'default', eager: true` returns raw strings under vitest
+- [x] port the 8 terrain `<symbol>`s from `docs/design/graphics-concept.html`
       into standalone 64×64 SVG files (drop organizational `class` attributes;
-      per-shape fills/strokes are already inline — confirm no symbol relies
-      on a rule from the page `<style>` block)
-- [ ] port the 3 road overlay symbols the same way (transparent background),
+      per-shape fills/strokes are already inline — confirmed no symbol relies
+      on a rule from the page `<style>` block: only `.pebbles` on `t-dirt`,
+      no matching CSS rule exists)
+- [x] port the 3 road overlay symbols the same way (transparent background),
       using the explicit mapping: `r-dirt` → `road.dirt_road.svg`,
       `r-gravel` → `road.gravel_road.svg`, `r-cobble` → `road.cobblestone_road.svg`
-- [ ] write `index.ts`: glob loader mapped to sprite keys `terrain/<id>` /
+- [x] write `index.ts`: glob loader mapped to sprite keys `terrain/<id>` /
       `road/<id>` (filename convention from Technical Details)
-- [ ] write coverage test: every terrain id and road id in default `GameData`
+- [x] write coverage test: every terrain id and road id in default `GameData`
       has a sprite key (catches future content additions with missing art)
-- [ ] write sanity test (string-based — node env has no DOMParser): each SVG
+- [x] write sanity test (string-based — node env has no DOMParser): each SVG
       contains `viewBox="0 0 64 64"`, starts with `<svg`, ends with `</svg>`,
       and contains no `class=` attributes
-- [ ] run `npm test` — must pass before task 2
+- [x] run `npm test` — must pass before task 2 (591 tests, 31 files, all green;
+      `tsc --noEmit` + `eslint .` also pass)
 
 ### Task 2: Sprite atlas with injectable rasterizer
 
