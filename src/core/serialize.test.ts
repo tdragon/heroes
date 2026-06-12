@@ -79,4 +79,76 @@ describe('serializeGame / deserializeGame', () => {
     ).toThrow('malformed');
     expect(() => deserializeGame(breakField((s) => (s.combat = 'fighting')))).toThrow('malformed');
   });
+
+  it('rejects malformed combat sub-state instead of crashing later', () => {
+    const state = newGame(tinyMap, {}, 3, data);
+    const breakField = (mutate: (s: Record<string, unknown>) => void): string => {
+      const raw = JSON.parse(serializeGame(state)) as { version: number; state: Record<string, unknown> };
+      mutate(raw.state);
+      return JSON.stringify(raw);
+    };
+    // an empty combat object passes a shallow isRecord check but has none of
+    // the fields the combat screen dereferences on the first frame
+    expect(() => deserializeGame(breakField((s) => (s.combat = {})))).toThrow('malformed');
+    // combat stacks missing required fields
+    expect(() =>
+      deserializeGame(
+        breakField((s) => {
+          s.combat = {
+            reason: 'guard',
+            attackerHero: 'edric',
+            attackerSlots: [0],
+            defenderHero: null,
+            defenderTown: null,
+            defenderSlots: [],
+            object: 'obj-1',
+            combat: {
+              round: 1,
+              rngState: 1,
+              attackerHero: {},
+              defenderHero: {},
+              stacks: [{ id: 'a0' }],
+              obstacles: [],
+              queue: ['a0'],
+              waitQueue: [],
+              castThisRound: { attacker: false, defender: false },
+              siege: null,
+              winner: null,
+            },
+          };
+        }),
+      ),
+    ).toThrow('malformed');
+  });
+
+  it('rejects garbage pendingChoices and resources', () => {
+    const state = newGame(tinyMap, {}, 3, data);
+    const breakField = (mutate: (s: Record<string, unknown>) => void): string => {
+      const raw = JSON.parse(serializeGame(state)) as { version: number; state: Record<string, unknown> };
+      mutate(raw.state);
+      return JSON.stringify(raw);
+    };
+    expect(() => deserializeGame(breakField((s) => (s.pendingChoices = [{ id: 'x' }])))).toThrow(
+      'malformed',
+    );
+    expect(() => deserializeGame(breakField((s) => (s.pendingChoices = 'none')))).toThrow(
+      'malformed',
+    );
+    expect(() =>
+      deserializeGame(
+        breakField((s) => {
+          const players = s.players as { resources: unknown }[];
+          if (players[0]) players[0].resources = { gold: 'lots' };
+        }),
+      ),
+    ).toThrow('malformed');
+    expect(() =>
+      deserializeGame(
+        breakField((s) => {
+          const players = s.players as { resources: Record<string, number> }[];
+          if (players[0]) delete players[0].resources.wood;
+        }),
+      ),
+    ).toThrow('malformed');
+  });
 });

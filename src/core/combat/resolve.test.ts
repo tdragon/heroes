@@ -124,6 +124,15 @@ function driveCombat(
   return { state: current, events: all };
 }
 
+// force a living stack of the given side to the front of the turn queue
+function makeSideActive(state: GameState, side: 'attacker' | 'defender'): void {
+  const combat = state.combat?.combat;
+  if (!combat) throw new Error('no combat');
+  const stack = combat.stacks.find((s) => s.side === side && s.count > 0);
+  if (!stack) throw new Error(`no living ${side} stack`);
+  combat.queue = [stack.id, ...combat.queue.filter((id) => id !== stack.id)];
+}
+
 function startGuardFight(seed = 7): GameState {
   let state = makeGame(seed);
   state = stepOnTrigger(state, 'edric', [7, 1]);
@@ -233,6 +242,7 @@ describe('guard combat resolution', () => {
 
   it('fleeing loses the army but returns the hero template to the tavern pool', () => {
     const start = startGuardFight();
+    makeSideActive(start, 'attacker');
     const result = dispatch(
       start,
       { type: 'combatAction', player: 'red', action: { type: 'flee' } },
@@ -342,6 +352,7 @@ describe('siege resolution', () => {
 
   it('the defending hero cannot flee a siege', () => {
     const start = startSiege();
+    makeSideActive(start, 'defender');
     expect(() =>
       dispatch(start, { type: 'combatAction', player: 'blue', action: { type: 'flee' } }, data),
     ).toThrow('cannot flee while defending a siege');
@@ -410,6 +421,7 @@ describe('flee sides and cast ownership', () => {
 
   it('the defender can flee a field battle: their hero leaves, nothing is seized', () => {
     const start = startFieldFight();
+    makeSideActive(start, 'defender');
     getHero(start, 'mortus').backpack.push('iron_sword');
     const result = dispatch(
       start,
@@ -433,6 +445,31 @@ describe('flee sides and cast ownership', () => {
     ).toThrow(CommandRejectedError);
   });
 
+  it("the defender cannot flee during the attacker's turn", () => {
+    const start = startFieldFight();
+    makeSideActive(start, 'attacker');
+    expect(() =>
+      dispatch(start, { type: 'combatAction', player: 'blue', action: { type: 'flee' } }, data),
+    ).toThrow('blue can only flee when one of their stacks is active');
+    // and the battle is untouched: the defender can still flee on their turn
+    makeSideActive(start, 'defender');
+    const result = dispatch(
+      start,
+      { type: 'combatAction', player: 'blue', action: { type: 'flee' } },
+      data,
+    );
+    expect(result.state.combat).toBeNull();
+    expect(result.state.heroes.mortus).toBeUndefined();
+  });
+
+  it("the attacker cannot flee during the defender's turn", () => {
+    const start = startFieldFight();
+    makeSideActive(start, 'defender');
+    expect(() =>
+      dispatch(start, { type: 'combatAction', player: 'red', action: { type: 'flee' } }, data),
+    ).toThrow('red can only flee when one of their stacks is active');
+  });
+
   it("a player cannot cast from the enemy hero's spellbook", () => {
     const start = startFieldFight();
     const combat = start.combat?.combat;
@@ -454,6 +491,7 @@ describe('flee sides and cast ownership', () => {
 describe('post-combat hero state', () => {
   it('resets temporary luck/morale blessings after the battle', () => {
     const start = startGuardFight();
+    makeSideActive(start, 'attacker');
     const hero = getHero(start, 'edric');
     hero.tempLuck = 2;
     hero.tempMorale = 1;

@@ -540,6 +540,12 @@ export function applyCombatAction(
     if (side === null) {
       throw new CombatRuleError(`${player} has no hero in this battle to flee with`);
     }
+    // as in HoMM3, fleeing is only possible on the fleeing side's own turn:
+    // the active stack must belong to that side (no escaping off-turn)
+    const stack = activeCombatStack(active.combat);
+    if (stack?.side !== side) {
+      throw new CombatRuleError(`${player} can only flee when one of their stacks is active`);
+    }
     if (side === 'defender' && active.reason === 'siege') {
       throw new CombatRuleError('cannot flee while defending a siege');
     }

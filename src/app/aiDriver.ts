@@ -5,6 +5,8 @@
 
 import type { GameData } from '../data';
 import { chooseAICommand } from '../core/ai/adventureAI';
+import { activeCombatStack } from '../core/combat/engine';
+import { heroInfoFor } from '../core/combat/state';
 import type { Command } from '../core/commands';
 import type { GameState } from '../core/state';
 
@@ -121,11 +123,25 @@ export class AiDriver {
     return this.host.runCommand({ type: 'endTurn', player: this.host.getState().currentPlayer });
   }
 
-  // withdraw the attacker from an off-screen AI battle (recovery/auto-resolve)
+  // withdraw the attacker from an off-screen AI battle (recovery/auto-resolve);
+  // flee is only legal on the fleeing side's own turn, so when another side's
+  // stack is active this defends it to advance the queue — the caller loops
+  // until the attacker's turn comes up and the flee goes through
   private fleeAiAttacker(): boolean {
     const state = this.host.getState();
     const combat = state.combat;
     if (!combat) return false;
+    const active = activeCombatStack(combat.combat);
+    if (!active) return false;
+    if (active.side !== 'attacker') {
+      const sideOwner = heroInfoFor(combat.combat, active.side).player;
+      const actor = state.players.find((p) => p.id === sideOwner)?.id ?? state.currentPlayer;
+      return this.host.runCommand({
+        type: 'combatAction',
+        player: actor,
+        action: { type: 'defend' },
+      });
+    }
     const owner = combat.combat.attackerHero.player;
     const actor = state.players.find((p) => p.id === owner)?.id ?? state.currentPlayer;
     return this.host.runCommand({ type: 'combatAction', player: actor, action: { type: 'flee' } });

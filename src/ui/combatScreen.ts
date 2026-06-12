@@ -652,8 +652,10 @@ export class CombatScreen {
       'combat-spellbook-button',
       human && humanSide !== null && heroInfoFor(combat, humanSide).hasSpellbook,
     );
-    // flee removes the fleeing side's own hero; siege defenders cannot flee
+    // flee removes the fleeing side's own hero; it is only legal on the
+    // fleeing side's own turn, and siege defenders cannot flee at all
     const canFlee =
+      human &&
       humanSide !== null &&
       heroInfoFor(combat, humanSide).hero !== null &&
       !(state.combat?.reason === 'siege' && humanSide === 'defender');

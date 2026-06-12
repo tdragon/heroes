@@ -248,7 +248,7 @@ export const HeroClassSchema = z.object({
 });
 export type HeroClass = z.infer<typeof HeroClassSchema>;
 
-const SkillRankSchema = z.enum(['basic', 'advanced', 'expert']);
+export const SkillRankSchema = z.enum(['basic', 'advanced', 'expert']);
 export type SkillRank = z.infer<typeof SkillRankSchema>;
 
 export const HeroTemplateSchema = z.object({
