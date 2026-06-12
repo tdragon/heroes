@@ -241,6 +241,88 @@ function assertGameState(value: unknown): asserts value is GameState {
   throw new Error(`save file state is malformed${detail}`);
 }
 
+function integrityError(path: string, message: string): Error {
+  return new Error(`save file state is inconsistent (${path}: ${message})`);
+}
+
+// the zod schema is structural only: a save can be well-formed yet reference
+// heroes/towns/players that do not exist, which would crash much later (e.g.
+// visitingHeroOf or endTurn). Reject such saves at load time with the path.
+function assertReferentialIntegrity(state: GameState): void {
+  const playerIds = new Set<string>(state.players.map((p) => p.id));
+  if (!playerIds.has(state.currentPlayer)) {
+    throw integrityError('currentPlayer', `unknown player ${state.currentPlayer}`);
+  }
+  for (const [id, hero] of Object.entries(state.heroes)) {
+    if (!playerIds.has(hero.owner)) {
+      throw integrityError(`heroes.${id}.owner`, `unknown player ${hero.owner}`);
+    }
+  }
+  for (const [id, town] of Object.entries(state.towns)) {
+    if (town.owner !== null && !playerIds.has(town.owner)) {
+      throw integrityError(`towns.${id}.owner`, `unknown player ${town.owner}`);
+    }
+    if (town.visitingHero !== null && !(town.visitingHero in state.heroes)) {
+      throw integrityError(`towns.${id}.visitingHero`, `unknown hero ${town.visitingHero}`);
+    }
+  }
+  for (const player of state.players) {
+    for (const heroId of player.heroes) {
+      const hero = state.heroes[heroId];
+      if (!hero) {
+        throw integrityError(`players.${player.id}.heroes`, `unknown hero ${heroId}`);
+      }
+      if (hero.owner !== player.id) {
+        throw integrityError(
+          `players.${player.id}.heroes`,
+          `hero ${heroId} is owned by ${hero.owner}`,
+        );
+      }
+    }
+    for (const townId of player.towns) {
+      const town = state.towns[townId];
+      if (!town) {
+        throw integrityError(`players.${player.id}.towns`, `unknown town ${townId}`);
+      }
+      if (town.owner !== player.id) {
+        throw integrityError(
+          `players.${player.id}.towns`,
+          `town ${townId} is owned by ${town.owner ?? 'nobody'}`,
+        );
+      }
+    }
+  }
+  const objectIds = new Set(state.map.objects.map((o) => o.id));
+  if (state.combat !== null) {
+    if (!(state.combat.attackerHero in state.heroes)) {
+      throw integrityError('combat.attackerHero', `unknown hero ${state.combat.attackerHero}`);
+    }
+    if (state.combat.defenderHero !== null && !(state.combat.defenderHero in state.heroes)) {
+      throw integrityError('combat.defenderHero', `unknown hero ${state.combat.defenderHero}`);
+    }
+    if (state.combat.defenderTown !== null && !(state.combat.defenderTown in state.towns)) {
+      throw integrityError('combat.defenderTown', `unknown town ${state.combat.defenderTown}`);
+    }
+    if (state.combat.object !== null && !objectIds.has(state.combat.object)) {
+      throw integrityError('combat.object', `unknown object ${state.combat.object}`);
+    }
+  }
+  state.pendingChoices.forEach((choice, index) => {
+    if (!playerIds.has(choice.player)) {
+      throw integrityError(`pendingChoices.${String(index)}.player`, `unknown player ${choice.player}`);
+    }
+    if (choice.hero !== undefined && !(choice.hero in state.heroes)) {
+      throw integrityError(`pendingChoices.${String(index)}.hero`, `unknown hero ${choice.hero}`);
+    }
+    if (choice.object !== undefined && !objectIds.has(choice.object)) {
+      throw integrityError(
+        `pendingChoices.${String(index)}.object`,
+        `unknown object ${choice.object}`,
+      );
+    }
+  });
+}
+
 // migration hook: SAVE_MIGRATIONS[n] upgrades a raw version-n state to n+1;
 // deserializeGame chains migrations until the state reaches SAVE_VERSION
 export type SaveMigration = (state: unknown) => unknown;
@@ -280,5 +362,6 @@ export function deserializeGame(
     state.combat = null;
   }
   assertGameState(state);
+  assertReferentialIntegrity(state);
   return state;
 }

@@ -3,7 +3,7 @@ import { loadGameData } from '../../data';
 import { compileMap, type MapSource } from '../../maps/dsl';
 import { dispatch, CommandRejectedError, type GameEvent } from '../commands';
 import { applyObjectReward, handleObjectTrigger } from '../objects';
-import { applyCombatAction } from './resolve';
+import { applyCombatAction, type GameCombatAction } from './resolve';
 import { newGame, townIdAt } from '../setup';
 import type { GameState, Hero, MapObjectState, PlayerId } from '../state';
 import { hexDistance, type Hex } from './grid';
@@ -12,7 +12,7 @@ import {
   reachableHexesFor,
   type CombatAction,
 } from './engine';
-import { livingStacks, oppositeSide } from './state';
+import { heroInfoFor, livingStacks, oppositeSide } from './state';
 
 const data = loadGameData();
 
@@ -106,6 +106,16 @@ function pickAction(state: GameState): CombatAction {
   return best ? { type: 'move', to: best } : { type: 'defend' };
 }
 
+// actions must come from the active side's owner; heroless (neutral) sides
+// fall back to the given driver player, mirroring the UI/AI drivers
+function combatActor(state: GameState, fallback: PlayerId): PlayerId {
+  const combat = state.combat?.combat;
+  if (!combat) return fallback;
+  const side = activeCombatStack(combat)?.side;
+  const owner = side === undefined ? null : heroInfoFor(combat, side).player;
+  return state.players.find((p) => p.id === owner)?.id ?? fallback;
+}
+
 function driveCombat(
   state: GameState,
   player: PlayerId,
@@ -117,7 +127,11 @@ function driveCombat(
     guard += 1;
     if (guard > 500) throw new Error('combat did not resolve');
     const action = pickAction(current);
-    const result = dispatch(current, { type: 'combatAction', player, action }, data);
+    const result = dispatch(
+      current,
+      { type: 'combatAction', player: combatActor(current, player), action },
+      data,
+    );
     current = result.state;
     all.push(...result.events);
   }
@@ -484,7 +498,55 @@ describe('flee sides and cast ownership', () => {
         { type: 'combatAction', player: 'red', action: { type: 'cast', spell: 'magic_arrow' } },
         data,
       ),
-    ).toThrow("only blue may cast from this side's spellbook");
+    ).toThrow('only blue may command the active defender stack');
+  });
+
+  it("the non-active side cannot spend the enemy's active stack", () => {
+    const start = startFieldFight();
+    makeSideActive(start, 'attacker'); // red's stack is up
+    const actions: GameCombatAction[] = [
+      { type: 'wait' },
+      { type: 'defend' },
+      { type: 'move', to: { x: 5, y: 5 } },
+      { type: 'melee', target: 'a0', from: { x: 5, y: 5 } },
+    ];
+    for (const action of actions) {
+      expect(() =>
+        dispatch(start, { type: 'combatAction', player: 'blue', action }, data),
+      ).toThrow('only red may command the active attacker stack');
+    }
+    // mirror case: red cannot act while blue's stack is active
+    makeSideActive(start, 'defender');
+    expect(() =>
+      dispatch(start, { type: 'combatAction', player: 'red', action: { type: 'defend' } }, data),
+    ).toThrow('only blue may command the active defender stack');
+  });
+
+  it("the defending player acts off-turn when their own stack is active", () => {
+    const start = startFieldFight();
+    expect(start.currentPlayer).toBe('red');
+    makeSideActive(start, 'defender');
+    const result = dispatch(
+      start,
+      { type: 'combatAction', player: 'blue', action: { type: 'defend' } },
+      data,
+    );
+    expect(result.state.combat).not.toBeNull();
+  });
+
+  it('a third party cannot act even on a neutral guard stack', () => {
+    const fight = startGuardFight();
+    makeSideActive(fight, 'defender'); // neutral wolves, no owner
+    expect(() =>
+      dispatch(fight, { type: 'combatAction', player: 'blue', action: { type: 'defend' } }, data),
+    ).toThrow(CommandRejectedError);
+    // the battle participant (red) may auto-play the heroless guard side
+    const result = dispatch(
+      fight,
+      { type: 'combatAction', player: 'red', action: { type: 'defend' } },
+      data,
+    );
+    expect(result.state.combat).not.toBeNull();
   });
 });
 

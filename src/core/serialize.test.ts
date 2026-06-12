@@ -5,6 +5,7 @@ import { tinyMapSource } from '../maps/fixtures/tiny.dsl';
 import { dispatch } from './commands';
 import { deserializeGame, serializeGame, SAVE_VERSION } from './serialize';
 import { newGame } from './setup';
+import type { GameState } from './state';
 
 const data = loadGameData();
 const tinyMap = compileMap(tinyMapSource, data);
@@ -150,5 +151,168 @@ describe('serializeGame / deserializeGame', () => {
         }),
       ),
     ).toThrow('malformed');
+  });
+});
+
+// well-formed saves with dangling cross-references must be rejected at load
+// time, not crash later in visitingHeroOf/endTurn/the combat screen
+describe('referential integrity', () => {
+  const state = newGame(tinyMap, {}, 3, data);
+  const breakRefs = (mutate: (s: Record<string, unknown>) => void): string => {
+    const raw = JSON.parse(serializeGame(state)) as {
+      version: number;
+      state: Record<string, unknown>;
+    };
+    mutate(raw.state);
+    return JSON.stringify(raw);
+  };
+
+  // walk edric onto the guarded sawmill and confirm, leaving a live combat
+  function makeMidCombatGame(): GameState {
+    let s = newGame(tinyMap, {}, 7, data);
+    const hero = s.heroes.edric;
+    if (!hero) throw new Error('missing edric');
+    hero.pos = [5, 2];
+    hero.movementPoints = 2000;
+    s = dispatch(s, { type: 'moveHero', player: 'red', hero: 'edric', path: [[6, 2]] }, data).state;
+    const choice = s.pendingChoices[0];
+    if (choice?.kind !== 'guardAttack') throw new Error('expected guard attack choice');
+    s = dispatch(
+      s,
+      { type: 'resolveChoice', player: 'red', choiceId: choice.id, option: 0 },
+      data,
+    ).state;
+    if (s.combat === null) throw new Error('combat did not start');
+    return s;
+  }
+
+  it('rejects an unknown currentPlayer', () => {
+    expect(() => deserializeGame(breakRefs((s) => (s.currentPlayer = 'green')))).toThrow(
+      'currentPlayer: unknown player green',
+    );
+  });
+
+  it('rejects a dangling town.visitingHero', () => {
+    expect(() =>
+      deserializeGame(
+        breakRefs((s) => {
+          const towns = s.towns as Record<string, { visitingHero: string | null }>;
+          const town = Object.values(towns)[0];
+          if (town) town.visitingHero = 'ghost';
+        }),
+      ),
+    ).toThrow(/towns\..*\.visitingHero: unknown hero ghost/);
+  });
+
+  it('rejects a hero owned by a player that is not in the game', () => {
+    expect(() =>
+      deserializeGame(
+        breakRefs((s) => {
+          const heroes = s.heroes as Record<string, { owner: string }>;
+          const edric = heroes.edric;
+          if (edric) edric.owner = 'green';
+        }),
+      ),
+    ).toThrow('heroes.edric.owner: unknown player green');
+  });
+
+  it('rejects a town owned by a player that is not in the game', () => {
+    expect(() =>
+      deserializeGame(
+        breakRefs((s) => {
+          const towns = s.towns as Record<string, { owner: string | null }>;
+          const town = Object.values(towns)[0];
+          if (town) town.owner = 'green';
+        }),
+      ),
+    ).toThrow(/towns\..*\.owner: unknown player green/);
+  });
+
+  it('rejects player.heroes entries that are missing or owned by someone else', () => {
+    expect(() =>
+      deserializeGame(
+        breakRefs((s) => {
+          const players = s.players as { heroes: string[] }[];
+          players[0]?.heroes.push('ghost');
+        }),
+      ),
+    ).toThrow('players.red.heroes: unknown hero ghost');
+    expect(() =>
+      deserializeGame(
+        breakRefs((s) => {
+          const players = s.players as { heroes: string[] }[];
+          players[0]?.heroes.push('mortus'); // mortus belongs to blue
+        }),
+      ),
+    ).toThrow('players.red.heroes: hero mortus is owned by blue');
+  });
+
+  it('rejects player.towns entries that are missing or owned by someone else', () => {
+    expect(() =>
+      deserializeGame(
+        breakRefs((s) => {
+          const players = s.players as { towns: string[] }[];
+          players[0]?.towns.push('ghost-town');
+        }),
+      ),
+    ).toThrow('players.red.towns: unknown town ghost-town');
+    expect(() =>
+      deserializeGame(
+        breakRefs((s) => {
+          const players = s.players as { towns: string[] }[];
+          const blueTown = players[1]?.towns[0];
+          if (blueTown !== undefined) players[0]?.towns.push(blueTown);
+        }),
+      ),
+    ).toThrow(/players\.red\.towns: town .* is owned by blue/);
+  });
+
+  it('rejects combat hero/town/object ids missing from the state', () => {
+    const fighting = makeMidCombatGame();
+    const breakCombat = (mutate: (c: Record<string, unknown>) => void): string => {
+      const raw = JSON.parse(serializeGame(fighting)) as {
+        version: number;
+        state: { combat: Record<string, unknown> };
+      };
+      mutate(raw.state.combat);
+      return JSON.stringify(raw);
+    };
+    expect(() => deserializeGame(breakCombat((c) => (c.attackerHero = 'ghost')))).toThrow(
+      'combat.attackerHero: unknown hero ghost',
+    );
+    expect(() => deserializeGame(breakCombat((c) => (c.defenderHero = 'ghost')))).toThrow(
+      'combat.defenderHero: unknown hero ghost',
+    );
+    expect(() => deserializeGame(breakCombat((c) => (c.defenderTown = 'ghost-town')))).toThrow(
+      'combat.defenderTown: unknown town ghost-town',
+    );
+    expect(() => deserializeGame(breakCombat((c) => (c.object = 'ghost-object')))).toThrow(
+      'combat.object: unknown object ghost-object',
+    );
+  });
+
+  it('rejects pendingChoices referencing missing heroes, objects, or players', () => {
+    const choice = {
+      id: 'c1',
+      player: 'red',
+      kind: 'levelUp',
+      options: ['logistics:basic'],
+    };
+    expect(() =>
+      deserializeGame(breakRefs((s) => (s.pendingChoices = [{ ...choice, hero: 'ghost' }]))),
+    ).toThrow('pendingChoices.0.hero: unknown hero ghost');
+    expect(() =>
+      deserializeGame(
+        breakRefs((s) => (s.pendingChoices = [{ ...choice, object: 'ghost-object' }])),
+      ),
+    ).toThrow('pendingChoices.0.object: unknown object ghost-object');
+    expect(() =>
+      deserializeGame(breakRefs((s) => (s.pendingChoices = [{ ...choice, player: 'green' }]))),
+    ).toThrow('pendingChoices.0.player: unknown player green');
+  });
+
+  it('still accepts a consistent mid-combat save', () => {
+    const fighting = makeMidCombatGame();
+    expect(deserializeGame(serializeGame(fighting))).toEqual(fighting);
   });
 });

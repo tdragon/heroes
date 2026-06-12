@@ -552,13 +552,15 @@ export function applyCombatAction(
     finishCombat(state, side, data, events, onGuardVictory);
     return;
   }
-  if (action.type === 'cast') {
-    // the cast comes from the active stack's side hero: only that hero's
-    // owner may order it (heroless sides cannot cast at all)
-    const stack = activeCombatStack(active.combat);
-    const sideOwner = stack === null ? null : heroInfoFor(active.combat, stack.side).player;
+  // every remaining action (move/melee/shoot/wait/defend/attackWall/cast/
+  // resurrect) acts for the active stack's side: only the owner of that
+  // side's hero may issue it. Heroless sides (neutral guards) have no owner
+  // and are auto-played by whichever participant drives the battle.
+  const stack = activeCombatStack(active.combat);
+  if (stack !== null) {
+    const sideOwner = heroInfoFor(active.combat, stack.side).player;
     if (sideOwner !== null && sideOwner !== player) {
-      throw new CombatRuleError(`only ${sideOwner} may cast from this side's spellbook`);
+      throw new CombatRuleError(`only ${sideOwner} may command the active ${stack.side} stack`);
     }
   }
   const combatEvents = combatAct(active.combat, action, data);

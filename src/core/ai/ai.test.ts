@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { loadGameData } from '../../data';
 import { compileMap } from '../../maps/dsl';
 import { tinyMapSource } from '../../maps/fixtures/tiny.dsl';
-import { combatAct, createCombat, type CombatArmyStack } from '../combat/engine';
-import { noHero, type CombatHeroInfo, type CombatState } from '../combat/state';
+import { activeCombatStack, combatAct, createCombat, type CombatArmyStack } from '../combat/engine';
+import { heroInfoFor, noHero, type CombatHeroInfo, type CombatState } from '../combat/state';
 import { dispatch, type Command, type GameEvent } from '../commands';
 import { newGame } from '../setup';
 import { rollRange, seedRng, type RngState } from '../rng';
@@ -245,15 +245,19 @@ describe('adventure AI', () => {
       result.events.some((e) => e.type === 'combatStarted' && e.reason === 'field'),
     ).toBe(true);
 
-    // play the battle out with the combat AI; exactly one hero survives
+    // play the battle out with the combat AI, acting as the active side's
+    // owner each step; exactly one hero survives
     let guard = 0;
     while (state.combat !== null && guard++ < 300) {
+      const combat = state.combat.combat;
+      const side = activeCombatStack(combat)?.side;
+      const owner = side === undefined ? null : heroInfoFor(combat, side).player;
       state = dispatch(
         state,
         {
           type: 'combatAction',
-          player: 'red',
-          action: chooseCombatAction(state.combat.combat, data),
+          player: state.players.find((p) => p.id === owner)?.id ?? state.currentPlayer,
+          action: chooseCombatAction(combat, data),
         },
         data,
       ).state;
