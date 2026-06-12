@@ -173,21 +173,28 @@ Key decisions:
 - Create: `src/render/spriteAtlas.ts`
 - Create: `src/render/spriteAtlas.test.ts`
 
-- [ ] implement `SpriteAtlas`: constructor takes `Record<string, string>`
+- [x] implement `SpriteAtlas`: constructor takes `Record<string, string>`
       (key → svg text) and a `Rasterize` function; `load()` kicks off
       rasterization for all keys × buckets [32, 64] (× dpr, capped ×2)
-- [ ] implement sync `get(key, sizePx): CanvasImageSource | null` — smallest
+- [x] implement sync `get(key, sizePx): CanvasImageSource | null` — smallest
       bucket ≥ size, else largest; `null` for unknown key or not-yet-loaded
-- [ ] implement `ready: Promise<void>` resolving when all bitmaps exist
+- [x] implement `ready: Promise<void>` resolving when all bitmaps exist
       (rejected rasterizations log once and leave permanent `null` → fallback)
-- [ ] implement production rasterizer in the same file (Blob URL + Image +
-      `createImageBitmap`, guarded for browsers without it; use
-      `globalThis.devicePixelRatio ?? 1` so non-browser contexts don't NaN)
-- [ ] write tests with a fake rasterizer: bucket selection (exact, between,
+- [x] implement production rasterizer in the same file (Blob URL + Image +
+      `createImageBitmap`, guarded for browsers without it; dpr read via
+      `Number.isFinite(globalThis.devicePixelRatio)` guard — the literal
+      `?? 1` form trips `no-unnecessary-condition` since the DOM lib types
+      dpr as non-optional `number`)
+- [x] ➕ `withRasterSize(svg, px)` helper: theme SVGs carry only a viewBox, so
+      the rasterizer injects explicit root width/height (Firefox
+      `createImageBitmap` rejects intrinsically unsized SVG images)
+- [x] write tests with a fake rasterizer: bucket selection (exact, between,
       above max), one rasterize call per key+bucket (caching), `null` before
       load and for unknown keys, `ready` resolves, failed rasterize → `null`
-      without rejecting `ready`
-- [ ] run `npm test` — must pass before task 3
+      without rejecting `ready` (plus dpr capping/fractional dpr and
+      `withRasterSize` cases — 13 tests)
+- [x] run `npm test` — must pass before task 3 (604 tests, 32 files, green;
+      `npm run check` also passes)
 
 ### Task 3: Painter id plumbing + SpritePainter
 
