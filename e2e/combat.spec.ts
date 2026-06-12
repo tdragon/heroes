@@ -110,6 +110,26 @@ test('cast Magic Arrow from the spellbook', async ({ page }) => {
   await expect(page.getByTestId('combat-stack-d0')).toHaveAttribute('data-count', '2');
 });
 
+test('flee button works on the player turn and withdraws the hero', async ({ page }) => {
+  await page.goto('/?map=combat-arena&seed=5');
+  await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+  await page.getByTestId('hero-item-beatrice').click();
+
+  await moveHeroTo(page, 5, 2);
+  await page.getByTestId('choice-option-0').click();
+  const screen = page.getByTestId('combat-screen');
+  await expect(screen).toBeVisible();
+
+  // the wolf (speed 6) already took its AI turn; the player's stack is active
+  await expect(screen).toHaveAttribute('data-active-side', 'attacker');
+  await expect(page.getByTestId('combat-flee-button')).toBeEnabled();
+  await page.getByTestId('combat-flee-button').click();
+
+  await expect(page.getByTestId('modal-message')).toContainText('fled from the battle');
+  await page.getByTestId('dialog-ok').click();
+  await expect(screen).not.toBeVisible();
+});
+
 test('wait and defend buttons advance the turn queue', async ({ page }) => {
   await page.goto('/?map=combat-arena&seed=5');
   await expect(page.getByTestId('adventure-canvas')).toBeVisible();

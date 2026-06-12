@@ -2,6 +2,7 @@ import { RESOURCE_IDS } from '../data/schema';
 import type { GameData } from '../data';
 import { maxMana, monthOf, weekOf, type GameState, type Hero, type Player } from '../core/state';
 import { maxMovementPoints } from '../core/hero';
+import { el } from './components';
 
 export interface HudCallbacks {
   onEndTurn: () => void;
@@ -9,22 +10,12 @@ export interface HudCallbacks {
   onSelectHero: (id: string) => void;
   onSelectTown: (id: string) => void;
   onOpenHeroScreen: () => void;
+  onOpenSpellbook: () => void;
   onMinimapClick: (px: number, py: number) => void;
   onOpenSystem: () => void;
 }
 
 export const MINIMAP_PX = 200;
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className: string,
-  testId?: string,
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  node.className = className;
-  if (testId !== undefined) node.dataset.testid = testId;
-  return node;
-}
 
 export class Hud {
   readonly sidebar: HTMLElement;
@@ -44,7 +35,7 @@ export class Hud {
     this.sidebar = el('div', 'sidebar', 'sidebar');
 
     const title = el('div', 'game-title', 'game-title');
-    title.textContent = 'Heroes Clone';
+    title.textContent = 'Open Heroes';
     this.sidebar.appendChild(title);
 
     this.minimapCanvas = el('canvas', 'minimap', 'minimap');
@@ -73,6 +64,11 @@ export class Hud {
     nextHero.addEventListener('click', () => {
       this.callbacks.onNextHero();
     });
+    const spellbook = el('button', 'hud-button', 'spellbook-button');
+    spellbook.textContent = 'Spellbook';
+    spellbook.addEventListener('click', () => {
+      this.callbacks.onOpenSpellbook();
+    });
     const endTurn = el('button', 'hud-button', 'end-turn-button');
     endTurn.textContent = 'End Turn';
     endTurn.addEventListener('click', () => {
@@ -83,7 +79,7 @@ export class Hud {
     system.addEventListener('click', () => {
       this.callbacks.onOpenSystem();
     });
-    buttons.append(nextHero, endTurn, system);
+    buttons.append(nextHero, spellbook, endTurn, system);
     this.sidebar.appendChild(buttons);
 
     this.statusLine = el('div', 'status-line', 'status-line');

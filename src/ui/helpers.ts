@@ -2,11 +2,11 @@
 // No DOM access here — everything is unit-testable.
 
 import type { GameData } from '../data';
-import type { Building, Cost, ResourceId } from '../data/schema';
+import type { Building, Cost, Creature, ResourceId } from '../data/schema';
 import { RESOURCE_IDS } from '../data/schema';
 import { parseSkillOption, xpForLevel } from '../core/hero';
 import { builtBuildings, GOLD_PER_RESOURCE, townBuildingCatalog, tradeRate } from '../core/town';
-import type { GameState, Hero, PendingChoice, Resources, Town } from '../core/state';
+import type { CreatureStack, GameState, Hero, PendingChoice, Resources, Town } from '../core/state';
 
 export function capitalize(text: string): string {
   return text.length > 0 ? `${text[0]?.toUpperCase() ?? ''}${text.slice(1)}` : text;
@@ -86,6 +86,45 @@ export function recruitMax(available: number, cost: Cost, resources: Resources):
     if (per > 0) max = Math.min(max, Math.floor(resources[id] / per));
   }
   return Math.max(0, max);
+}
+
+export function scaledCost(cost: Cost, count: number): Cost {
+  const scaled: Cost = {};
+  for (const id of RESOURCE_IDS) {
+    const value = cost[id] ?? 0;
+    if (value > 0) scaled[id] = value * count;
+  }
+  return scaled;
+}
+
+// --- stack upgrades (spec §5.2) ---
+
+export interface UpgradeOffer {
+  to: Creature;
+  // total upgrade price: the per-creature cost difference times the count
+  cost: Cost;
+}
+
+// the upgrade available for `stack` in `town`, or null when the creature has
+// no upgrade or the upgraded creature's dwelling is not built here
+export function stackUpgradeOffer(
+  town: Town,
+  stack: CreatureStack,
+  data: GameData,
+): UpgradeOffer | null {
+  const base = data.creatures[stack.creature];
+  if (!base) return null;
+  const upgraded = Object.values(data.creatures).find((c) => c.upgradeOf === stack.creature);
+  if (!upgraded) return null;
+  const catalog = townBuildingCatalog(town.faction, data);
+  const hasDwelling = town.buildings.some((id) => catalog.get(id)?.creature === upgraded.id);
+  if (!hasDwelling) return null;
+  const cost: Cost = {};
+  for (const id of RESOURCE_IDS) {
+    const delta = (upgraded.cost[id] ?? 0) - (base.cost[id] ?? 0);
+    if (delta > 0) cost[id] = delta * stack.count;
+  }
+  return { to: upgraded, cost };
 }
 
 // --- marketplace trade render model ---

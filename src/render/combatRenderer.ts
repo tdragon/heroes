@@ -9,12 +9,14 @@ import {
   effectiveDefense,
   effectiveHp,
   hasSpecial,
+  minCellDistance,
   requireCreature,
+  stackCells,
   stackHpPool,
 } from '../core/combat/abilities';
 import { computeDamage, RANGED_PENALTY_DISTANCE } from '../core/combat/damage';
 import { DEFEND_DEFENSE_BONUS, reachableHexesFor } from '../core/combat/engine';
-import { FIELD_HEIGHT, FIELD_WIDTH, hexDistance, hexEquals, type Hex } from '../core/combat/grid';
+import { FIELD_HEIGHT, FIELD_WIDTH, hexEquals, type Hex } from '../core/combat/grid';
 import { isMoatHex } from '../core/combat/siege';
 import {
   getCombatStack,
@@ -98,17 +100,10 @@ export interface DamageEstimate {
 }
 
 function minStackDistance(combat: CombatState, aId: string, bId: string, data: GameData): number {
-  const a = getCombatStack(combat, aId);
-  const b = getCombatStack(combat, bId);
-  const aHexes = occupiedHexes(a, requireCreature(data, a.creature));
-  const bHexes = occupiedHexes(b, requireCreature(data, b.creature));
-  let min = Infinity;
-  for (const ha of aHexes) {
-    for (const hb of bHexes) {
-      min = Math.min(min, hexDistance(ha, hb));
-    }
-  }
-  return min;
+  return minCellDistance(
+    stackCells(getCombatStack(combat, aId), data),
+    stackCells(getCombatStack(combat, bId), data),
+  );
 }
 
 export function estimateAttack(
@@ -364,8 +359,8 @@ export class CombatRenderer {
       ctx.fill();
     }
 
-    this.renderSiege(combat);
-    this.renderStacks(view, now);
+    this.drawSiege(combat);
+    this.drawStacks(view, now);
 
     if (view.hover) {
       hexPath(ctx, hexCenter(view.hover), HEX_R - 2);
@@ -374,10 +369,10 @@ export class CombatRenderer {
       ctx.stroke();
     }
 
-    this.renderFloats(now);
+    this.drawFloats(now);
   }
 
-  private renderSiege(combat: CombatState): void {
+  private drawSiege(combat: CombatState): void {
     const siege = combat.siege;
     if (!siege) return;
     const { ctx } = this;
@@ -412,7 +407,7 @@ export class CombatRenderer {
     return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
   }
 
-  private renderStacks(view: CombatView, now: number): void {
+  private drawStacks(view: CombatView, now: number): void {
     const { ctx } = this;
     const combat = view.combat;
     for (const stack of livingStacks(combat)) {
@@ -461,7 +456,7 @@ export class CombatRenderer {
     }
   }
 
-  private renderFloats(now: number): void {
+  private drawFloats(now: number): void {
     const { ctx } = this;
     for (const float of this.floats) {
       const t = Math.min(1, (now - float.start) / FLOAT_MS);

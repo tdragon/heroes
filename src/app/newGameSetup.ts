@@ -2,6 +2,7 @@ import type { GameData } from '../data';
 import type { FactionId, HeroTemplate } from '../data/schema';
 import type { GameMap, PlayerColor } from '../maps/schema';
 import { DIFFICULTIES, type Difficulty } from '../core/setup';
+import { el } from '../ui/components';
 import type { Screen } from './screens';
 
 export { DIFFICULTIES, type Difficulty };
@@ -50,17 +51,6 @@ export function configureMap(map: GameMap, data: GameData, setups: PlayerSetup[]
 export interface NewGameSetupCallbacks {
   onStart: (map: GameMap, difficulty: Difficulty, seed: number) => void;
   onBack: () => void;
-}
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className: string,
-  testId?: string,
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  node.className = className;
-  if (testId !== undefined) node.dataset.testid = testId;
-  return node;
 }
 
 export class NewGameSetup implements Screen {

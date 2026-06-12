@@ -8,21 +8,11 @@ import {
   type SaveStorage,
 } from './saveload';
 import type { Screen } from './screens';
+import { el } from '../ui/components';
 
 export interface MainMenuCallbacks {
   onNewGame: () => void;
   onLoadGame: (state: GameState) => void;
-}
-
-function el<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className: string,
-  testId?: string,
-): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  node.className = className;
-  if (testId !== undefined) node.dataset.testid = testId;
-  return node;
 }
 
 export class MainMenu implements Screen {
@@ -37,8 +27,9 @@ export class MainMenu implements Screen {
     this.root = el('div', 'menu-screen', 'main-menu');
     const box = el('div', 'menu-box');
 
-    const title = el('div', 'menu-title', 'game-title');
-    title.textContent = 'Heroes Clone';
+    const title = el('img', 'menu-title', 'game-title');
+    title.src = `${import.meta.env.BASE_URL}openheroes-logo.jpg`;
+    title.alt = 'Open Heroes';
     box.appendChild(title);
 
     const buttons = el('div', 'menu-buttons menu-buttons-column');

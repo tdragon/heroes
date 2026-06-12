@@ -5,6 +5,7 @@ import { applyCombatAction, type GameCombatAction } from './combat/resolve';
 import type { CombatEvent } from './combat/state';
 import {
   applyLevelUpChoice,
+  dismissHeroCommand,
   equipArtifactCommand,
   moveArmyStack,
   transferArtifactCommand,
@@ -72,6 +73,7 @@ export type Command =
   | { type: 'unequipArtifact'; player: PlayerId; hero: HeroId; artifact: string }
   | { type: 'transferArtifact'; player: PlayerId; from: HeroId; to: HeroId; artifact: string }
   | { type: 'buySpellbook'; player: PlayerId; hero: HeroId; town: TownId }
+  | { type: 'dismissHero'; player: PlayerId; hero: HeroId }
   | {
       type: 'castAdventureSpell';
       player: PlayerId;
@@ -123,6 +125,7 @@ export type GameEvent =
     }
   | { type: 'heroDefeated'; hero: HeroId; player: PlayerId }
   | { type: 'heroFled'; hero: HeroId; player: PlayerId }
+  | { type: 'heroDismissed'; hero: HeroId; player: PlayerId }
   | { type: 'necromancyRaised'; hero: HeroId; count: number }
   | { type: 'artifactsSeized'; hero: HeroId; artifacts: string[] }
   | { type: 'spellsLearned'; hero: HeroId; spells: string[] }
@@ -247,9 +250,16 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
       resolveChoice(next, command, data, events);
       break;
     case 'combatAction':
-      applyCombatAction(next, command.player, command.action, data, events, (s, hero, obj, evts) => {
-        applyObjectReward(s, hero, obj, data, evts);
-      });
+      applyCombatAction(
+        next,
+        command.player,
+        command.action,
+        data,
+        events,
+        (s, hero, obj, evts) => {
+          applyObjectReward(s, hero, obj, data, evts);
+        },
+      );
       break;
     case 'build':
       buildStructure(next, command, data, events);
@@ -289,6 +299,9 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
       break;
     case 'castAdventureSpell':
       castAdventureSpell(next, command, data, events);
+      break;
+    case 'dismissHero':
+      dismissHeroCommand(next, command, events);
       break;
   }
   evaluateVictory(next, data, events);

@@ -1,10 +1,10 @@
 import { RESOURCE_IDS, type Building, type ResourceId } from '../data/schema';
 import type { ArmyDest, ArmyLocation } from '../core/commands';
-import { getPlayer, type ArmySlots, type Town, type TownId } from '../core/state';
+import { getPlayer, type ArmySlots, type Hero, type Town, type TownId } from '../core/state';
 import { SPELLBOOK_COST } from '../core/magic';
-import { townBuildingCatalog, HERO_HIRE_COST } from '../core/town';
+import { townBuildingCatalog, HERO_HIRE_COST, SKELETON_CREATURE } from '../core/town';
 import { button, el, type UiContext } from './components';
-import { buildAvailability, costText, maxTrades, tradeModel } from './helpers';
+import { buildAvailability, costText, maxTrades, stackUpgradeOffer, tradeModel } from './helpers';
 import { openRecruitDialog } from './recruitDialog';
 
 type ArmyRow = 'garrison' | 'visiting';
@@ -47,16 +47,16 @@ export class TownScreen {
       return;
     }
     this.panel.replaceChildren();
-    this.panel.append(
+    const sections = [
       this.header(town),
       this.buildingGrid(town),
       this.recruitSection(town),
       this.armySection(town),
-      this.guildSection(town),
-      this.tavernSection(town),
-      this.marketSection(town),
-      this.status,
-    );
+    ];
+    const transformer = this.transformerSection(town);
+    if (transformer) sections.push(transformer);
+    sections.push(this.guildSection(town), this.tavernSection(town), this.marketSection(town));
+    this.panel.append(...sections, this.status);
   }
 
   private run(commandError: string | null): void {
@@ -160,12 +160,94 @@ export class TownScreen {
     const section = el('div', 'panel-section');
     section.appendChild(this.sectionTitle('Garrison and visiting hero'));
     section.appendChild(this.armyRow(town.garrison, 'garrison', 'Garrison'));
+    this.appendUpgradeButtons(section, town, town.garrison, 'garrison');
     const visiting =
       town.visitingHero === null ? null : this.ctx.getState().heroes[town.visitingHero];
     if (visiting?.owner === this.ctx.playerId) {
       section.appendChild(this.armyRow(visiting.army, 'visiting', visiting.name));
+      this.appendUpgradeButtons(section, town, visiting.army, 'visiting');
     }
     return section;
+  }
+
+  // an "Upgrade" button per stack whose upgraded dwelling is built here
+  // (spec §5.2: upgrade already-recruited creatures for the cost difference)
+  private appendUpgradeButtons(
+    section: HTMLElement,
+    town: Town,
+    slots: ArmySlots,
+    row: ArmyRow,
+  ): void {
+    const dest: ArmyDest = row === 'garrison' ? 'garrison' : 'visitingHero';
+    const list = el('div', 'upgrade-list');
+    slots.forEach((stack, i) => {
+      if (!stack) return;
+      const offer = stackUpgradeOffer(town, stack, this.ctx.data);
+      if (!offer) return;
+      const baseName = this.ctx.data.creatures[stack.creature]?.name ?? stack.creature;
+      list.appendChild(
+        button(
+          `Upgrade ${String(stack.count)} ${baseName} → ${offer.to.name} (${costText(offer.cost)})`,
+          `upgrade-${row}-${String(i)}`,
+          () => {
+            this.run(
+              this.ctx.run({
+                type: 'upgradeStack',
+                player: this.ctx.playerId,
+                town: this.townId,
+                dest,
+                slot: i,
+              }),
+            );
+            this.update();
+          },
+        ),
+      );
+    });
+    if (list.childElementCount > 0) section.appendChild(list);
+  }
+
+  // Necropolis Skeleton Transformer (spec §5.3): convert a visiting hero's
+  // stack into the same number of skeletons
+  private transformerSection(town: Town): HTMLElement | null {
+    if (!town.buildings.includes('skeleton_transformer')) return null;
+    const section = el('div', 'panel-section');
+    section.appendChild(this.sectionTitle('Skeleton Transformer'));
+    const list = el('div', 'transformer-list', 'transformer-list');
+    const visiting = this.ownVisitingHero(town);
+    if (!visiting) {
+      list.textContent = 'A visiting hero is required.';
+    } else {
+      visiting.army.forEach((stack, i) => {
+        if (!stack || stack.creature === SKELETON_CREATURE) return;
+        const name = this.ctx.data.creatures[stack.creature]?.name ?? stack.creature;
+        list.appendChild(
+          button(
+            `Transform ${String(stack.count)} ${name} → Skeletons`,
+            `transform-${String(i)}`,
+            () => {
+              this.run(
+                this.ctx.run({
+                  type: 'transformToSkeletons',
+                  player: this.ctx.playerId,
+                  town: this.townId,
+                  slot: i,
+                }),
+              );
+              this.update();
+            },
+          ),
+        );
+      });
+      if (list.childElementCount === 0) list.textContent = 'No stacks to transform.';
+    }
+    section.appendChild(list);
+    return section;
+  }
+
+  private ownVisitingHero(town: Town): Hero | null {
+    const hero = town.visitingHero === null ? null : this.ctx.getState().heroes[town.visitingHero];
+    return hero?.owner === this.ctx.playerId ? hero : null;
   }
 
   private armyRow(slots: ArmySlots, row: ArmyRow, label: string): HTMLElement {

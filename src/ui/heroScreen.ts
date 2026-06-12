@@ -17,6 +17,8 @@ export class HeroScreen {
   private readonly panel: HTMLElement;
   private readonly status: HTMLElement;
   private selected: SlotPick | null = null;
+  // confirm gate: the first Dismiss click arms the button, the second fires
+  private confirmingDismiss: HeroId | null = null;
 
   constructor(
     private readonly ctx: UiContext,
@@ -69,8 +71,30 @@ export class HeroScreen {
       this.skillsBlock(hero),
       this.armyBlock(hero),
       this.artifactBlock(hero, exchange),
+      this.dismissBlock(hero),
     );
     return column;
+  }
+
+  // dismiss the hero (spec §10.4): like fleeing a battle, the template
+  // returns to the tavern pool for rehire; the army and artifacts are lost
+  private dismissBlock(hero: Hero): HTMLElement {
+    const block = el('div', 'panel-section');
+    const arming = this.confirmingDismiss === hero.id;
+    const label = arming ? 'Confirm dismiss — army and artifacts are lost' : 'Dismiss hero';
+    block.appendChild(
+      button(label, `dismiss-hero-${hero.id}`, () => {
+        if (this.confirmingDismiss !== hero.id) {
+          this.confirmingDismiss = hero.id;
+          this.update();
+          return;
+        }
+        this.confirmingDismiss = null;
+        this.run(this.ctx.run({ type: 'dismissHero', player: this.ctx.playerId, hero: hero.id }));
+        this.update();
+      }),
+    );
+    return block;
   }
 
   private statsBlock(hero: Hero): HTMLElement {

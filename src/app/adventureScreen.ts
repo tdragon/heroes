@@ -1,12 +1,11 @@
 import type { GameData } from '../data';
 import type { Pos } from '../maps/schema';
-import { chooseAICommand } from '../core/ai/adventureAI';
 import { CommandRejectedError, dispatch, type Command, type GameEvent } from '../core/commands';
 import { CombatRuleError } from '../core/combat/state';
 import { visibleTiles } from '../core/fog';
 import { maxMovementPoints } from '../core/hero';
 import { buildMoveContext, findPath, stepCost } from '../core/movement';
-import type { GameState, Hero, Player, PlayerId } from '../core/state';
+import type { GameState, Hero, MapObjectState, Player, PlayerId } from '../core/state';
 import { centerCameraOn, panCamera, tileAtScreen, TILE_PX, type Camera } from '../render/camera';
 import {
   AdventureRenderer,
@@ -17,23 +16,16 @@ import {
 import { TokenPainter } from '../render/painter';
 import { splitPathByDays, type PathStepPreview } from '../render/pathPreview';
 import { CombatScreen } from '../ui/combatScreen';
-import { button, el, type UiContext } from '../ui/components';
+import { el, openCountDialog, type UiContext } from '../ui/components';
 import { DialogQueue } from '../ui/dialogs';
+import { costText, recruitMax, scaledCost } from '../ui/helpers';
 import { HeroScreen } from '../ui/heroScreen';
 import { Hud, InfoPopup, MINIMAP_PX } from '../ui/hud';
+import { adventureSpellbookEntries, SpellbookOverlay, type SpellbookEntry } from '../ui/spellbook';
+import { SystemPanel } from '../ui/systemPanel';
 import { TownScreen } from '../ui/townScreen';
-import {
-  autosave,
-  buildExportFile,
-  describeSlot,
-  importSave,
-  listAutosaves,
-  listSlots,
-  loadAutosave,
-  loadFromSlot,
-  saveToSlot,
-  type SaveStorage,
-} from './saveload';
+import { AiDriver } from './aiDriver';
+import { autosave, type SaveStorage } from './saveload';
 import { adventureShortcut, isTypingTarget, type AdventureShortcutAction } from './shortcuts';
 import type { Screen } from './screens';
 
@@ -49,10 +41,6 @@ export const CANVAS_H = 760;
 const EDGE_SCROLL_MARGIN = 16;
 const EDGE_SCROLL_SPEED = 10;
 const KEY_SCROLL_STEP = TILE_PX;
-const AI_COMMAND_LIMIT = 2000;
-// off-screen AI-vs-AI battles are force-resolved past this many rounds so a
-// stalemate cannot eat the whole AI command budget
-const AI_COMBAT_ROUND_CAP = 200;
 
 interface PendingPath {
   dest: Pos;
@@ -79,7 +67,7 @@ export class AdventureScreen implements Screen {
   private mousePos: [number, number] | null = null;
   private dragFrom: [number, number] | null = null;
   private running = false;
-  private aiTurnRunning = false;
+  private readonly aiDriver: AiDriver;
   // aborting detaches every canvas/window listener bound in bindInput()
   private readonly inputAborter = new AbortController();
   // hotseat: the human player whose perspective is rendered; a "pass device"
@@ -87,7 +75,12 @@ export class AdventureScreen implements Screen {
   private viewPlayerId: string;
   private readonly passOverlay: HTMLElement;
   private readonly gameOverOverlay: HTMLElement;
-  private systemPanel: HTMLElement | null = null;
+  private systemPanel: SystemPanel | null = null;
+  // adventure spellbook (Town Portal / Dimension Door, spec §10.2)
+  private advSpellbook: SpellbookOverlay | null = null;
+  private townPortalPick: HTMLElement | null = null;
+  // when set, the next canvas click casts this spell at the clicked tile
+  private tileTargetSpell: string | null = null;
 
   constructor(
     private readonly data: GameData,
@@ -145,6 +138,9 @@ export class AdventureScreen implements Screen {
       onOpenHeroScreen: () => {
         if (this.selectedHero !== null) this.openHeroScreen(this.selectedHero, null);
       },
+      onOpenSpellbook: () => {
+        this.openAdventureSpellbook();
+      },
       onMinimapClick: (px, py) => {
         this.jumpToMinimap(px, py);
       },
@@ -187,11 +183,23 @@ export class AdventureScreen implements Screen {
 
     this.bindInput();
 
+    this.aiDriver = new AiDriver(
+      {
+        getState: () => this.state,
+        runCommand: (command) => this.runCommand(command),
+        humanInCombat: () => this.humanInCombat(),
+        setStatus: (text) => {
+          this.hud.setStatus(text);
+        },
+      },
+      this.data,
+    );
+
     // a loaded save can be mid-combat or mid-AI-turn: bring the combat panel
     // and the AI turn driver up immediately or the session is unplayable
     this.syncCombatPanel();
     this.combatPanel?.ensureAiActs();
-    this.maybeResumeAiTurns();
+    this.aiDriver.maybeResumeAiTurns();
     this.checkPassDevice();
   }
 
@@ -311,12 +319,13 @@ export class AdventureScreen implements Screen {
           break;
       }
     }
+    this.maybeOfferDwellingRecruit(events);
     this.syncCombatPanel();
     if (this.combatPanel) {
       this.combatPanel.consume(events);
       this.combatPanel.ensureAiActs();
     }
-    this.maybeResumeAiTurns();
+    this.aiDriver.maybeResumeAiTurns();
     this.checkPassDevice();
   }
 
@@ -353,6 +362,9 @@ export class AdventureScreen implements Screen {
     this.selectedHero = null;
     this.pendingPath = null;
     this.closePanel();
+    this.closeAdventureSpellbook();
+    this.closeTownPortalPick();
+    this.cancelTileTargeting();
     const firstHero = this.viewPlayer().heroes[0];
     if (firstHero !== undefined) this.selectHero(firstHero, true);
     this.syncCombatPanel();
@@ -418,109 +430,7 @@ export class AdventureScreen implements Screen {
     if (!combat) return false;
     const attacker = combat.combat.attackerHero.player;
     const defender = combat.combat.defenderHero.player;
-    return this.state.players.some(
-      (p) => p.isHuman && (p.id === attacker || p.id === defender),
-    );
-  }
-
-  // --- AI turns ---
-
-  // run AI players until it is a human's turn again, the game ends, or a
-  // battle / pending choice needs the human's attention; also resolves
-  // choices owned by AI players that arise off-turn (e.g. an AI defender's
-  // level-up after surviving the human's attack)
-  private maybeResumeAiTurns(): void {
-    if (this.aiTurnRunning) return;
-    this.aiTurnRunning = true;
-    try {
-      // per-AI-turn command budget plus an absolute stop; both recovery paths
-      // (rejected command, exhausted budget) force endTurn for the stuck AI
-      // instead of freezing the game on "Enemy turn"
-      let total = 0;
-      let turnCommands = 0;
-      let turnOf = this.state.currentPlayer;
-      while (total++ < AI_COMMAND_LIMIT * 4 && this.state.status === 'running') {
-        if (this.state.currentPlayer !== turnOf) {
-          turnOf = this.state.currentPlayer;
-          turnCommands = 0;
-        }
-        if (this.state.combat !== null && this.humanInCombat()) break;
-        if (this.state.combat !== null && this.state.combat.combat.round > AI_COMBAT_ROUND_CAP) {
-          // stalemated off-screen battle: the attacker withdraws (flee), so
-          // the round cap acts as an auto-resolve rule
-          console.warn(
-            `off-screen combat exceeded ${String(AI_COMBAT_ROUND_CAP)} rounds — attacker flees`,
-          );
-          if (!this.fleeAiAttacker()) break;
-          continue;
-        }
-        const aiChoice = this.state.pendingChoices.find(
-          (c) => this.state.players.find((p) => p.id === c.player)?.isHuman === false,
-        );
-        if (aiChoice) {
-          const resolve: Command = {
-            type: 'resolveChoice',
-            player: aiChoice.player,
-            choiceId: aiChoice.id,
-            option: 0,
-          };
-          if (!this.runCommand(resolve)) break;
-          continue;
-        }
-        if (this.state.pendingChoices.length > 0) break;
-        const player = this.state.players.find((p) => p.id === this.state.currentPlayer);
-        if (!player || player.isHuman || player.defeated) break;
-        this.hud.setStatus(`Enemy turn — ${player.id}…`);
-        const exhausted = turnCommands++ >= AI_COMMAND_LIMIT;
-        if (exhausted || !this.runCommand(chooseAICommand(this.state, this.data))) {
-          console.warn(
-            exhausted
-              ? `AI command limit exhausted for ${player.id} — forcing endTurn`
-              : `AI command rejected for ${player.id} — forcing endTurn`,
-          );
-          // a stuck battle is abandoned first (the turn cannot end mid-combat)
-          if (this.state.combat !== null) {
-            if (!this.fleeAiAttacker()) break;
-            continue;
-          }
-          if (!this.forceEndAiTurn()) break;
-        }
-      }
-    } finally {
-      this.aiTurnRunning = false;
-    }
-  }
-
-  // dispatch rejects endTurn while pending choices exist, so the forced
-  // endTurn recovery must clear AI-owned choices first (option 0); a
-  // human-owned choice is a clean stop — the dialog queue will surface it
-  private forceEndAiTurn(): boolean {
-    while (this.state.status === 'running') {
-      const choice = this.state.pendingChoices[0];
-      if (!choice) break;
-      if (this.state.players.find((p) => p.id === choice.player)?.isHuman !== false) return false;
-      const resolve: Command = {
-        type: 'resolveChoice',
-        player: choice.player,
-        choiceId: choice.id,
-        option: 0,
-      };
-      if (!this.runCommand(resolve)) return false;
-      // resolving a choice can start a battle (e.g. guardAttack "fight"):
-      // hand control back to the main loop, which drives/aborts combats
-      if (this.state.combat !== null) return true;
-    }
-    if (this.state.status !== 'running') return true;
-    return this.runCommand({ type: 'endTurn', player: this.state.currentPlayer });
-  }
-
-  // withdraw the attacker from an off-screen AI battle (recovery/auto-resolve)
-  private fleeAiAttacker(): boolean {
-    const combat = this.state.combat;
-    if (!combat) return false;
-    const owner = combat.combat.attackerHero.player;
-    const actor = this.state.players.find((p) => p.id === owner)?.id ?? this.state.currentPlayer;
-    return this.runCommand({ type: 'combatAction', player: actor, action: { type: 'flee' } });
+    return this.state.players.some((p) => p.isHuman && (p.id === attacker || p.id === defender));
   }
 
   private combatResultText(
@@ -568,125 +478,176 @@ export class AdventureScreen implements Screen {
   // --- system panel (save / load / export / import / quit) ---
 
   private closeSystemPanel(): void {
-    this.systemPanel?.remove();
+    this.systemPanel?.root.remove();
     this.systemPanel = null;
   }
 
   private openSystemPanel(): void {
     this.closeSystemPanel();
-    const overlay = el('div', 'panel-overlay', 'system-panel');
-    const panel = el('div', 'panel system-panel-box');
-
-    const header = el('div', 'panel-header');
-    const title = el('div', 'panel-title');
-    title.textContent = 'System';
-    const close = button('Close', 'system-close', () => {
-      this.closeSystemPanel();
+    this.systemPanel = new SystemPanel({
+      storage: this.shell.storage,
+      getState: () => this.state,
+      onLoad: this.shell.onLoad,
+      onExit: this.shell.onExit,
+      onClose: () => {
+        this.closeSystemPanel();
+      },
     });
-    header.append(title, close);
-    panel.appendChild(header);
-
-    const status = el('div', 'panel-status', 'system-status');
-
-    const slots = el('div', 'panel-section');
-    const renderSlots = (): void => {
-      slots.replaceChildren();
-      const sectionTitle = el('div', 'section-title');
-      sectionTitle.textContent = 'Save Slots';
-      slots.appendChild(sectionTitle);
-      listSlots(this.shell.storage).forEach((meta, i) => {
-        const slot = i + 1;
-        const row = el('div', 'slot-row');
-        const label = el('span', 'slot-label', `slot-info-${String(slot)}`);
-        label.textContent = `Slot ${String(slot)}: ${describeSlot(meta)}`;
-        const save = button('Save', `save-slot-${String(slot)}`, () => {
-          try {
-            saveToSlot(this.shell.storage, slot, this.state);
-            status.textContent = `Saved to slot ${String(slot)}`;
-          } catch {
-            status.textContent = `Could not save to slot ${String(slot)} (storage full?)`;
-          }
-          renderSlots();
-        });
-        const load = button('Load', `load-slot-${String(slot)}`, () => {
-          this.tryLoad(status, () => loadFromSlot(this.shell.storage, slot));
-        });
-        load.disabled = meta === null;
-        row.append(label, save, load);
-        slots.appendChild(row);
-      });
-      for (const { slot, meta } of listAutosaves(this.shell.storage)) {
-        const row = el('div', 'slot-row');
-        const label = el('span', 'slot-label');
-        label.textContent = `Autosave: ${describeSlot(meta)}`;
-        const load = button('Load', `load-autosave-${String(slot)}`, () => {
-          this.tryLoad(status, () => loadAutosave(this.shell.storage, slot));
-        });
-        row.append(label, load);
-        slots.appendChild(row);
-      }
-    };
-    renderSlots();
-    panel.appendChild(slots);
-
-    const fileSection = el('div', 'panel-section');
-    const fileTitle = el('div', 'section-title');
-    fileTitle.textContent = 'Export / Import';
-    const fileRow = el('div', 'slot-row');
-    const exportButton = button('Export Save', 'export-save', () => {
-      const file = buildExportFile(this.state);
-      const url = URL.createObjectURL(new Blob([file.json], { type: 'application/json' }));
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = file.filename;
-      anchor.click();
-      URL.revokeObjectURL(url);
-    });
-    const importInput = el('input', 'import-input', 'import-save-input');
-    importInput.type = 'file';
-    importInput.accept = 'application/json';
-    importInput.addEventListener('change', () => {
-      const file = importInput.files?.[0];
-      if (!file) return;
-      file.text().then(
-        (text) => {
-          this.tryLoad(status, () => importSave(text));
-        },
-        () => {
-          status.textContent = 'Could not read the selected file';
-        },
-      );
-    });
-    fileRow.append(exportButton, importInput);
-    fileSection.append(fileTitle, fileRow);
-    panel.appendChild(fileSection);
-
-    const quitRow = el('div', 'panel-section');
-    quitRow.appendChild(
-      button('Quit to Menu', 'quit-to-menu', () => {
-        this.shell.onExit();
-      }),
-    );
-    panel.appendChild(quitRow);
-
-    panel.appendChild(status);
-    overlay.appendChild(panel);
-    this.systemPanel = overlay;
-    this.root.appendChild(overlay);
-  }
-
-  private tryLoad(status: HTMLElement, load: () => GameState): void {
-    try {
-      this.shell.onLoad(load());
-    } catch (err) {
-      status.textContent = err instanceof Error ? err.message : String(err);
-    }
+    this.root.appendChild(this.systemPanel.root);
   }
 
   private endTurn(): void {
     this.pendingPath = null;
     // AI turns run from handleEvents (maybeResumeAiTurns) once the turn passes
     this.runCommand({ type: 'endTurn', player: this.state.currentPlayer });
+  }
+
+  // --- adventure spellbook (Town Portal / Dimension Door, spec §10.2) ---
+
+  private closeAdventureSpellbook(): void {
+    this.advSpellbook?.root.remove();
+    this.advSpellbook = null;
+  }
+
+  private closeTownPortalPick(): void {
+    this.townPortalPick?.remove();
+    this.townPortalPick = null;
+  }
+
+  private cancelTileTargeting(): void {
+    if (this.tileTargetSpell === null) return;
+    this.tileTargetSpell = null;
+    this.hud.setStatus('');
+    this.markDirty();
+  }
+
+  private openAdventureSpellbook(): void {
+    const hero = this.selectedHero !== null ? this.state.heroes[this.selectedHero] : null;
+    if (hero?.owner !== this.viewPlayer().id) {
+      this.hud.setStatus('Select a hero to open the spellbook');
+      return;
+    }
+    if (!hero.hasSpellbook) {
+      this.hud.setStatus(`${hero.name} has no spellbook`);
+      return;
+    }
+    this.closeAdventureSpellbook();
+    this.cancelTileTargeting();
+    this.advSpellbook = new SpellbookOverlay(
+      adventureSpellbookEntries(this.state, hero, this.data),
+      (entry) => {
+        this.closeAdventureSpellbook();
+        this.pickAdventureSpell(hero.id, entry);
+      },
+      () => {
+        this.closeAdventureSpellbook();
+      },
+    );
+    this.root.appendChild(this.advSpellbook.root);
+  }
+
+  private pickAdventureSpell(heroId: string, entry: SpellbookEntry): void {
+    const hero = this.state.heroes[heroId];
+    if (!hero) return;
+    if (entry.spell.id === 'dimension_door') {
+      this.tileTargetSpell = entry.spell.id;
+      this.hud.setStatus(`Click a target tile for ${entry.spell.name} (Esc cancels)`);
+      return;
+    }
+    if (entry.spell.id === 'town_portal' && entry.tier >= 2) {
+      // advanced+ earth magic: the destination town is the caster's choice
+      this.openTownPortalPick(hero);
+      return;
+    }
+    // basic town portal teleports to the nearest own town automatically
+    this.runCommand({
+      type: 'castAdventureSpell',
+      player: hero.owner,
+      hero: hero.id,
+      spell: entry.spell.id,
+    });
+  }
+
+  private openTownPortalPick(hero: Hero): void {
+    this.closeTownPortalPick();
+    const overlay = el('div', 'modal-overlay', 'town-portal-pick');
+    const box = el('div', 'modal-box');
+    const title = el('div', 'modal-message', 'town-portal-title');
+    title.textContent = 'Town Portal: choose the destination town';
+    box.appendChild(title);
+    for (const townId of this.viewPlayer().towns) {
+      const town = this.state.towns[townId];
+      if (!town) continue;
+      const occupied = town.visitingHero !== null && town.visitingHero !== hero.id;
+      const pick = el('button', 'modal-button', `tp-town-${town.id}`);
+      pick.textContent = occupied ? `${town.name} (occupied)` : town.name;
+      pick.disabled = occupied;
+      pick.addEventListener('click', () => {
+        this.closeTownPortalPick();
+        this.runCommand({
+          type: 'castAdventureSpell',
+          player: hero.owner,
+          hero: hero.id,
+          spell: 'town_portal',
+          town: town.id,
+        });
+      });
+      box.appendChild(pick);
+    }
+    const cancel = el('button', 'modal-button', 'tp-cancel');
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', () => {
+      this.closeTownPortalPick();
+    });
+    box.appendChild(cancel);
+    overlay.appendChild(box);
+    overlay.style.display = 'flex';
+    this.root.appendChild(overlay);
+    this.townPortalPick = overlay;
+  }
+
+  // --- external dwelling recruiting (spec §8.3) ---
+
+  // flagging or revisiting an own external dwelling offers recruitment
+  private maybeOfferDwellingRecruit(events: GameEvent[]): void {
+    if (this.state.combat !== null) return;
+    for (const event of events) {
+      if (event.type !== 'objectFlagged' && event.type !== 'objectVisited') continue;
+      const obj = this.state.map.objects.find((o) => o.id === event.object);
+      if (!obj || obj.removed || obj.type !== 'dwelling' || obj.creature === undefined) continue;
+      if (obj.owner !== this.viewPlayer().id || (obj.count ?? 0) < 1) continue;
+      const hero = this.heroAt(obj.at);
+      if (!hero) continue;
+      this.openDwellingRecruit(obj, hero);
+      return;
+    }
+  }
+
+  private openDwellingRecruit(obj: MapObjectState, hero: Hero): void {
+    const creature = obj.creature === undefined ? undefined : this.data.creatures[obj.creature];
+    if (!creature) return;
+    const available = obj.count ?? 0;
+    const max = recruitMax(available, creature.cost, this.viewPlayer().resources);
+    if (max < 1) {
+      this.hud.setStatus(`Cannot afford any ${creature.name}`);
+      return;
+    }
+    openCountDialog(this.root, {
+      title: `Recruit ${creature.name} (${String(available)} available)`,
+      min: 1,
+      max,
+      initial: max,
+      describe: (count) => `Cost: ${costText(scaledCost(creature.cost, count))}`,
+      onConfirm: (count) => {
+        this.runCommand({
+          type: 'recruitDwelling',
+          player: hero.owner,
+          object: obj.id,
+          hero: hero.id,
+          count,
+        });
+      },
+    });
   }
 
   // --- selection and movement ---
@@ -732,6 +693,23 @@ export class AdventureScreen implements Screen {
   }
 
   private handleTileClick(tile: Pos): void {
+    if (this.tileTargetSpell !== null) {
+      const spell = this.tileTargetSpell;
+      const hero = this.selectedHero !== null ? this.state.heroes[this.selectedHero] : null;
+      this.tileTargetSpell = null;
+      this.hud.setStatus('');
+      if (hero?.owner === this.viewPlayer().id) {
+        this.runCommand({
+          type: 'castAdventureSpell',
+          player: hero.owner,
+          hero: hero.id,
+          spell,
+          dest: [...tile],
+        });
+      }
+      this.markDirty();
+      return;
+    }
     const ownHero = this.heroAt(tile);
     if (ownHero) {
       const selected = this.selectedHero !== null ? this.state.heroes[this.selectedHero] : null;
@@ -947,6 +925,18 @@ export class AdventureScreen implements Screen {
       (e) => {
         if (!this.running || isTypingTarget(e.target)) return;
         if (e.key === 'Escape' && this.dialogs.root.style.display === 'none') {
+          if (this.advSpellbook) {
+            this.closeAdventureSpellbook();
+            return;
+          }
+          if (this.townPortalPick) {
+            this.closeTownPortalPick();
+            return;
+          }
+          if (this.tileTargetSpell !== null) {
+            this.cancelTileTargeting();
+            return;
+          }
           if (this.systemPanel) {
             this.closeSystemPanel();
             return;
@@ -972,6 +962,9 @@ export class AdventureScreen implements Screen {
       this.activePanel !== null ||
       this.systemPanel !== null ||
       this.combatPanel !== null ||
+      this.advSpellbook !== null ||
+      this.townPortalPick !== null ||
+      this.tileTargetSpell !== null ||
       this.dialogs.root.style.display !== 'none' ||
       this.passOverlay.style.display !== 'none' ||
       this.gameOverOverlay.style.display !== 'none'

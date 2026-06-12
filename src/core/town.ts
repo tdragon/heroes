@@ -7,6 +7,7 @@ import type { Building, Cost, FactionId, ResourceId } from '../data/schema';
 import { RESOURCE_IDS } from '../data/schema';
 import { CommandRejectedError, type Command, type GameEvent } from './commands';
 import { revealFor, sightRadius } from './fog';
+import { requireOwnHero } from './hero';
 import { learnGuildSpells } from './magic';
 import { MAX_HEROES } from './objects';
 import { rollRange } from './rng';
@@ -402,13 +403,7 @@ export function recruitFromDwelling(
   data: GameData,
   events: GameEvent[],
 ): void {
-  const hero = state.heroes[command.hero];
-  if (!hero) {
-    throw new CommandRejectedError(`unknown hero: ${command.hero}`);
-  }
-  if (hero.owner !== command.player) {
-    throw new CommandRejectedError(`hero ${hero.id} belongs to ${hero.owner}`);
-  }
+  const hero = requireOwnHero(state, command.hero, command.player);
   const obj = state.map.objects.find((o) => o.id === command.object);
   if (!obj || obj.removed || obj.type !== 'dwelling') {
     throw new CommandRejectedError(`${command.object} is not a dwelling`);

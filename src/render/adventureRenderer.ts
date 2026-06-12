@@ -29,8 +29,28 @@ interface DrawableObject {
   creature?: string;
 }
 
+// object token palette
+const MINE_COLOR = '#744210';
+const TREASURE_COLOR = '#975a16';
+const ARTIFACT_COLOR = '#6b46c1';
+const DWELLING_COLOR = '#2c5282';
+const DEFAULT_OBJECT_COLOR = '#4a5568';
+
+// char -> terrain index, built once per GameData and shared between the main
+// renderer and the per-frame minimap
+const terrainIndexCache = new WeakMap<GameData, Map<string, Terrain>>();
+
+function terrainIndexFor(data: GameData): Map<string, Terrain> {
+  let index = terrainIndexCache.get(data);
+  if (!index) {
+    index = new Map(Object.values(data.terrains).map((t) => [t.char, t]));
+    terrainIndexCache.set(data, index);
+  }
+  return index;
+}
+
 export class AdventureRenderer {
-  private readonly terrainByChar = new Map<string, Terrain>();
+  private readonly terrainByChar: Map<string, Terrain>;
   private readonly roadByChar = new Map<string, Road>();
 
   constructor(
@@ -38,7 +58,7 @@ export class AdventureRenderer {
     private readonly painter: Painter,
     private readonly data: GameData,
   ) {
-    for (const t of Object.values(data.terrains)) this.terrainByChar.set(t.char, t);
+    this.terrainByChar = terrainIndexFor(data);
     for (const r of Object.values(data.roads)) this.roadByChar.set(r.char, r);
   }
 
@@ -143,16 +163,16 @@ export class AdventureRenderer {
   private objectColor(type: string): string {
     switch (type) {
       case 'mine':
-        return '#744210';
+        return MINE_COLOR;
       case 'resource':
       case 'treasure_chest':
-        return '#975a16';
+        return TREASURE_COLOR;
       case 'artifact':
-        return '#6b46c1';
+        return ARTIFACT_COLOR;
       case 'dwelling':
-        return '#2c5282';
+        return DWELLING_COLOR;
       default:
-        return '#4a5568';
+        return DEFAULT_OBJECT_COLOR;
     }
   }
 
@@ -231,7 +251,7 @@ export function renderMinimap(
 ): void {
   const mapTiles = view.state.map.size;
   const scale = sizePx / mapTiles;
-  const terrainByChar = new Map(Object.values(data.terrains).map((t) => [t.char, t]));
+  const terrainByChar = terrainIndexFor(data);
 
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, sizePx, sizePx);

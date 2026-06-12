@@ -23,13 +23,7 @@ import {
 } from './hero';
 import { newGame, townIdAt } from './setup';
 import { sightRadius } from './fog';
-import {
-  manaRegenPerDay,
-  maxMana,
-  type ArmySlots,
-  type GameState,
-  type Hero,
-} from './state';
+import { manaRegenPerDay, maxMana, type ArmySlots, type GameState, type Hero } from './state';
 
 const data = loadGameData();
 const tinyMap = compileMap(tinyMapSource, data);
@@ -210,9 +204,15 @@ describe('giveExperience', () => {
 
   it('rejects negative and fractional xp and unknown heroes', () => {
     const state = makeGame();
-    expect(() => { giveExperience(state, 'edric', -1, data, []); }).toThrow('invalid xp amount');
-    expect(() => { giveExperience(state, 'edric', 1.5, data, []); }).toThrow('invalid xp amount');
-    expect(() => { giveExperience(state, 'nobody', 100, data, []); }).toThrow('unknown hero');
+    expect(() => {
+      giveExperience(state, 'edric', -1, data, []);
+    }).toThrow('invalid xp amount');
+    expect(() => {
+      giveExperience(state, 'edric', 1.5, data, []);
+    }).toThrow('invalid xp amount');
+    expect(() => {
+      giveExperience(state, 'nobody', 100, data, []);
+    }).toThrow('unknown hero');
   });
 });
 
@@ -270,13 +270,20 @@ describe('level-up choice resolution', () => {
       kind: 'levelUp',
       options: ['offense:basic'],
     };
-    expect(() => { applyLevelUpChoice(state, { ...base, hero: 'nobody' }, 0, data); }).toThrow(
-      'no valid hero',
-    );
-    expect(() =>
-      { applyLevelUpChoice(state, { ...base, hero: 'edric', options: ['offense:legendary'] }, 0, data); },
-    ).toThrow('malformed skill option');
-    expect(() => { applyLevelUpChoice(state, { ...base, hero: 'edric' }, 5, data); }).toThrow('out of range');
+    expect(() => {
+      applyLevelUpChoice(state, { ...base, hero: 'nobody' }, 0, data);
+    }).toThrow('no valid hero');
+    expect(() => {
+      applyLevelUpChoice(
+        state,
+        { ...base, hero: 'edric', options: ['offense:legendary'] },
+        0,
+        data,
+      );
+    }).toThrow('malformed skill option');
+    expect(() => {
+      applyLevelUpChoice(state, { ...base, hero: 'edric' }, 5, data);
+    }).toThrow('out of range');
   });
 });
 
@@ -290,7 +297,10 @@ describe('army transfers', () => {
   }
 
   it('merges stacks of the same creature conserving the total', () => {
-    const a = army([['pikeman', 10], ['pikeman', 5]]);
+    const a = army([
+      ['pikeman', 10],
+      ['pikeman', 5],
+    ]);
     transferStack(a, 1, a, 0);
     expect(a.slots[0]).toEqual({ creature: 'pikeman', count: 15 });
     expect(a.slots[1]).toBeNull();
@@ -306,19 +316,30 @@ describe('army transfers', () => {
   });
 
   it('swaps stacks of different creatures on a full move', () => {
-    const a = army([['pikeman', 10], ['archer', 4]]);
+    const a = army([
+      ['pikeman', 10],
+      ['archer', 4],
+    ]);
     transferStack(a, 0, a, 1);
     expect(a.slots[0]).toEqual({ creature: 'archer', count: 4 });
     expect(a.slots[1]).toEqual({ creature: 'pikeman', count: 10 });
   });
 
   it('rejects splitting onto a different creature stack', () => {
-    const a = army([['pikeman', 10], ['archer', 4]]);
-    expect(() => { transferStack(a, 0, a, 1, 3); }).toThrow('different creature');
+    const a = army([
+      ['pikeman', 10],
+      ['archer', 4],
+    ]);
+    expect(() => {
+      transferStack(a, 0, a, 1, 3);
+    }).toThrow('different creature');
   });
 
   it('moves and merges between two armies', () => {
-    const hero = army([['pikeman', 10], ['archer', 4]]);
+    const hero = army([
+      ['pikeman', 10],
+      ['archer', 4],
+    ]);
     const garrison = army([['pikeman', 2]], false);
     transferStack(hero, 0, garrison, 0, 10);
     expect(garrison.slots[0]).toEqual({ creature: 'pikeman', count: 12 });
@@ -329,8 +350,12 @@ describe('army transfers', () => {
   it('cannot leave a hero without an army', () => {
     const hero = army([['pikeman', 10]]);
     const garrison = army([], false);
-    expect(() => { transferStack(hero, 0, garrison, 0); }).toThrow('without an army');
-    expect(() => { transferStack(hero, 0, garrison, 0, 9); }).not.toThrow();
+    expect(() => {
+      transferStack(hero, 0, garrison, 0);
+    }).toThrow('without an army');
+    expect(() => {
+      transferStack(hero, 0, garrison, 0, 9);
+    }).not.toThrow();
     expect(hero.slots[0]).toEqual({ creature: 'pikeman', count: 1 });
   });
 
@@ -348,12 +373,24 @@ describe('army transfers', () => {
 
   it('validates slots, counts, and empty sources', () => {
     const a = army([['pikeman', 10]]);
-    expect(() => { transferStack(a, 0, a, 7); }).toThrow('invalid army slot');
-    expect(() => { transferStack(a, -1, a, 0); }).toThrow('invalid army slot');
-    expect(() => { transferStack(a, 1, a, 2); }).toThrow('is empty');
-    expect(() => { transferStack(a, 0, a, 0); }).toThrow('onto itself');
-    expect(() => { transferStack(a, 0, a, 1, 0); }).toThrow('invalid transfer count');
-    expect(() => { transferStack(a, 0, a, 1, 11); }).toThrow('invalid transfer count');
+    expect(() => {
+      transferStack(a, 0, a, 7);
+    }).toThrow('invalid army slot');
+    expect(() => {
+      transferStack(a, -1, a, 0);
+    }).toThrow('invalid army slot');
+    expect(() => {
+      transferStack(a, 1, a, 2);
+    }).toThrow('is empty');
+    expect(() => {
+      transferStack(a, 0, a, 0);
+    }).toThrow('onto itself');
+    expect(() => {
+      transferStack(a, 0, a, 1, 0);
+    }).toThrow('invalid transfer count');
+    expect(() => {
+      transferStack(a, 0, a, 1, 11);
+    }).toThrow('invalid transfer count');
   });
 
   it('wraps hero and garrison armies with the right constraints', () => {
@@ -388,7 +425,9 @@ describe('artifacts', () => {
     giveArtifact(edric, 'scholars_cap', data);
     giveArtifact(edric, 'crown_of_insight', data);
     equipArtifact(edric, 'scholars_cap', data);
-    expect(() => { equipArtifact(edric, 'crown_of_insight', data); }).toThrow('slot head is full');
+    expect(() => {
+      equipArtifact(edric, 'crown_of_insight', data);
+    }).toThrow('slot head is full');
 
     expect(ARTIFACT_SLOT_CAPACITY.misc).toBe(4);
     for (const id of ['tome_of_basics', 'lucky_coin', 'banner_of_courage', 'spyglass']) {
@@ -396,15 +435,23 @@ describe('artifacts', () => {
       equipArtifact(edric, id, data);
     }
     giveArtifact(edric, 'mystic_orb', data);
-    expect(() => { equipArtifact(edric, 'mystic_orb', data); }).toThrow('slot misc is full');
+    expect(() => {
+      equipArtifact(edric, 'mystic_orb', data);
+    }).toThrow('slot misc is full');
   });
 
   it('rejects equipping from outside the backpack and unknown artifacts', () => {
     const state = makeGame();
     const edric = getHero(state, 'edric');
-    expect(() => { equipArtifact(edric, 'iron_sword', data); }).toThrow('not in the backpack');
-    expect(() => { giveArtifact(edric, 'excalibur', data); }).toThrow('unknown artifact');
-    expect(() => { unequipArtifact(edric, 'iron_sword'); }).toThrow('not equipped');
+    expect(() => {
+      equipArtifact(edric, 'iron_sword', data);
+    }).toThrow('not in the backpack');
+    expect(() => {
+      giveArtifact(edric, 'excalibur', data);
+    }).toThrow('unknown artifact');
+    expect(() => {
+      unequipArtifact(edric, 'iron_sword');
+    }).toThrow('not equipped');
   });
 
   it('unequips back to the backpack', () => {
@@ -450,5 +497,55 @@ describe('artifacts', () => {
     expect(manaRegenPerDay(edric, data)).toBe(3);
     expect(sightRadius(edric, data)).toBe(6);
     expect(maxMovementPoints(edric, data)).toBe(baseMp + 300);
+  });
+});
+
+describe('dismissHero command', () => {
+  it('removes the hero, vacates the town, and returns the template to the tavern pool', () => {
+    const state = makeGame();
+    const town = state.towns[townIdAt([2, 2])];
+    if (!town) throw new Error('missing red town');
+    town.visitingHero = 'edric';
+    const { state: next, events } = dispatch(
+      state,
+      { type: 'dismissHero', player: 'red', hero: 'edric' },
+      data,
+    );
+    expect(next.heroes.edric).toBeUndefined();
+    expect(next.players.find((p) => p.id === 'red')?.heroes).not.toContain('edric');
+    expect(next.towns[townIdAt([2, 2])]?.visitingHero).toBeNull();
+    expect(next.tavernPool).toContain('edric');
+    expect(events).toContainEqual({ type: 'heroDismissed', hero: 'edric', player: 'red' });
+    // the player still holds a town: no elimination
+    expect(next.players.find((p) => p.id === 'red')?.defeated).toBe(false);
+    expect(next.status).toBe('running');
+  });
+
+  it('rejects dismissing a foreign or unknown hero', () => {
+    const state = makeGame();
+    expect(() =>
+      dispatch(state, { type: 'dismissHero', player: 'red', hero: 'mortus' }, data),
+    ).toThrow(/belongs to blue/);
+    expect(() =>
+      dispatch(state, { type: 'dismissHero', player: 'red', hero: 'nobody' }, data),
+    ).toThrow(/unknown hero/);
+  });
+
+  it('dismissing the last hero while townless self-eliminates the player', () => {
+    const state = makeGame();
+    const red = state.players.find((p) => p.id === 'red');
+    const town = state.towns[townIdAt([2, 2])];
+    if (!red || !town) throw new Error('missing red player or town');
+    town.owner = null;
+    red.towns = [];
+    const { state: next, events } = dispatch(
+      state,
+      { type: 'dismissHero', player: 'red', hero: 'edric' },
+      data,
+    );
+    expect(next.players.find((p) => p.id === 'red')?.defeated).toBe(true);
+    expect(next.status).toEqual({ winner: 'blue' });
+    expect(events.some((e) => e.type === 'playerDefeated' && e.player === 'red')).toBe(true);
+    expect(events.some((e) => e.type === 'gameOver')).toBe(true);
   });
 });

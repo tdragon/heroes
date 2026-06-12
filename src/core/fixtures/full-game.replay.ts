@@ -5,7 +5,9 @@
 
 import type { Pos } from '../../maps/schema';
 import type { Command } from '../commands';
+import { activeCombatStack } from '../combat/engine';
 import { chooseSimpleCombatAction } from '../combat/simplePolicy';
+import { heroInfoFor } from '../combat/state';
 import { findPath } from '../movement';
 import type { ScriptStep } from '../replay';
 import type { GameState, Hero, PlayerId } from '../state';
@@ -74,10 +76,16 @@ export function fightUntilDone(): ScriptStep {
       if (!state.combat) {
         throw new Error('no combat in progress');
       }
+      // act as the active side's owner (heroless sides fall back to the
+      // current player) — combat actions are validated against that owner
+      const combat = state.combat.combat;
+      const side = activeCombatStack(combat)?.side;
+      const owner = side === undefined ? null : heroInfoFor(combat, side).player;
+      const actor = state.players.find((p) => p.id === owner)?.id ?? state.currentPlayer;
       return {
         type: 'combatAction',
-        player: state.currentPlayer,
-        action: chooseSimpleCombatAction(state.combat.combat, data),
+        player: actor,
+        action: chooseSimpleCombatAction(combat, data),
       };
     },
   };

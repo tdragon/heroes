@@ -6,6 +6,7 @@ import type { Command, GameEvent } from './commands';
 import { CommandRejectedError } from './commands';
 import { startFieldCombat } from './combat/resolve';
 import { revealFor, sightRadius } from './fog';
+import { requireOwnHero } from './hero';
 import { handleObjectTrigger } from './objects';
 import {
   getPlayer,
@@ -265,13 +266,7 @@ export function visitObject(
   data: GameData,
   events: GameEvent[],
 ): void {
-  const hero = state.heroes[command.hero];
-  if (!hero) {
-    throw new CommandRejectedError(`unknown hero: ${command.hero}`);
-  }
-  if (hero.owner !== command.player) {
-    throw new CommandRejectedError(`hero ${hero.id} belongs to ${hero.owner}`);
-  }
+  const hero = requireOwnHero(state, command.hero, command.player);
   const ctx = buildMoveContext(state, data, hero);
   const triggerId = ctx.triggers[tileIndex(ctx, hero.pos)] ?? null;
   if (triggerId === null) {
@@ -303,13 +298,7 @@ export function moveHero(
   data: GameData,
   events: GameEvent[],
 ): void {
-  const hero = state.heroes[command.hero];
-  if (!hero) {
-    throw new CommandRejectedError(`unknown hero: ${command.hero}`);
-  }
-  if (hero.owner !== command.player) {
-    throw new CommandRejectedError(`hero ${hero.id} belongs to ${hero.owner}`);
-  }
+  const hero = requireOwnHero(state, command.hero, command.player);
   if (command.path.length === 0) {
     throw new CommandRejectedError('moveHero: empty path');
   }

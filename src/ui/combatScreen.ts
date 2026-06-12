@@ -2,8 +2,8 @@
 // Auto / Flee / Spellbook), combat log and hover damage estimates. All game
 // rules stay in the core; this screen only translates clicks into
 // `combatAction` commands and replays the emitted events as log lines and
-// small animations. AI-side stacks and the Auto button are played by the
-// combat AI.
+// small animations. AI-side stacks are played by the combat AI; the Auto
+// button hands the pressing player's own side to the combat AI as well.
 //
 // Hotseat human-vs-human battles share this one screen: control follows the
 // acting stack's side, so each human plays their own stacks in initiative
@@ -211,7 +211,10 @@ export class CombatScreen {
     const creature = requireCreature(this.ctx.data, stack.creature);
     const wide = creature.flags.includes('wide');
     const targetCells = stackCells(target, this.ctx);
-    const candidates = [stack.pos, ...this.reachable(combat, stack.id, this.ctx.data, this.version)];
+    const candidates = [
+      stack.pos,
+      ...this.reachable(combat, stack.id, this.ctx.data, this.version),
+    ];
     return candidates.filter((from) =>
       attackerCells(from, wide, stack.side).some((cell) =>
         targetCells.some((t) => hexDistance(cell, t) === 1),
@@ -245,7 +248,10 @@ export class CombatScreen {
   // the combat AI plays a stack on behalf of the acting side's owner
   private runAiAction(combat: CombatState): boolean {
     const side = activeCombatStack(combat)?.side ?? null;
-    return this.runAction(chooseCombatAction(combat, this.ctx.data), this.sideOwnerId(combat, side));
+    return this.runAction(
+      chooseCombatAction(combat, this.ctx.data),
+      this.sideOwnerId(combat, side),
+    );
   }
 
   // auto-play AI-side stacks with the combat AI
@@ -266,14 +272,23 @@ export class CombatScreen {
     }
   }
 
+  // Auto plays only the pressing player's side (spec §7.6): in a hotseat
+  // human-vs-human battle it stops as soon as an opponent-owned stack becomes
+  // active; AI-owned sides keep being auto-played as usual
   private autoCombat(): void {
     if (this.aiRunning) return;
+    const initial = this.combatState();
+    if (!initial) return;
+    const pressedSide = this.humanSide(initial);
     this.aiRunning = true;
     try {
       let guard = 0;
       while (guard++ < AUTO_ACTION_LIMIT) {
         const combat = this.combatState();
-        if (!combat || activeCombatStack(combat) === null) break;
+        if (!combat) break;
+        const stack = activeCombatStack(combat);
+        if (!stack) break;
+        if (this.humanSides(combat).includes(stack.side) && stack.side !== pressedSide) break;
         if (!this.runAiAction(combat)) break;
       }
     } finally {
@@ -592,9 +607,7 @@ export class CombatScreen {
     if (combat) {
       const stack = activeCombatStack(combat);
       const reachable =
-        stack !== null
-          ? this.reachable(combat, stack.id, this.ctx.data, this.version)
-          : [];
+        stack !== null ? this.reachable(combat, stack.id, this.ctx.data, this.version) : [];
       this.renderer.render(
         {
           combat,
@@ -613,9 +626,7 @@ export class CombatScreen {
     const hero = heroInfoFor(combat, side);
     const heroId = side === 'attacker' ? active?.attackerHero : active?.defenderHero;
     const name =
-      heroId !== null && heroId !== undefined
-        ? (state.heroes[heroId]?.name ?? heroId)
-        : 'No hero';
+      heroId !== null && heroId !== undefined ? (state.heroes[heroId]?.name ?? heroId) : 'No hero';
     if (hero.hero === null) return name;
     const cast = combat.castThisRound[side] ? ' (cast used)' : '';
     return `${name} — mana ${String(hero.mana)}${cast}`;
@@ -652,8 +663,10 @@ export class CombatScreen {
       'combat-spellbook-button',
       human && humanSide !== null && heroInfoFor(combat, humanSide).hasSpellbook,
     );
-    // flee removes the fleeing side's own hero; siege defenders cannot flee
+    // flee removes the fleeing side's own hero; it is only legal on the
+    // fleeing side's own turn, and siege defenders cannot flee at all
     const canFlee =
+      human &&
       humanSide !== null &&
       heroInfoFor(combat, humanSide).hero !== null &&
       !(state.combat?.reason === 'siege' && humanSide === 'defender');

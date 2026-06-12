@@ -1,10 +1,227 @@
-import type { GameState } from './state';
+import { z } from 'zod';
+import { FactionIdSchema, ResourceIdSchema, SkillRankSchema } from '../data/schema';
+import { GuardSchema, PlayerColorSchema, PosSchema } from '../maps/schema';
+import { EFFECT_KINDS } from './combat/state';
+import { ARMY_SLOTS, type GameState } from './state';
 
 export const SAVE_VERSION = 4;
 
+// --- zod schema mirroring GameState (src/core/state.ts) ---
+// SaveFile.state is typed as the schema's inferred output, so serializeGame
+// fails to compile when GameState grows a field the schema types wrongly.
+
+const CreatureStackSchema = z.object({ creature: z.string(), count: z.number() });
+const ArmySlotsSchema = z.array(CreatureStackSchema.nullable());
+const ResourcesSchema = z.record(ResourceIdSchema, z.number());
+
+const HeroSchema = z.object({
+  id: z.string(),
+  template: z.string(),
+  name: z.string(),
+  class: z.string(),
+  owner: PlayerColorSchema,
+  pos: PosSchema,
+  attack: z.number(),
+  defense: z.number(),
+  spellPower: z.number(),
+  knowledge: z.number(),
+  level: z.number(),
+  xp: z.number(),
+  skills: z.array(z.object({ skill: z.string(), rank: SkillRankSchema })),
+  army: ArmySlotsSchema,
+  artifacts: z.array(z.string()),
+  backpack: z.array(z.string()),
+  hasSpellbook: z.boolean(),
+  spells: z.array(z.string()),
+  mana: z.number(),
+  movementPoints: z.number(),
+  tempLuck: z.number(),
+  tempMorale: z.number(),
+  dimensionDoorCasts: z.number(),
+});
+
+const TownSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  faction: FactionIdSchema,
+  owner: PlayerColorSchema.nullable(),
+  pos: PosSchema,
+  buildings: z.array(z.string()),
+  builtToday: z.boolean(),
+  garrison: ArmySlotsSchema,
+  visitingHero: z.string().nullable(),
+  availableCreatures: z.record(z.string(), z.number()),
+  guildSpells: z.array(z.string()),
+  tavernHeroes: z.array(z.string()),
+});
+
+const MapObjectStateSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  at: PosSchema,
+  subtype: z.string().optional(),
+  owner: PlayerColorSchema.nullable(),
+  guard: GuardSchema.nullable(),
+  amount: z.number().optional(),
+  creature: z.string().optional(),
+  count: z.number().optional(),
+  artifact: z.string().optional(),
+  message: z.string().optional(),
+  pairId: z.string().optional(),
+  hero: z.string().optional(),
+  removed: z.boolean(),
+  visitedBy: z.array(z.string()),
+  lastResetDay: z.number(),
+});
+
+const MapStateSchema = z.object({
+  id: z.string(),
+  size: z.number(),
+  terrain: z.string(),
+  roads: z.string(),
+  objects: z.array(MapObjectStateSchema),
+});
+
+const SeenObjectSchema = z.object({
+  type: z.string(),
+  at: PosSchema,
+  owner: PlayerColorSchema.nullable(),
+  removed: z.boolean(),
+  subtype: z.string().optional(),
+});
+
+const PlayerSchema = z.object({
+  id: PlayerColorSchema,
+  color: PlayerColorSchema,
+  faction: FactionIdSchema,
+  isHuman: z.boolean(),
+  resources: ResourcesSchema,
+  heroes: z.array(z.string()),
+  towns: z.array(z.string()),
+  explored: z.array(z.boolean()),
+  seenObjects: z.record(z.string(), SeenObjectSchema),
+  daysWithoutTown: z.number(),
+  defeated: z.boolean(),
+});
+
+const PendingChoiceSchema = z.object({
+  id: z.string(),
+  player: PlayerColorSchema,
+  kind: z.string(),
+  options: z.array(z.string()),
+  hero: z.string().optional(),
+  object: z.string().optional(),
+  message: z.string().optional(),
+  from: PosSchema.optional(),
+  remaining: z.number().optional(),
+});
+
+const CombatSideSchema = z.enum(['attacker', 'defender']);
+const HexSchema = z.object({ x: z.number(), y: z.number() });
+
+const CombatHeroInfoSchema = z.object({
+  hero: z.string().nullable(),
+  player: z.string().nullable(),
+  attack: z.number(),
+  defense: z.number(),
+  spellPower: z.number(),
+  knowledge: z.number(),
+  offenseBonus: z.number(),
+  archeryBonus: z.number(),
+  armorerReduction: z.number(),
+  morale: z.number(),
+  luck: z.number(),
+  mana: z.number(),
+  hasSpellbook: z.boolean(),
+  spells: z.array(z.string()),
+  schoolTiers: z.object({
+    air: z.number(),
+    earth: z.number(),
+    fire: z.number(),
+    water: z.number(),
+  }),
+});
+
+const StackEffectSchema = z.object({
+  kind: z.enum(EFFECT_KINDS),
+  positive: z.boolean(),
+  rounds: z.number(),
+  value: z.number(),
+  castBy: z.union([CombatSideSchema, z.literal('creature')]).optional(),
+});
+
+const CombatStackSchema = z.object({
+  id: z.string(),
+  side: CombatSideSchema,
+  slot: z.number(),
+  creature: z.string(),
+  count: z.number(),
+  initialCount: z.number(),
+  firstHp: z.number(),
+  pos: HexSchema,
+  shots: z.number(),
+  retaliationsLeft: z.number(),
+  defending: z.boolean(),
+  waited: z.boolean(),
+  moraleSurged: z.boolean(),
+  usedResurrect: z.boolean(),
+  effects: z.array(StackEffectSchema),
+});
+
+const SiegeStateSchema = z.object({
+  level: z.enum(['fort', 'citadel', 'castle']),
+  segments: z.array(z.object({ pos: HexSchema, hp: z.number(), isGate: z.boolean() })),
+  staticWalls: z.array(HexSchema),
+  towers: z.array(z.object({ pos: HexSchema, count: z.number() })),
+  moat: z.array(HexSchema),
+});
+
+const CombatStateSchema = z.object({
+  round: z.number(),
+  rngState: z.number(),
+  attackerHero: CombatHeroInfoSchema,
+  defenderHero: CombatHeroInfoSchema,
+  stacks: z.array(CombatStackSchema),
+  obstacles: z.array(HexSchema),
+  queue: z.array(z.string()),
+  waitQueue: z.array(z.string()),
+  castThisRound: z.record(CombatSideSchema, z.boolean()),
+  siege: SiegeStateSchema.nullable(),
+  winner: CombatSideSchema.nullable(),
+});
+
+const ActiveCombatSchema = z.object({
+  reason: z.enum(['guard', 'siege', 'field']),
+  attackerHero: z.string(),
+  attackerSlots: z.array(z.number()),
+  defenderHero: z.string().nullable(),
+  defenderTown: z.string().nullable(),
+  defenderSlots: z.array(z.object({ source: z.enum(['garrison', 'hero']), index: z.number() })),
+  object: z.string().nullable(),
+  combat: CombatStateSchema,
+});
+
+const GameStateSchema = z.object({
+  seed: z.number(),
+  rngState: z.number(),
+  day: z.number(),
+  players: z.array(PlayerSchema),
+  currentPlayer: PlayerColorSchema,
+  map: MapStateSchema,
+  heroes: z.record(z.string(), HeroSchema),
+  towns: z.record(z.string(), TownSchema),
+  combat: ActiveCombatSchema.nullable(),
+  tavernPool: z.array(z.string()),
+  pendingChoices: z.array(PendingChoiceSchema),
+  status: z.union([z.literal('running'), z.object({ winner: PlayerColorSchema })]),
+});
+
+type SerializedGameState = z.infer<typeof GameStateSchema>;
+
 interface SaveFile {
   version: number;
-  state: GameState;
+  // compile-time check: every valid GameState must satisfy the save schema
+  state: SerializedGameState;
 }
 
 export function serializeGame(state: GameState): string {
@@ -16,53 +233,270 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-function isArray(value: unknown): value is unknown[] {
-  return Array.isArray(value);
+function assertGameState(value: unknown): asserts value is GameState {
+  const result = GameStateSchema.safeParse(value);
+  if (result.success) return;
+  const issue = result.error.issues[0];
+  const detail = issue ? ` (${issue.path.map(String).join('.') || '<root>'}: ${issue.message})` : '';
+  throw new Error(`save file state is malformed${detail}`);
 }
 
-function isValidPlayer(p: unknown): boolean {
-  return (
-    isRecord(p) &&
-    typeof p.id === 'string' &&
-    typeof p.isHuman === 'boolean' &&
-    isArray(p.heroes) &&
-    isArray(p.towns) &&
-    isArray(p.explored) &&
-    isRecord(p.resources) &&
-    isRecord(p.seenObjects)
-  );
+function integrityError(path: string, message: string): Error {
+  return new Error(`save file state is inconsistent (${path}: ${message})`);
 }
 
-function isValidEntity(e: unknown): boolean {
-  return isRecord(e) && typeof e.id === 'string' && isArray(e.pos);
-}
-
-// Structural sanity check; trusts deeply nested entity shapes after checking
-// the envelope plus the per-player and per-hero fields the UI reads every
-// frame (so a malformed import fails on load instead of inside the rAF loop).
-function isGameState(value: unknown): value is GameState {
-  if (!isRecord(value)) return false;
-  const map = value.map;
-  return (
-    typeof value.seed === 'number' &&
-    typeof value.rngState === 'number' &&
-    typeof value.day === 'number' &&
-    typeof value.currentPlayer === 'string' &&
-    isArray(value.players) &&
-    value.players.every(isValidPlayer) &&
-    isArray(value.tavernPool) &&
-    isArray(value.pendingChoices) &&
-    isRecord(value.heroes) &&
-    Object.values(value.heroes).every(isValidEntity) &&
-    isRecord(value.towns) &&
-    Object.values(value.towns).every(isValidEntity) &&
-    isRecord(map) &&
-    typeof map.size === 'number' &&
-    typeof map.terrain === 'string' &&
-    isArray(map.objects) &&
-    (value.combat === null || isRecord(value.combat)) &&
-    (value.status === 'running' || isRecord(value.status))
-  );
+// the zod schema is structural only: a save can be well-formed yet reference
+// heroes/towns/players that do not exist, which would crash much later (e.g.
+// visitingHeroOf or endTurn). Reject such saves at load time with the path.
+function assertReferentialIntegrity(state: GameState): void {
+  const playersById = new Map(state.players.map((p) => [p.id, p]));
+  const playerIds = new Set<string>(playersById.keys());
+  if (!playerIds.has(state.currentPlayer)) {
+    throw integrityError('currentPlayer', `unknown player ${state.currentPlayer}`);
+  }
+  for (const [id, hero] of Object.entries(state.heroes)) {
+    const owner = playersById.get(hero.owner);
+    if (!owner) {
+      throw integrityError(`heroes.${id}.owner`, `unknown player ${hero.owner}`);
+    }
+    // ownership is a two-way link: hero.owner names the player AND the
+    // player's roster lists the hero (endTurn/victory walk player.heroes)
+    if (!owner.heroes.includes(id)) {
+      throw integrityError(`heroes.${id}.owner`, `not listed in players.${hero.owner}.heroes`);
+    }
+  }
+  // a hero visits at most one town: visiting heroes stand on the town tile
+  // and a hero has a single position (movement clears the link on leaving)
+  const visitedTownByHero = new Map<string, string>();
+  for (const [id, town] of Object.entries(state.towns)) {
+    if (town.visitingHero === null) continue;
+    if (!(town.visitingHero in state.heroes)) {
+      throw integrityError(`towns.${id}.visitingHero`, `unknown hero ${town.visitingHero}`);
+    }
+    const alsoVisits = visitedTownByHero.get(town.visitingHero);
+    if (alsoVisits !== undefined) {
+      throw integrityError(
+        `towns.${id}.visitingHero`,
+        `hero ${town.visitingHero} already visits ${alsoVisits}`,
+      );
+    }
+    visitedTownByHero.set(town.visitingHero, id);
+  }
+  for (const [id, town] of Object.entries(state.towns)) {
+    if (town.owner !== null) {
+      const owner = playersById.get(town.owner);
+      if (!owner) {
+        throw integrityError(`towns.${id}.owner`, `unknown player ${town.owner}`);
+      }
+      if (!owner.towns.includes(id)) {
+        throw integrityError(`towns.${id}.owner`, `not listed in players.${town.owner}.towns`);
+      }
+    }
+    const visiting = town.visitingHero === null ? null : state.heroes[town.visitingHero];
+    if (!visiting) continue;
+    // the engine only lets a hero visit an own town (an enemy entering
+    // starts a siege or captures it), standing exactly on the town tile
+    if (visiting.owner !== town.owner) {
+      throw integrityError(
+        `towns.${id}.visitingHero`,
+        `hero ${visiting.id} belongs to ${visiting.owner} but the town belongs to ${town.owner ?? 'nobody'}`,
+      );
+    }
+    if (visiting.pos[0] !== town.pos[0] || visiting.pos[1] !== town.pos[1]) {
+      throw integrityError(
+        `towns.${id}.visitingHero`,
+        `hero ${visiting.id} is not on the town tile`,
+      );
+    }
+  }
+  for (const player of state.players) {
+    for (const heroId of player.heroes) {
+      const hero = state.heroes[heroId];
+      if (!hero) {
+        throw integrityError(`players.${player.id}.heroes`, `unknown hero ${heroId}`);
+      }
+      if (hero.owner !== player.id) {
+        throw integrityError(
+          `players.${player.id}.heroes`,
+          `hero ${heroId} is owned by ${hero.owner}`,
+        );
+      }
+    }
+    for (const townId of player.towns) {
+      const town = state.towns[townId];
+      if (!town) {
+        throw integrityError(`players.${player.id}.towns`, `unknown town ${townId}`);
+      }
+      if (town.owner !== player.id) {
+        throw integrityError(
+          `players.${player.id}.towns`,
+          `town ${townId} is owned by ${town.owner ?? 'nobody'}`,
+        );
+      }
+    }
+  }
+  const objectIds = new Set(state.map.objects.map((o) => o.id));
+  if (state.combat !== null) {
+    const attacker = state.heroes[state.combat.attackerHero];
+    if (!attacker) {
+      throw integrityError('combat.attackerHero', `unknown hero ${state.combat.attackerHero}`);
+    }
+    const defender = state.combat.defenderHero === null ? null : state.heroes[state.combat.defenderHero];
+    if (state.combat.defenderHero !== null && !defender) {
+      throw integrityError('combat.defenderHero', `unknown hero ${state.combat.defenderHero}`);
+    }
+    if (state.combat.defenderTown !== null && !(state.combat.defenderTown in state.towns)) {
+      throw integrityError('combat.defenderTown', `unknown town ${state.combat.defenderTown}`);
+    }
+    if (state.combat.object !== null && !objectIds.has(state.combat.object)) {
+      throw integrityError('combat.object', `unknown object ${state.combat.object}`);
+    }
+    // the CombatState hero infos drive who may command each side and where
+    // mana is copied back at combat end: they must mirror the ActiveCombat
+    // hero references and the heroes' real owners
+    const battle = state.combat.combat;
+    if (battle.attackerHero.hero !== state.combat.attackerHero) {
+      throw integrityError(
+        'combat.combat.attackerHero.hero',
+        `expected ${state.combat.attackerHero}, found ${battle.attackerHero.hero ?? 'nobody'}`,
+      );
+    }
+    if (battle.attackerHero.player !== attacker.owner) {
+      throw integrityError(
+        'combat.combat.attackerHero.player',
+        `expected ${attacker.owner}, found ${battle.attackerHero.player ?? 'nobody'}`,
+      );
+    }
+    if (battle.defenderHero.hero !== state.combat.defenderHero) {
+      throw integrityError(
+        'combat.combat.defenderHero.hero',
+        `expected ${state.combat.defenderHero ?? 'nobody'}, found ${battle.defenderHero.hero ?? 'nobody'}`,
+      );
+    }
+    if (battle.defenderHero.player !== (defender?.owner ?? null)) {
+      throw integrityError(
+        'combat.combat.defenderHero.player',
+        `expected ${defender?.owner ?? 'nobody'}, found ${battle.defenderHero.player ?? 'nobody'}`,
+      );
+    }
+    // finishCombat writes survivors back through the slot mappings:
+    // attackerSlots[stack.slot] names an index into the attacker hero's army
+    // and defenderSlots[stack.slot] a garrison/visiting-hero slot. A bad
+    // mapping would crash syncAttackerArmy/syncDefenders or silently write
+    // survivors into the wrong army slot, so enforce the invariants the
+    // engine maintains: indexes are integers in [0, ARMY_SLOTS), unique per
+    // side, refs name an existing town/hero, and every combat stack has a
+    // mapping entry for its slot (guard combats keep no defender mapping)
+    const combatRef = state.combat;
+    const armyIndexes = new Set<number>();
+    combatRef.attackerSlots.forEach((armyIndex, i) => {
+      if (!Number.isInteger(armyIndex) || armyIndex < 0 || armyIndex >= ARMY_SLOTS) {
+        throw integrityError(
+          `combat.attackerSlots.${String(i)}`,
+          `invalid army index ${String(armyIndex)}`,
+        );
+      }
+      if (armyIndexes.has(armyIndex)) {
+        throw integrityError(
+          `combat.attackerSlots.${String(i)}`,
+          `duplicate army index ${String(armyIndex)}`,
+        );
+      }
+      armyIndexes.add(armyIndex);
+    });
+    if (combatRef.reason === 'guard') {
+      if (combatRef.defenderSlots.length > 0) {
+        throw integrityError('combat.defenderSlots', 'guard combats keep no defender mapping');
+      }
+    } else {
+      const defenderRefs = new Set<string>();
+      combatRef.defenderSlots.forEach((ref, i) => {
+        if (!Number.isInteger(ref.index) || ref.index < 0 || ref.index >= ARMY_SLOTS) {
+          throw integrityError(
+            `combat.defenderSlots.${String(i)}`,
+            `invalid ${ref.source} index ${String(ref.index)}`,
+          );
+        }
+        const key = `${ref.source}:${String(ref.index)}`;
+        if (defenderRefs.has(key)) {
+          throw integrityError(
+            `combat.defenderSlots.${String(i)}`,
+            `duplicate ${ref.source} index ${String(ref.index)}`,
+          );
+        }
+        defenderRefs.add(key);
+        if (ref.source === 'garrison' && combatRef.defenderTown === null) {
+          throw integrityError(
+            `combat.defenderSlots.${String(i)}`,
+            'garrison slot without a defender town',
+          );
+        }
+        if (ref.source === 'hero' && combatRef.defenderHero === null) {
+          throw integrityError(
+            `combat.defenderSlots.${String(i)}`,
+            'hero slot without a defender hero',
+          );
+        }
+      });
+    }
+    // queue/waitQueue are read via getCombatStack (throws on unknown ids)
+    // and a stack acts once per round: ids must name distinct real stacks
+    const stackIds = new Set<string>();
+    const sideSlots = { attacker: new Set<number>(), defender: new Set<number>() };
+    for (const stack of battle.stacks) {
+      if (stackIds.has(stack.id)) {
+        throw integrityError('combat.combat.stacks', `duplicate stack id ${stack.id}`);
+      }
+      stackIds.add(stack.id);
+      if (sideSlots[stack.side].has(stack.slot)) {
+        throw integrityError(
+          'combat.combat.stacks',
+          `${stack.side} slot ${String(stack.slot)} is used twice`,
+        );
+      }
+      sideSlots[stack.side].add(stack.slot);
+      // guard combats sync the (single) defender stack without a mapping;
+      // every other stack indexes its side's slot mapping by stack.slot
+      if (stack.side === 'defender' && combatRef.reason === 'guard') continue;
+      const mapping = stack.side === 'attacker' ? 'attackerSlots' : 'defenderSlots';
+      const length = combatRef[mapping].length;
+      if (!Number.isInteger(stack.slot) || stack.slot < 0 || stack.slot >= length) {
+        throw integrityError(
+          'combat.combat.stacks',
+          `${stack.side} stack ${stack.id} has no ${mapping} entry for slot ${String(stack.slot)}`,
+        );
+      }
+    }
+    const queued = new Set<string>();
+    for (const [name, ids] of [
+      ['queue', battle.queue],
+      ['waitQueue', battle.waitQueue],
+    ] as const) {
+      for (const stackId of ids) {
+        if (!stackIds.has(stackId)) {
+          throw integrityError(`combat.combat.${name}`, `unknown combat stack ${stackId}`);
+        }
+        if (queued.has(stackId)) {
+          throw integrityError(`combat.combat.${name}`, `stack ${stackId} is queued twice`);
+        }
+        queued.add(stackId);
+      }
+    }
+  }
+  state.pendingChoices.forEach((choice, index) => {
+    if (!playerIds.has(choice.player)) {
+      throw integrityError(`pendingChoices.${String(index)}.player`, `unknown player ${choice.player}`);
+    }
+    if (choice.hero !== undefined && !(choice.hero in state.heroes)) {
+      throw integrityError(`pendingChoices.${String(index)}.hero`, `unknown hero ${choice.hero}`);
+    }
+    if (choice.object !== undefined && !objectIds.has(choice.object)) {
+      throw integrityError(
+        `pendingChoices.${String(index)}.object`,
+        `unknown object ${choice.object}`,
+      );
+    }
+  });
 }
 
 // migration hook: SAVE_MIGRATIONS[n] upgrades a raw version-n state to n+1;
@@ -103,8 +537,7 @@ export function deserializeGame(
   if (isRecord(state) && state.combat === undefined) {
     state.combat = null;
   }
-  if (!isGameState(state)) {
-    throw new Error('save file state is malformed');
-  }
+  assertGameState(state);
+  assertReferentialIntegrity(state);
   return state;
 }

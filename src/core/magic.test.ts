@@ -26,7 +26,14 @@ import {
 } from './magic';
 import { seedRng } from './rng';
 import { newGame, townIdAt } from './setup';
-import { ARMY_SLOTS, emptyResources, type GameState, type Hero, type Town } from './state';
+import {
+  ARMY_SLOTS,
+  emptyResources,
+  type GameState,
+  type Hero,
+  type Player,
+  type Town,
+} from './state';
 
 const data = loadGameData();
 
@@ -125,7 +132,7 @@ describe('spell learning', () => {
 
   it('buySpellbook validates ownership, guild, and gold', () => {
     const town = makeTown();
-    const player = {
+    const player: Player = {
       id: 'red',
       color: 'red',
       faction: 'castle',
@@ -134,10 +141,24 @@ describe('spell learning', () => {
       heroes: ['h1'],
       towns: [town.id],
       explored: [],
+      seenObjects: {},
       daysWithoutTown: 0,
       defeated: false,
     };
-    const state = { players: [player] } as unknown as GameState;
+    const state: GameState = {
+      seed: 1,
+      rngState: seedRng(1),
+      day: 1,
+      players: [player],
+      currentPlayer: 'red',
+      map: { id: 'test', size: 0, terrain: '', roads: '', objects: [] },
+      heroes: {},
+      towns: { [town.id]: town },
+      combat: null,
+      tavernPool: [],
+      pendingChoices: [],
+      status: 'running',
+    };
 
     const hero = makeHero({ hasSpellbook: false });
     buySpellbook(state, hero, town, data);

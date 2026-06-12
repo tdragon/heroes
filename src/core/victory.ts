@@ -56,12 +56,34 @@ function passTurnFromDefeated(state: GameState, data: GameData, events: GameEven
 
 export function evaluateVictory(state: GameState, data: GameData, events: GameEvent[]): void {
   if (state.status !== 'running' || state.combat !== null) return;
-  for (const player of state.players) {
-    if (!player.defeated && isEliminated(player)) {
+  // eliminate in play chronology: the current player falls during their own
+  // turn (mid-command, e.g. fleeing the last battle), every other player
+  // would fall as the rotation reached them, wrapping around the seating
+  const start = Math.max(
+    0,
+    state.players.findIndex((p) => p.id === state.currentPlayer),
+  );
+  const eliminatedNow: Player[] = [];
+  for (let step = 0; step < state.players.length; step++) {
+    const player = state.players[(start + step) % state.players.length];
+    if (player && !player.defeated && isEliminated(player)) {
       eliminatePlayer(state, player, events);
+      eliminatedNow.push(player);
     }
   }
   const active = state.players.filter((p) => !p.defeated);
+  // simultaneous elimination (every remaining player hits the 7-day townless
+  // limit on the same pass) must not leave the game running with no active
+  // player: rule — the player the rotation would reach last (the seat just
+  // before the current player) wins the mutual destruction, as the
+  // deterministic tie-break
+  if (active.length === 0) {
+    const winner = eliminatedNow[eliminatedNow.length - 1];
+    if (!winner) return;
+    state.status = { winner: winner.id };
+    events.push({ type: 'gameOver', winner: winner.id });
+    return;
+  }
   if (active.length === 1 && state.players.length > 1) {
     const winner = active[0];
     if (!winner) return;

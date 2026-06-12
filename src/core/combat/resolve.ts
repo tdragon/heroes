@@ -5,7 +5,7 @@
 import type { GameData } from '../../data';
 import type { Guard } from '../../maps/schema';
 import type { GameEvent } from '../commands';
-import { countStacks, giveExperience } from '../hero';
+import { countStacks, giveExperience, releaseHeroToTavern } from '../hero';
 import { learnGuildSpells } from '../magic';
 import {
   defenderLuckBonus,
@@ -352,19 +352,7 @@ function removeHero(
   outcome: 'defeated' | 'fled',
   events: GameEvent[],
 ): void {
-  const player = getPlayer(state, hero.owner);
-  player.heroes = player.heroes.filter((id) => id !== hero.id);
-  for (const town of Object.values(state.towns)) {
-    if (town.visitingHero === hero.id) {
-      town.visitingHero = null;
-    }
-  }
-  state.heroes = Object.fromEntries(Object.entries(state.heroes).filter(([id]) => id !== hero.id));
-  // a dead hero's queued choices (e.g. deferred level-ups) can never be
-  // resolved (applyLevelUpChoice would throw) yet block every other command,
-  // soft-locking the game — they die with the hero
-  state.pendingChoices = state.pendingChoices.filter((choice) => choice.hero !== hero.id);
-  state.tavernPool.push(hero.template);
+  releaseHeroToTavern(state, hero);
   events.push({
     type: outcome === 'fled' ? 'heroFled' : 'heroDefeated',
     hero: hero.id,
@@ -540,19 +528,27 @@ export function applyCombatAction(
     if (side === null) {
       throw new CombatRuleError(`${player} has no hero in this battle to flee with`);
     }
+    // as in HoMM3, fleeing is only possible on the fleeing side's own turn:
+    // the active stack must belong to that side (no escaping off-turn)
+    const stack = activeCombatStack(active.combat);
+    if (stack?.side !== side) {
+      throw new CombatRuleError(`${player} can only flee when one of their stacks is active`);
+    }
     if (side === 'defender' && active.reason === 'siege') {
       throw new CombatRuleError('cannot flee while defending a siege');
     }
     finishCombat(state, side, data, events, onGuardVictory);
     return;
   }
-  if (action.type === 'cast') {
-    // the cast comes from the active stack's side hero: only that hero's
-    // owner may order it (heroless sides cannot cast at all)
-    const stack = activeCombatStack(active.combat);
-    const sideOwner = stack === null ? null : heroInfoFor(active.combat, stack.side).player;
+  // every remaining action (move/melee/shoot/wait/defend/attackWall/cast/
+  // resurrect) acts for the active stack's side: only the owner of that
+  // side's hero may issue it. Heroless sides (neutral guards) have no owner
+  // and are auto-played by whichever participant drives the battle.
+  const stack = activeCombatStack(active.combat);
+  if (stack !== null) {
+    const sideOwner = heroInfoFor(active.combat, stack.side).player;
     if (sideOwner !== null && sideOwner !== player) {
-      throw new CombatRuleError(`only ${sideOwner} may cast from this side's spellbook`);
+      throw new CombatRuleError(`only ${sideOwner} may command the active ${stack.side} stack`);
     }
   }
   const combatEvents = combatAct(active.combat, action, data);

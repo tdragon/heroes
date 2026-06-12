@@ -62,20 +62,23 @@ export function noHero(): CombatHeroInfo {
   };
 }
 
-export type EffectKind =
-  | 'haste'
-  | 'slow'
-  | 'shield'
-  | 'stone_skin'
-  | 'bless'
-  | 'curse'
-  | 'bloodlust'
-  | 'weakness'
-  | 'blind'
-  | 'forgetfulness'
-  | 'disease'
-  | 'aging'
-  | 'bind';
+export const EFFECT_KINDS = [
+  'haste',
+  'slow',
+  'shield',
+  'stone_skin',
+  'bless',
+  'curse',
+  'bloodlust',
+  'weakness',
+  'blind',
+  'forgetfulness',
+  'disease',
+  'aging',
+  'bind',
+] as const;
+
+export type EffectKind = (typeof EFFECT_KINDS)[number];
 
 export interface StackEffect {
   kind: EffectKind;

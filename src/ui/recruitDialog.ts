@@ -1,18 +1,8 @@
-import { RESOURCE_IDS, type Cost } from '../data/schema';
 import type { ArmyDest } from '../core/commands';
 import { getPlayer } from '../core/state';
 import type { TownId } from '../core/state';
 import { openCountDialog, type UiContext } from './components';
-import { costText, recruitMax } from './helpers';
-
-function scaledCost(cost: Cost, count: number): Cost {
-  const scaled: Cost = {};
-  for (const id of RESOURCE_IDS) {
-    const value = cost[id] ?? 0;
-    if (value > 0) scaled[id] = value * count;
-  }
-  return scaled;
-}
+import { costText, recruitMax, scaledCost } from './helpers';
 
 export function openRecruitDialog(
   host: HTMLElement,
