@@ -112,24 +112,45 @@ describe('townless countdown', () => {
 });
 
 describe('simultaneous elimination', () => {
-  it('ends the game when every remaining player is eliminated in the same pass', () => {
-    const state = makeGame();
-    // both players hit the 7-day townless limit on the same evaluation
+  function ruinEveryone(state: GameState): void {
+    // all players hit the 7-day townless limit on the same evaluation
     for (const player of state.players) {
       player.towns = [];
       player.daysWithoutTown = TOWNLESS_DEFEAT_DAYS;
     }
     for (const town of Object.values(state.towns)) town.owner = null;
+  }
+
+  it('ends the game when every remaining player is eliminated in the same pass', () => {
+    const state = makeGame();
+    ruinEveryone(state);
+    expect(state.currentPlayer).toBe('red');
     const events: GameEvent[] = [];
     evaluateVictory(state, data, events);
     expect(events).toContainEqual({ type: 'playerDefeated', player: 'red' });
     expect(events).toContainEqual({ type: 'playerDefeated', player: 'blue' });
-    // the player eliminated last in the pass (turn order) wins the tie-break
+    // the current player falls first; the seat the rotation reaches last wins
     expect(state.status).toEqual({ winner: 'blue' });
     expect(events).toContainEqual({ type: 'gameOver', winner: 'blue' });
     expect(() => dispatch(state, { type: 'endTurn', player: 'red' }, data)).toThrow(
       'game is over',
     );
+  });
+
+  it('follows the rotation from the current player, not the player array order', () => {
+    const state = makeGame();
+    ruinEveryone(state);
+    state.currentPlayer = 'blue';
+    const events: GameEvent[] = [];
+    evaluateVictory(state, data, events);
+    // rotation blue -> red: blue (current) falls first, red is reached last
+    const defeats = events.filter((e) => e.type === 'playerDefeated');
+    expect(defeats).toEqual([
+      { type: 'playerDefeated', player: 'blue' },
+      { type: 'playerDefeated', player: 'red' },
+    ]);
+    expect(state.status).toEqual({ winner: 'red' });
+    expect(events).toContainEqual({ type: 'gameOver', winner: 'red' });
   });
 });
 

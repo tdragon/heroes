@@ -82,6 +82,12 @@ src/
    flat terrain colors). All drawing is behind the `Painter` interface so real art can be
    swapped in later.
 
+### Known limitations
+
+- **AI ignores fog of war.** The adventure AI (`src/core/ai/adventureAI.ts`) evaluates
+  the full game state, so it "cheat-sees" through the shroud. Accepted MVP deviation per
+  the plan spec (section 8.4); per-player visibility filtering for the AI is future work.
+
 ## Adding a faction (data only)
 
 The engine is fully data-driven — a new faction requires zero engine code. Use

@@ -1,4 +1,4 @@
-// Adventure AI per spec sections 9.1-9.3: score visible opportunities as
+// Adventure AI per spec sections 9.1-9.3: score map opportunities as
 // value/distance, gate guarded targets behind a 1.3x power ratio, march
 // toward the best one, manage towns daily and resolve battles with the combat
 // AI. The whole AI emits commands through the same dispatch API as the human
@@ -69,6 +69,10 @@ function chebyshev(a: Pos, b: Pos): number {
 
 const PICKUP_TYPES = new Set(['resource', 'treasure_chest', 'artifact']);
 
+// NOTE: the AI scans the full game state with no fog-of-war filtering — it
+// "cheat-sees" through the shroud. This is an accepted MVP deviation per the
+// plan spec (section 8.4: "MVP: AI may cheat-see — acceptable, note it");
+// fairness filtering is deliberately out of scope.
 export function heroOpportunities(state: GameState, hero: Hero, data: GameData): Opportunity[] {
   const own = armyPower(hero.army, data);
   const out: Opportunity[] = [];
