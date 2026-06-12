@@ -2,11 +2,20 @@ import type { Pos } from '../maps/schema';
 
 export const TILE_PX = 48;
 
+export const ZOOM_MIN = 0.5;
+export const ZOOM_MAX = 2;
+
 export interface Camera {
+  // x/y/width/height are in WORLD px; width = cssWidth / zoom, height = cssHeight / zoom
   x: number;
   y: number;
   width: number;
   height: number;
+  zoom: number; // 1 = 48 css px per tile
+}
+
+export function clampZoom(zoom: number): number {
+  return Math.min(Math.max(zoom, ZOOM_MIN), ZOOM_MAX);
 }
 
 export function worldSizePx(mapTiles: number): number {
@@ -42,6 +51,57 @@ export function tileAtScreen(cam: Camera, sx: number, sy: number, mapTiles: numb
   const ty = Math.floor(wy / TILE_PX);
   if (tx < 0 || ty < 0 || tx >= mapTiles || ty >= mapTiles) return null;
   return [tx, ty];
+}
+
+// hit-testing for input handlers: sx/sy are CSS px relative to the canvas
+export function tileAtClientPoint(
+  cam: Camera,
+  sx: number,
+  sy: number,
+  mapTiles: number,
+): Pos | null {
+  return tileAtScreen(cam, sx / cam.zoom, sy / cam.zoom, mapTiles);
+}
+
+// resize/zoom entry point: derives the world-px viewport from the CSS size,
+// preserves the current viewport center, clamps
+export function cameraForViewport(
+  cam: Camera,
+  cssW: number,
+  cssH: number,
+  zoom: number,
+  mapTiles: number,
+): Camera {
+  const z = clampZoom(zoom);
+  const width = cssW / z;
+  const height = cssH / z;
+  const cx = cam.x + cam.width / 2;
+  const cy = cam.y + cam.height / 2;
+  return clampCamera({ x: cx - width / 2, y: cy - height / 2, width, height, zoom: z }, mapTiles);
+}
+
+// change zoom keeping the world point under (anchorSx, anchorSy) fixed;
+// anchor is in CSS px relative to the canvas
+export function zoomCameraAt(
+  cam: Camera,
+  newZoom: number,
+  anchorSx: number,
+  anchorSy: number,
+  cssW: number,
+  cssH: number,
+  mapTiles: number,
+): Camera {
+  const z = clampZoom(newZoom);
+  return clampCamera(
+    {
+      x: cam.x + anchorSx / cam.zoom - anchorSx / z,
+      y: cam.y + anchorSy / cam.zoom - anchorSy / z,
+      width: cssW / z,
+      height: cssH / z,
+      zoom: z,
+    },
+    mapTiles,
+  );
 }
 
 export interface TileRect {

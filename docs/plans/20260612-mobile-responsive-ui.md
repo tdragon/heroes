@@ -263,20 +263,20 @@ via unit tests only if CDP proves flaky. Pinch is covered by unit tests only.
 - Modify: `src/render/camera.test.ts`
 - Modify: `src/app/adventureScreen.ts` (construction sites pass `zoom: 1`)
 
-- [ ] add `zoom` to `Camera`, `ZOOM_MIN`/`ZOOM_MAX` constants; existing functions keep
+- [x] add `zoom` to `Camera`, `ZOOM_MIN`/`ZOOM_MAX` constants; existing functions keep
       operating on world-px `width/height` unchanged
-- [ ] implement `cameraForViewport(cam, cssW, cssH, zoom, mapTiles)` (derive world-px
+- [x] implement `cameraForViewport(cam, cssW, cssH, zoom, mapTiles)` (derive world-px
       viewport from CSS size, preserve the current viewport center, clamp)
-- [ ] implement `zoomCameraAt(cam, newZoom, anchorSx, anchorSy, cssW, cssH, mapTiles)`
+- [x] implement `zoomCameraAt(cam, newZoom, anchorSx, anchorSy, cssW, cssH, mapTiles)`
       with the fixed-anchor identity from Technical Details
-- [ ] implement `tileAtClientPoint(cam, sx, sy, mapTiles)` and switch
+- [x] implement `tileAtClientPoint(cam, sx, sy, mapTiles)` and switch
       `adventureScreen.ts` hit-testing call sites to it; initialize camera with
       `zoom: 1` (no behavior change yet at zoom 1)
-- [ ] write tests: zoom clamp bounds, `cameraForViewport` at several sizes/zooms
+- [x] write tests: zoom clamp bounds, `cameraForViewport` at several sizes/zooms
       (including viewport larger than map, and center preservation across a resize),
       `zoomCameraAt` keeps anchor world point fixed and clamps at map edges,
       `tileAtClientPoint` at zoom 0.5/1/2
-- [ ] run `npm run check` - must pass before task 2
+- [x] run `npm run check` - must pass before task 2
 
 ### Task 2: Responsive adventure canvas with DPR rendering
 

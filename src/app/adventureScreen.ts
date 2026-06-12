@@ -6,7 +6,13 @@ import { visibleTiles } from '../core/fog';
 import { maxMovementPoints } from '../core/hero';
 import { buildMoveContext, findPath, stepCost } from '../core/movement';
 import type { GameState, Hero, MapObjectState, Player, PlayerId } from '../core/state';
-import { centerCameraOn, panCamera, tileAtScreen, TILE_PX, type Camera } from '../render/camera';
+import {
+  centerCameraOn,
+  panCamera,
+  tileAtClientPoint,
+  TILE_PX,
+  type Camera,
+} from '../render/camera';
 import {
   AdventureRenderer,
   minimapTile,
@@ -172,7 +178,7 @@ export class AdventureScreen implements Screen {
     );
 
     const startHero = this.viewPlayer().heroes[0];
-    this.camera = { x: 0, y: 0, width: CANVAS_W, height: CANVAS_H };
+    this.camera = { x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zoom: 1 };
     if (startHero !== undefined) {
       this.selectedHero = startHero;
       const hero = this.state.heroes[startHero];
@@ -847,7 +853,7 @@ export class AdventureScreen implements Screen {
       (e) => {
         this.infoPopup.hide();
         const rect = this.canvas.getBoundingClientRect();
-        const tile = tileAtScreen(
+        const tile = tileAtClientPoint(
           this.camera,
           e.clientX - rect.left,
           e.clientY - rect.top,
@@ -865,7 +871,7 @@ export class AdventureScreen implements Screen {
         const rect = this.canvas.getBoundingClientRect();
         const sx = e.clientX - rect.left;
         const sy = e.clientY - rect.top;
-        const tile = tileAtScreen(this.camera, sx, sy, this.state.map.size);
+        const tile = tileAtClientPoint(this.camera, sx, sy, this.state.map.size);
         if (tile) {
           this.infoPopup.show(this.describeTile(tile), sx + 8, sy + 8);
         }
