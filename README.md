@@ -187,6 +187,21 @@ Register a new map by adding its source to the `sources` list in `src/maps/index
 it then appears in the new-game map list and is covered by the compile-all test in
 `src/maps/maps.test.ts`.
 
+## Themes & sprites
+
+Adventure-map art is theme-based: a theme is a directory of id-keyed SVG files under
+`src/assets/themes/<name>/` (currently `woodcut`). Filenames map to sprite keys:
+
+- `terrain/<terrainId>.svg` → sprite key `terrain/<id>` (e.g. `terrain/grass.svg`)
+- `terrain/road.<roadId>.svg` → sprite key `road/<id>` (e.g. `terrain/road.dirt_road.svg`)
+
+SVGs are 64×64 viewBox, loaded as raw text and rasterized at startup into a zoom-bucketed
+atlas (`src/render/spriteAtlas.ts`). The fallback chain is theme sprite → `TokenPainter`
+flat color, so a missing or still-loading sprite never breaks rendering (and the minimap
+always uses flat terrain colors). A coverage test in `src/assets/themes/woodcut/index.test.ts`
+asserts every terrain and road id in the game data has a sprite — adding content means
+adding matching art.
+
 ## License
 
 [MIT](LICENSE) — covers the code, the game data, and the original artwork in

@@ -273,12 +273,12 @@ Key decisions:
 
 ### Task 6: [Final] Update documentation
 
-- [ ] README: short "Themes & sprites" section documenting the directory
+- [x] README: short "Themes & sprites" section documenting the directory
       contract (`src/assets/themes/<name>/…`, id-keyed filenames, fallback
       chain theme → TokenPainter)
-- [ ] CLAUDE.md: one line under data-driven content — sprites are id-keyed
+- [x] CLAUDE.md: one line under data-driven content — sprites are id-keyed
       SVG assets; adding art must keep the coverage test green
-- [ ] move this plan to `docs/plans/completed/`
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 
