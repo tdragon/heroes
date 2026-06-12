@@ -14,7 +14,7 @@ This plan is **self-contained**: every game rule, formula, data table, and scree
 
 ## Context (from discovery)
 
-- Project directory `/Users/tikhdm/sources/private/heroes` is empty — greenfield, not yet a git repository (run `git init` in Task 1).
+- Project directory `/Users/tikhdm/sources/private/heroes` is empty — greenfield. Git repo initialized (branch `heroes3-browser-clone`), Task 1 scaffolding done.
 - No existing code, conventions, or CI to conform to.
 - User constraints from global CLAUDE.md apply: modern TS/Python typing style, fix linter errors properly, minimal comments.
 
@@ -488,12 +488,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `package.json`, `vite.config.ts`, `tsconfig.json`, `eslint.config.js`, `.prettierrc`, `index.html`, `src/app/main.ts`, `playwright.config.ts`, `.gitignore`, `README.md`
 - Create: `src/core/rng.ts`, `src/core/rng.test.ts`
 
-- [ ] `git init`; scaffold Vite + TS strict project; add zod, vitest, coverage, playwright, eslint, prettier; scripts: `dev`, `build`, `test`, `test:e2e`, `check` (tsc+eslint+vitest)
-- [ ] `index.html` + `main.ts` render a "Heroes Clone" placeholder div (e2e smoke target)
-- [ ] implement `rng.ts`: mulberry32, `rollRange`, `rollChance`, state in/out (no globals)
-- [ ] write tests for rng: determinism (same seed = same sequence), range bounds, distribution sanity, state round-trip
-- [ ] write Playwright smoke test: page loads, title visible
-- [ ] run `npm run check` and `npm run test:e2e` — must pass before task 2
+- [x] `git init`; scaffold Vite + TS strict project; add zod, vitest, coverage, playwright, eslint, prettier; scripts: `dev`, `build`, `test`, `test:e2e`, `check` (tsc+eslint+vitest)
+- [x] `index.html` + `main.ts` render a "Heroes Clone" placeholder div (e2e smoke target)
+- [x] implement `rng.ts`: mulberry32, `rollRange`, `rollChance`, state in/out (no globals)
+- [x] write tests for rng: determinism (same seed = same sequence), range bounds, distribution sanity, state round-trip
+- [x] write Playwright smoke test: page loads, title visible
+- [x] run `npm run check` and `npm run test:e2e` — must pass before task 2
 
 ### Task 2: Game data files, schemas, and loader
 
@@ -502,11 +502,11 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/data/creatures.json`, `src/data/skills.json`, `src/data/spells.json`, `src/data/artifacts.json`, `src/data/buildings.json`, `src/data/terrain.json`, `src/data/heroes.json`, `src/data/objects.json`, `src/data/factions/{castle,rampart,necropolis}.json`
 - Create: `src/data/index.ts` (loader, cross-reference validation), `src/data/data.test.ts`
 
-- [ ] define zod schemas for creature, skill, spell, artifact, building, terrain, hero template, faction, map object type (fields per spec §2–§8)
-- [ ] author all JSON content from the spec tables: 42 faction creatures (§4.1–4.3) + 8 neutrals, 16 skills, 24 spells, ~20 artifacts (simple stat/skill bonuses across 4 rarity classes), common+faction buildings with prereq edges, 6 hero classes + 4 named heroes each, terrain costs, 20 object types
-- [ ] implement loader: parse all files, build typed `GameData` registry, validate cross-references (dangling ids, prereq cycles)
-- [ ] write tests: every file parses against schema; cross-reference check catches a deliberately broken fixture; spot-check loaded values (e.g. Archangel cost, Slow is earth L1)
-- [ ] run tests — must pass before task 3
+- [x] define zod schemas for creature, skill, spell, artifact, building, terrain, hero template, faction, map object type (fields per spec §2–§8)
+- [x] author all JSON content from the spec tables: 42 faction creatures (§4.1–4.3) + 8 neutrals, 16 skills, 24 spells, ~20 artifacts (simple stat/skill bonuses across 4 rarity classes), common+faction buildings with prereq edges, 6 hero classes + 4 named heroes each, terrain costs, 20 object types
+- [x] implement loader: parse all files, build typed `GameData` registry, validate cross-references (dangling ids, prereq cycles)
+- [x] write tests: every file parses against schema; cross-reference check catches a deliberately broken fixture; spot-check loaded values (e.g. Archangel cost, Slow is earth L1)
+- [x] run tests — must pass before task 3
 
 ### Task 3: Map format, ASCII DSL compiler, and sample maps
 
@@ -515,11 +515,11 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/maps/tutorial-valley.dsl.ts` (36×36, 2 players), `src/maps/contested-river.dsl.ts` (48×48, 3 players), `src/maps/fixtures/tiny.dsl.ts` (12×12 test map)
 - Create: `src/maps/index.ts` (map registry), `src/maps/maps.test.ts`
 
-- [ ] define map JSON zod schema (§8.1): size, players, tiles (terrain+road), objects with guards/amounts, victory/loss
-- [ ] implement DSL compiler: char-grid terrain layer + road layer + object list → validated map JSON; helpful errors with row/col
-- [ ] author 3 maps: tiny test fixture (hero, town, 1 mine, 1 guard, resources), tutorial 2-player, 3-player map with chokepoint guards and monolith pair
-- [ ] write tests: compiler errors (bad char, ragged grid, object out of bounds, overlapping footprints); compiled maps validate; tiny map snapshot
-- [ ] run tests — must pass before task 4
+- [x] define map JSON zod schema (§8.1): size, players, tiles (terrain+road), objects with guards/amounts, victory/loss
+- [x] implement DSL compiler: char-grid terrain layer + road layer + object list → validated map JSON; helpful errors with row/col
+- [x] author 3 maps: tiny test fixture (hero, town, 1 mine, 1 guard, resources), tutorial 2-player, 3-player map with chokepoint guards and monolith pair
+- [x] write tests: compiler errors (bad char, ragged grid, object out of bounds, overlapping footprints); compiled maps validate; tiny map snapshot
+- [x] run tests — must pass before task 4
 
 ### Task 4: GameState core, command dispatcher, turn cycle
 
@@ -527,12 +527,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/state.ts`, `src/core/commands.ts`, `src/core/turn.ts`, `src/core/setup.ts` (new game from map), `src/core/serialize.ts`
 - Create: `src/core/turn.test.ts`, `src/core/setup.test.ts`, `src/core/serialize.test.ts`
 
-- [ ] implement `GameState` types + `newGame(map, config, seed)`: places towns/heroes, starting resources/army, initial fog
-- [ ] implement command dispatcher skeleton with event emission; reject commands from non-current player or while `pendingChoices` pending
-- [ ] implement `endTurn`: advance player; on full rotation advance day — income (hall + owned mines), MP/mana regen, weekly growth + week banner event, monthly event hook
-- [ ] implement serialize/deserialize with version field
-- [ ] write tests: new-game setup from tiny fixture (positions, resources, pools); income math day 1 vs after capturing a mine; weekly growth (×1.5/×2 with citadel/castle); serialization round-trip equality; command rejection cases
-- [ ] run tests — must pass before task 5
+- [x] implement `GameState` types + `newGame(map, config, seed)`: places towns/heroes, starting resources/army, initial fog
+- [x] implement command dispatcher skeleton with event emission; reject commands from non-current player or while `pendingChoices` pending
+- [x] implement `endTurn`: advance player; on full rotation advance day — income (hall + owned mines), MP/mana regen, weekly growth + week banner event, monthly event hook
+- [x] implement serialize/deserialize with version field
+- [x] write tests: new-game setup from tiny fixture (positions, resources, pools); income math day 1 vs after capturing a mine; weekly growth (×1.5/×2 with citadel/castle); serialization round-trip equality; command rejection cases
+- [x] run tests — must pass before task 5
 
 ### Task 5: Movement and pathfinding
 
@@ -540,11 +540,11 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/movement.ts`, `src/core/movement.test.ts`
 - Modify: `src/core/commands.ts`, `src/core/hero.ts` (create — MP calc)
 
-- [ ] implement terrain cost lookup (+roads, +diagonal ×1.414, Pathfinding skill reduction §3.5) and daily MP formula (slowest creature + Logistics)
-- [ ] implement A* pathfinding over passable tiles (objects' footprints block; trigger tiles enterable)
-- [ ] implement `moveHero` command: validated step-by-step consumption of MP along path, stopping at triggers, emitting move events
-- [ ] write tests: A* optimality vs brute force on small grids; road preference; impassables; MP exhaustion mid-path; diagonal cost; Logistics/Pathfinding effects; cannot move through another hero
-- [ ] run tests — must pass before task 6
+- [x] implement terrain cost lookup (+roads, +diagonal ×1.414, Pathfinding skill reduction §3.5) and daily MP formula (slowest creature + Logistics)
+- [x] implement A* pathfinding over passable tiles (objects' footprints block; trigger tiles enterable)
+- [x] implement `moveHero` command: validated step-by-step consumption of MP along path, stopping at triggers, emitting move events
+- [x] write tests: A* optimality vs brute force on small grids; road preference; impassables; MP exhaustion mid-path; diagonal cost; Logistics/Pathfinding effects; cannot move through another hero
+- [x] run tests — must pass before task 6
 
 ### Task 6: Hero progression — XP, level-ups, skills, army management
 
@@ -552,11 +552,11 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Modify: `src/core/hero.ts`
 - Create: `src/core/hero.test.ts`
 
-- [ ] implement XP gain + level threshold table; level-up: class-weighted primary stat roll + two-skill offer as `pendingChoices` entry (§3.3); `resolveChoice` applies pick
-- [ ] implement army ops: merge/split/swap stacks between slots and between two heroes / hero↔garrison; 7-slot limit; cannot leave hero with empty army
-- [ ] implement artifact equip/unequip with slot validation + stat/skill aggregation helper `effectiveStats(hero)`
-- [ ] write tests: threshold boundaries; multi-level single XP gain queues multiple choices; stat roll uses seeded rng (golden values); 8-skill cap offers upgrades only; army split/merge invariants (total count conserved); artifact slot rules and stat aggregation
-- [ ] run tests — must pass before task 7
+- [x] implement XP gain + level threshold table; level-up: class-weighted primary stat roll + two-skill offer as `pendingChoices` entry (§3.3); `resolveChoice` applies pick
+- [x] implement army ops: merge/split/swap stacks between slots and between two heroes / hero↔garrison; 7-slot limit; cannot leave hero with empty army
+- [x] implement artifact equip/unequip with slot validation + stat/skill aggregation helper `effectiveStats(hero)`
+- [x] write tests: threshold boundaries; multi-level single XP gain queues multiple choices; stat roll uses seeded rng (golden values); 8-skill cap offers upgrades only; army split/merge invariants (total count conserved); artifact slot rules and stat aggregation
+- [x] run tests — must pass before task 7
 
 ### Task 7: Adventure map object interactions
 
@@ -564,12 +564,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/objects.ts`, `src/core/objects.test.ts`
 - Modify: `src/core/movement.ts` (trigger dispatch)
 
-- [ ] implement all 20 object behaviors from §8.3 (combat-triggering ones enqueue a combat start, resolved in Task 8–9; mark with TODO until combat lands)
-- [ ] implement flagging (mines/dwellings), weekly visitables reset, once-per-hero tracking (learning stone), pickup removal, monolith teleport, prison hero release
-- [ ] implement guard handling: power estimate text, attack-confirm `pendingChoice`, +10%/week guard growth
-- [ ] write tests: each object type's state change (resource added, mine flagged, chest choice branches, well once/day reset, monolith pairing, prison joins) — table-driven over fixture map
-- [ ] run tests — must pass before task 8 (combat-gated paths: `[x] … (fails until Task 9)` pattern allowed per partial-implementation exception)
-- [ ] run tests - must pass before next task
+- [x] implement all 20 object behaviors from §8.3 (combat-triggering ones enqueue a combat start, resolved in Task 8–9; mark with TODO until combat lands)
+- [x] implement flagging (mines/dwellings), weekly visitables reset, once-per-hero tracking (learning stone), pickup removal, monolith teleport, prison hero release
+- [x] implement guard handling: power estimate text, attack-confirm `pendingChoice`, +10%/week guard growth
+- [x] write tests: each object type's state change (resource added, mine flagged, chest choice branches, well once/day reset, monolith pairing, prison joins) — table-driven over fixture map
+- [x] run tests — must pass before task 8 (combat-gated paths: guard fights / sieges queue a `pendingCombat` placeholder with TODO(Task 8/9) markers in `objects.ts`; tests assert the queued combat)
+- [x] run tests - must pass before next task
 
 ### Task 8: Combat engine — battlefield, turn order, melee/ranged, damage
 
@@ -577,12 +577,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/combat/state.ts`, `src/core/combat/grid.ts` (hex math), `src/core/combat/engine.ts`, `src/core/combat/damage.ts`
 - Create: `src/core/combat/grid.test.ts`, `src/core/combat/damage.test.ts`, `src/core/combat/engine.test.ts`
 
-- [ ] implement hex grid (15×11 axial), neighbors, distance, BFS reachability, wide-creature occupancy, obstacle generation from seed
-- [ ] implement combat setup from two armies (+hero stats), initiative queue (speed desc, alternate ties, wait re-queue §7.2)
-- [ ] implement actions: move, melee (+retaliation rules), ranged (+distance/melee penalties, shots), defend, wait; stack HP-pool damage application and death
-- [ ] implement damage formula exactly per §7.5 as pure `computeDamage(attacker, defender, ctx)` returning breakdown (for tooltips/log)
-- [ ] write tests: hex math properties (distance symmetry, neighbor counts incl. edges); golden damage cases (A>D cap 4.0, D>A floor 0.3, min 1, luck double, jousting, penalties stacking); retaliation once/unlimited/none; wait ordering; wide-creature blocking; full scripted 2-stack battle replay snapshot
-- [ ] run tests — must pass before task 9
+- [x] implement hex grid (15×11 axial), neighbors, distance, BFS reachability, wide-creature occupancy, obstacle generation from seed
+- [x] implement combat setup from two armies (+hero stats), initiative queue (speed desc, alternate ties, wait re-queue §7.2)
+- [x] implement actions: move, melee (+retaliation rules), ranged (+distance/melee penalties, shots), defend, wait; stack HP-pool damage application and death
+- [x] implement damage formula exactly per §7.5 as pure `computeDamage(attacker, defender, ctx)` returning breakdown (for tooltips/log)
+- [x] write tests: hex math properties (distance symmetry, neighbor counts incl. edges); golden damage cases (A>D cap 4.0, D>A floor 0.3, min 1, luck double, jousting, penalties stacking); retaliation once/unlimited/none; wait ordering; wide-creature blocking; full scripted 2-stack battle replay snapshot
+- [x] run tests — must pass before task 9
 
 ### Task 9: Combat completion — specials, morale/luck, spells in combat, end conditions, sieges
 
@@ -591,13 +591,14 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/combat/abilities.ts`, `src/core/combat/siege.ts`, `src/core/magic.ts`
 - Create: `src/core/combat/abilities.test.ts`, `src/core/combat/siege.test.ts`, `src/core/magic.test.ts`
 
-- [ ] implement ability hooks: double shot/attack, no-retaliation, life drain, regeneration, bind, blind/curse/disease/aging on-hit chances, breath, death cloud, mana drain, magic resistance, spell-level immunity, Archangel resurrect+morale aura, Bone Dragon morale debuff
-- [ ] implement morale/luck rolls per §7.4 with events
-- [ ] implement magic system: mana, spellbook learning (guild visit, Wisdom gate), combat casting 1/round, all 22 combat spells (effects per §6 table, school-tier scaling, undead/mind immunities), buff/debuff duration tracking
-- [ ] implement combat end: victory/defeat/flee, XP award, artifact transfer, Necromancy skeleton raise, town capture on siege win; connect Task 7 combat-gated object paths and remove their TODOs
-- [ ] implement simplified siege per §7.7 (walls, gate, catapult, towers, moat)
-- [ ] write tests: each ability in isolation (table-driven); morale/luck statistics over seeds (≈n/24 within tolerance); every spell's effect + immunity matrix (undead vs Bless/Blind/Death Ripple, dragon spell-level immunity, dwarf resistance roll); animate/resurrection HP math; necromancy yield; full siege battle replay snapshot; flee/rehire flow
-- [ ] run tests — must pass before task 10
+- [x] implement ability hooks: double shot/attack, no-retaliation, life drain, regeneration, bind, blind/curse/disease/aging on-hit chances, breath, death cloud, mana drain, magic resistance, spell-level immunity, Archangel resurrect+morale aura, Bone Dragon morale debuff
+- [x] implement morale/luck rolls per §7.4 with events
+- [x] implement magic system: mana, spellbook learning (guild visit, Wisdom gate), combat casting 1/round, all 22 combat spells (effects per §6 table, school-tier scaling, undead/mind immunities), buff/debuff duration tracking
+- [x] implement combat end: victory/defeat/flee, XP award, artifact transfer, Necromancy skeleton raise, town capture on siege win; connect Task 7 combat-gated object paths and remove their TODOs
+- [x] implement simplified siege per §7.7 (walls, gate, catapult, towers, moat)
+- [x] write tests: each ability in isolation (table-driven); morale/luck statistics over seeds (≈n/24 within tolerance); every spell's effect + immunity matrix (undead vs Bless/Blind/Death Ripple, dragon spell-level immunity, dwarf resistance roll); animate/resurrection HP math; necromancy yield; full siege battle replay snapshot; flee/rehire flow
+- [x] run tests — must pass before task 10
+- ➕ note: game-level combat glue lives in `src/core/combat/resolve.ts` (start guard/siege combat, finish combat, flee, necromancy, tavern pool); defeated/fled hero templates collect in `GameState.tavernPool` for the Task 10 tavern rehire flow
 
 ### Task 10: Town system — building, recruiting, mage guild, marketplace
 
@@ -605,12 +606,13 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/town.ts`, `src/core/town.test.ts`
 - Modify: `src/core/commands.ts`
 
-- [ ] implement build command: prereq/cost/once-per-day validation, effects (income, growth multipliers, guild spell roll from faction pool via rng, special buildings §5.3)
-- [ ] implement recruit command (pool/cost/slot checks, garrison or visiting hero), creature upgrade-for-difference, external dwellings reuse same code
-- [ ] implement marketplace trade rates (10/7/5/4:1 by marketplace count) + trade command; Skeleton Transformer; tavern hero pool + hire command (2500g, weekly refresh, 8-hero cap)
-- [ ] implement town capture (garrison defense battle first if non-empty)
-- [ ] write tests: build tree validation (each prereq edge, one-per-day, capitol uniqueness), income deltas, guild rolls deterministic per seed and never duplicate spells, recruit/upgrade math, trade rates, hire flow and cap, capture with/without garrison
-- [ ] run tests — must pass before task 11
+- [x] implement build command: prereq/cost/once-per-day validation, effects (income, growth multipliers, guild spell roll from faction pool via rng, special buildings §5.3)
+- [x] implement recruit command (pool/cost/slot checks, garrison or visiting hero), creature upgrade-for-difference, external dwellings reuse same code
+- [x] implement marketplace trade rates (10/7/5/4:1 by marketplace count) + trade command; Skeleton Transformer; tavern hero pool + hire command (2500g, weekly refresh, 8-hero cap)
+- [x] implement town capture (garrison defense battle first if non-empty)
+- [x] write tests: build tree validation (each prereq edge, one-per-day, capitol uniqueness), income deltas, guild rolls deterministic per seed and never duplicate spells, recruit/upgrade math, trade rates, hire flow and cap, capture with/without garrison
+- [x] run tests — must pass before task 11
+- ➕ note: halls replace each other on build (income is absolute per spec table, not additive); stables bonus simplified to dawn-while-visiting + on-build; per-town tavern offers live in `Town.tavernHeroes` (save version bumped to 3); special-building effects: treasury income (data), mystic pond weekly rare, griffin bastion `growthBonus` (new data field), tavern/brotherhood siege defender morale, fountain of fortune defender luck, necromancy amplifier +10%/town
 
 ### Task 11: Fog of war and victory conditions
 
@@ -618,11 +620,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/fog.ts`, `src/core/victory.ts`
 - Create: `src/core/fog.test.ts`, `src/core/victory.test.ts`
 
-- [ ] implement per-player shroud/explored bitmasks, circular reveal (radius 5 + Scouting + artifacts) on move/capture, Observatory reveal, last-seen object state for dimmed layer
-- [ ] implement victory/loss evaluation each command: defeatAll win, loseAll loss, 7-day townless countdown; emit game-over event; block further commands
-- [ ] implement adventure spells now that map+fog exist: Town Portal, Dimension Door (visibility + MP rules §6)
-- [ ] write tests: reveal radii incl. map edges; explored persists, shroud doesn't; townless countdown resets on capture; defeatAll exact trigger; TP nearest-vs-chosen by skill; DD into shroud rejected, 2/day cap
-- [ ] run tests — must pass before task 12
+- [x] implement per-player shroud/explored bitmasks, circular reveal (radius 5 + Scouting + artifacts) on move/capture, Observatory reveal, last-seen object state for dimmed layer
+- [x] implement victory/loss evaluation each command: defeatAll win, loseAll loss, 7-day townless countdown; emit game-over event; block further commands
+- [x] implement adventure spells now that map+fog exist: Town Portal, Dimension Door (visibility + MP rules §6)
+- [x] write tests: reveal radii incl. map edges; explored persists, shroud doesn't; townless countdown resets on capture; defeatAll exact trigger; TP nearest-vs-chosen by skill; DD into shroud rejected, 2/day cap
+- [x] run tests — must pass before task 12
+- ➕ note: fog helpers (`revealCircle`/`isExplored`/`sightRadius`) moved from `state.ts` into `fog.ts`; `revealFor` also snapshots objects into `Player.seenObjects` (dimmed-layer state), `visibleTiles` computes the bright layer for the renderer; `Hero.dimensionDoorCasts` + `Player.seenObjects` bumped save version to 4; `newGame` now registers all map-authored owned towns in `player.towns` (needed for TP/loseAll); when the current player eliminates themselves the turn passes to the next active player (day advances on wrap)
 
 ### Task 12: Golden replay harness + full-game core test
 
@@ -630,11 +633,12 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/replay.ts` (run command script → state), `src/core/replay.test.ts`
 - Create: `src/core/fixtures/full-game.replay.ts`
 
-- [ ] implement replay runner: `runScript(map, seed, Command[]) → {state, events}` + state hash helper
-- [ ] script a complete miniature game on the tiny fixture: move, pick up, capture mine, build, recruit, fight a guard, level up, capture enemy town, win — assert key state at checkpoints + final hash
-- [ ] write determinism test: same script twice ⇒ identical hash; different seed ⇒ different rng outcomes but valid end state
-- [ ] add invariant sweep test: after every command in the script — resource ≥ 0, stack counts > 0, MP ≥ 0, state serializes and round-trips
-- [ ] run tests — must pass before task 13
+- [x] implement replay runner: `runScript(map, seed, Command[]) → {state, events}` + state hash helper
+- [x] script a complete miniature game on the tiny fixture: move, pick up, capture mine, build, recruit, fight a guard, level up, capture enemy town, win — assert key state at checkpoints + final hash
+- [x] write determinism test: same script twice ⇒ identical hash; different seed ⇒ different rng outcomes but valid end state
+- [x] add invariant sweep test: after every command in the script — resource ≥ 0, stack counts > 0, MP ≥ 0, state serializes and round-trips
+- [x] run tests — must pass before task 13
+- ➕ note: `runScript` accepts script steps beyond literal commands — pure generators `(state, data) → Command | Command[] | null` (for paths/choice ids), bounded `{until, step}` loops (for scripted combat), and labelled assertion checkpoints; the fixture's `chooseSimpleCombatAction` is a minimal always-legal combat policy reused until the real combat AI lands in Task 16; hero-vs-hero combat is still unimplemented, so the scripted win captures the enemy town after its hero walks off and lets the 7-day townless countdown eliminate blue
 
 ### Task 13: Adventure screen rendering and input
 
@@ -643,12 +647,13 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/ui/hud.ts` (sidebar, resource bar, minimap), `src/app/screens.ts` (router), `src/app/adventureScreen.ts`
 - Create: `e2e/adventure.spec.ts`
 
-- [ ] implement Painter token art (creature disc/initials/tier, hero shield, town silhouette, terrain colors, fog layers) behind interface
-- [ ] implement canvas adventure renderer: visible-rect tile draw, objects, heroes, selection ring, path preview with day markers, dirty-flag rAF loop; camera scroll (keys/edge/drag) and tile hit-testing
-- [ ] implement HUD: resource bar, day indicator, minimap (ownership colors, viewport rect, click-jump), hero/town lists, next-hero/end-turn buttons, right-click info popups; wire commands→dispatch→event-driven redraw
-- [ ] write unit tests for camera math (world↔screen, clamping) and path-preview day-split logic (pure helpers)
-- [ ] write e2e: load tutorial map, select hero, click destination twice → hero token moved, resource bar increases after end-turn, minimap click jumps viewport
-- [ ] run tests + e2e — must pass before task 14
+- [x] implement Painter token art (creature disc/initials/tier, hero shield, town silhouette, terrain colors, fog layers) behind interface
+- [x] implement canvas adventure renderer: visible-rect tile draw, objects, heroes, selection ring, path preview with day markers, dirty-flag rAF loop; camera scroll (keys/edge/drag) and tile hit-testing
+- [x] implement HUD: resource bar, day indicator, minimap (ownership colors, viewport rect, click-jump), hero/town lists, next-hero/end-turn buttons, right-click info popups; wire commands→dispatch→event-driven redraw
+- [x] write unit tests for camera math (world↔screen, clamping) and path-preview day-split logic (pure helpers)
+- [x] write e2e: load tutorial map, select hero, click destination twice → hero token moved, resource bar increases after end-turn, minimap click jumps viewport
+- [x] run tests + e2e — must pass before task 14
+- ➕ note: path day-split helper lives in `src/render/pathPreview.ts` (pure, unit-tested); `main.ts` boots straight into the adventure screen on tutorial-valley (seed 42) until the main menu lands in Task 17; a minimal modal overlay handles `pendingChoices` (numbered option buttons) and an in-progress combat (flee only) as placeholders for the Task 14 dialog queue and Task 15 combat screen; on end-turn, AI players auto-pass until Task 16
 
 ### Task 14: Town, hero, and dialog UI
 
@@ -656,12 +661,13 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/ui/townScreen.ts`, `src/ui/heroScreen.ts`, `src/ui/dialogs.ts` (modal queue), `src/ui/recruitDialog.ts`, `src/ui/components.ts`
 - Create: `e2e/town-hero.spec.ts`
 
-- [ ] implement modal dialog queue bound to `pendingChoices` + informational events (week banner, sign, chest choice, level-up two-option picker, combat result)
-- [ ] implement town screen per §5.4: building grid with lock reasons, hall build menu, recruit dialog (slider+max), garrison/visiting rows with click-click swap, guild viewer, tavern hire, marketplace trade UI
-- [ ] implement hero screen + two-hero exchange: stats, skills, army with split dialog, artifact paper-doll + backpack
-- [ ] write unit tests for pure UI helpers (build-availability reasons, recruit max calc, trade rate calc rendering model)
-- [ ] write e2e: open town → build Town Hall → next day income reflects; recruit max pikemen → garrison badge updates; hero screen split stack; level-up dialog appears after Learning Stone ×2 and choice persists
-- [ ] run tests + e2e — must pass before task 15
+- [x] implement modal dialog queue bound to `pendingChoices` + informational events (week banner, sign, chest choice, level-up two-option picker, combat result)
+- [x] implement town screen per §5.4: building grid with lock reasons, hall build menu, recruit dialog (slider+max), garrison/visiting rows with click-click swap, guild viewer, tavern hire, marketplace trade UI
+- [x] implement hero screen + two-hero exchange: stats, skills, army with split dialog, artifact paper-doll + backpack
+- [x] write unit tests for pure UI helpers (build-availability reasons, recruit max calc, trade rate calc rendering model)
+- [x] write e2e: open town → build Town Hall → next day income reflects; recruit max pikemen → garrison badge updates; hero screen split stack; level-up dialog appears after Learning Stone ×2 and choice persists
+- [x] run tests + e2e — must pass before task 15
+- ➕ note: army/artifact manipulation needed dispatcher support — new commands `moveStack` (hero↔hero/garrison with co-location rules), `equipArtifact`/`unequipArtifact`, `transferArtifact` in `src/core/hero.ts` + `commands.ts` (tested in `src/core/armyCommands.test.ts`); pure UI models live in `src/ui/helpers.ts`; one Learning Stone visit (+1000 XP) already reaches level 2, so the e2e visits it once; two-hero exchange opens by clicking an adjacent own hero on the adventure map; town screen opens from the HUD town list, hero screen from the "Hero Details" HUD button
 
 ### Task 15: Combat screen UI
 
@@ -669,12 +675,13 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/render/combatRenderer.ts`, `src/ui/combatScreen.ts`, `src/ui/spellbook.ts`
 - Create: `e2e/combat.spec.ts`
 
-- [ ] implement hex battlefield renderer: hexes, obstacles, walls (siege), stack tokens + count badges, active highlight, reachable shading, hover damage-estimate tooltip (uses `computeDamage` breakdown), floating damage numbers + 200ms move tweens (skippable)
-- [ ] implement combat controls: hex click-to-move/attack with direction picking for melee (attack from clicked adjacent hex), Wait/Defend/Auto/Flee buttons, combat log panel, spellbook overlay (filter by school/level, mana costs, castable targeting)
-- [ ] wire auto-combat to combat AI placeholder (random-legal-move until Task 16, then real AI)
-- [ ] write unit tests for renderer-side pure helpers: hex pixel↔axial conversion, reachable-set memo, tooltip damage-range text
-- [ ] write e2e: trigger guard fight on tutorial map, win a scripted easy battle via attacks, see result dialog and XP; cast Magic Arrow from spellbook; defend/wait buttons advance queue
-- [ ] run tests + e2e — must pass before task 16
+- [x] implement hex battlefield renderer: hexes, obstacles, walls (siege), stack tokens + count badges, active highlight, reachable shading, hover damage-estimate tooltip (uses `computeDamage` breakdown), floating damage numbers + 200ms move tweens (skippable)
+- [x] implement combat controls: hex click-to-move/attack with direction picking for melee (attack from clicked adjacent hex), Wait/Defend/Auto/Flee buttons, combat log panel, spellbook overlay (filter by school/level, mana costs, castable targeting)
+- [x] wire auto-combat to combat AI placeholder (random-legal-move until Task 16, then real AI)
+- [x] write unit tests for renderer-side pure helpers: hex pixel↔axial conversion, reachable-set memo, tooltip damage-range text
+- [x] write e2e: trigger guard fight on tutorial map, win a scripted easy battle via attacks, see result dialog and XP; cast Magic Arrow from spellbook; defend/wait buttons advance queue
+- [x] run tests + e2e — must pass before task 16
+- ➕ note: the fixture's simple always-legal combat policy moved to `src/core/combat/simplePolicy.ts` (re-exported from the replay fixture); both the Auto button and the enemy side use it — non-human-side stacks are auto-played synchronously after every human action until the real AI lands in Task 16; melee direction picking = the reachable adjacent from-hex closest to the click point; `main.ts` accepts dev/e2e boot params `?map=<id>&seed=<n>` (fixture maps `tiny` and the new `src/maps/fixtures/combat-arena.dsl.ts` with a spellbook-carrying cleric are bootable); the combat result dialog now appends XP gained; `CombatRuleError` from the dispatcher is surfaced as a status message like command rejections; the Archangel `resurrect` action is engine-supported but has no UI button yet (post-MVP polish)
 
 ### Task 16: AI players
 
@@ -682,11 +689,13 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Create: `src/core/ai/adventureAI.ts`, `src/core/ai/combatAI.ts`, `src/core/ai/economyAI.ts`
 - Create: `src/core/ai/ai.test.ts`
 
-- [ ] implement combat AI per §9.4 (shooter targeting, melee value trade, approach, spell pick) — pure function `chooseCombatAction(combatState) → CombatAction`
-- [ ] implement economy AI (build priority list, weekly recruit-all to main hero) and adventure AI (opportunity scoring loop §9.1–9.3, power-ratio gate 1.3)
-- [ ] wire AI turns into endTurn flow with per-command event stream (UI shows "Enemy turn…" + optionally visible moves in explored area); replace auto-combat placeholder
-- [ ] write tests: combat AI never returns illegal action (fuzz over 200 seeded random combat states); AI beats an idle player on tiny map within 4 weeks (integration, seeded); economy AI builds capitol track in valid order; full AI-vs-AI game on tiny map terminates < 3 months with a winner (no hangs)
-- [ ] run tests — must pass before task 17
+- [x] implement combat AI per §9.4 (shooter targeting, melee value trade, approach, spell pick) — pure function `chooseCombatAction(combatState) → CombatAction`
+- [x] implement economy AI (build priority list, weekly recruit-all to main hero) and adventure AI (opportunity scoring loop §9.1–9.3, power-ratio gate 1.3)
+- [x] wire AI turns into endTurn flow with per-command event stream (UI shows "Enemy turn…" + optionally visible moves in explored area); replace auto-combat placeholder
+- [x] ➕ allow `moveHero` onto an enemy hero's tile to trigger hero-vs-hero field combat (movement currently blocks all hero tiles; the combat itself reuses the Task 9 resolve flow)
+- [x] write tests: combat AI never returns illegal action (fuzz over 200 seeded random combat states); AI beats an idle player on tiny map within 4 weeks (integration, seeded); economy AI builds capitol track in valid order; full AI-vs-AI game on tiny map terminates < 3 months with a winner (no hangs)
+- [x] run tests — must pass before task 17
+- ➕ note: AI lives in `src/core/ai/{combatAI,economyAI,adventureAI}.ts`; `chooseAICommand(state, data)` is the single per-command entry point (combat action → choice resolution → build → recruit → trade → hero moves → endTurn). Deviations from §9: enemy towns are also gated by the 1.3× power ratio against garrison+visiting-hero strength (spec gates only neutral guards — ungated town rushes suicide the AI hero); the economy AI trades gold for missing build resources at the marketplace (the tiny map has no ore pit, so the fort was unreachable otherwise). Field combat = `startFieldCombat` (`CombatReason 'field'`); the attacker pays the step cost but stays on its tile; an enemy hero standing on a town tile is handled by the town trigger (siege). `moveHero` movement context now exposes `enemyHeroes` tiles (enterable destinations, never passed through; Dimension Door rejects them). Dispatcher change: `resolveChoice` is accepted from the choice owner even off-turn (an AI attack can hand the human defender a level-up choice mid-AI-turn); the adventure screen drives AI turns from `maybeResumeAiTurns` after every event batch and resolves off-turn AI-owned choices itself; AI-vs-neutral battles run without opening the combat screen. `simplePolicy.ts` is kept only for the Task 12 replay fixture (stable golden hashes)
 
 ### Task 17: Game shell — main menu, new game config, save/load
 
@@ -695,12 +704,13 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Modify: `src/app/main.ts`, `src/app/screens.ts`
 - Create: `e2e/shell.spec.ts`, `src/app/saveload.test.ts`
 
-- [ ] implement main menu + new-game setup (map list with player counts, faction/color/difficulty pick, hotseat toggle making 2 humans alternate with a "pass device" screen)
-- [ ] implement save/load: 5 localStorage slots + export/import JSON file, version check + migration hook, mid-combat save support, autosave each day
-- [ ] implement game-over flow (victory/defeat screen → menu)
-- [ ] write unit tests: save/load round-trip mid-combat; version mismatch rejected gracefully; autosave rotation
-- [ ] write e2e: full happy path — menu → new game on tiny map → play 2 days → save → reload page → load → state intact (day counter, hero position); hotseat pass screen appears
-- [ ] run tests + e2e — must pass before task 18
+- [x] implement main menu + new-game setup (map list with player counts, faction/color/difficulty pick, hotseat toggle making 2 humans alternate with a "pass device" screen)
+- [x] implement save/load: 5 localStorage slots + export/import JSON file, version check + migration hook, mid-combat save support, autosave each day
+- [x] implement game-over flow (victory/defeat screen → menu)
+- [x] write unit tests: save/load round-trip mid-combat; version mismatch rejected gracefully; autosave rotation
+- [x] write e2e: full happy path — menu → new game on tiny map → play 2 days → save → reload page → load → state intact (day counter, hero position); hotseat pass screen appears
+- [x] run tests + e2e — must pass before task 18
+- ➕ note: plain `/` now boots the main menu; `?map=<id>&seed=<n>` keeps direct-booting for dev/e2e (existing specs updated; fixture maps are listed in the setup screen so e2e can start `tiny` through the menu). Faction pick swaps the player's start hero to a free template of that faction (`configureMap` in `newGameSetup.ts`); difficulty presets (easy/normal/hard starting resources) landed here, the AI resource handicap stays in Task 18. Save plumbing: `serialize.ts` gained a chained `SAVE_MIGRATIONS` hook (old version → +1 steps); slots/autosaves live under `heroes.save.<n>` / `heroes.autosave.<n>` with a 3-slot autosave ring (counter key) written at every dawn; autosaves are loadable from the menu and the in-game System panel. Hotseat: the adventure screen renders one `viewPlayerId` perspective and an opaque pass-device overlay gates the switch; defeat overlay is suppressed while another human is still alive. Combat-result dialogs are now shown only for battles the viewing player fought (off-screen AI battles no longer interrupt with modals)
 
 ### Task 18: Balance pass, difficulty, and polish
 
@@ -708,25 +718,27 @@ dispatch(state, cmd): { state: GameState; events: GameEvent[] }   // events driv
 - Modify: `src/data/*.json`, `src/core/setup.ts`, `src/ui/*`
 - Create: `src/core/balance.test.ts`
 
-- [ ] implement difficulty settings (easy/normal/hard: starting resources 30k/20k/10k & AI gets ±20% resource handicap)
-- [ ] add keyboard shortcuts (E end turn, H next hero, Space defend/visit again, arrows scroll), Esc closes dialogs, Enter confirms
-- [ ] sanity-balance via simulation: AI-vs-AI on both real maps × 10 seeds — assert games end, no faction wins > 80% of mirrorless matches (crude balance signal), log table of win rates
-- [ ] write tests: difficulty modifiers applied; shortcut→command mapping unit test; the simulation suite above as a slow tagged test (`npm run test:balance`)
-- [ ] run full check — must pass before task 19
+- [x] implement difficulty settings (easy/normal/hard: starting resources 30k/20k/10k & AI gets ±20% resource handicap)
+- [x] add keyboard shortcuts (E end turn, H next hero, Space defend/visit again, arrows scroll), Esc closes dialogs, Enter confirms
+- [x] sanity-balance via simulation: AI-vs-AI on both real maps × 10 seeds — assert games end, no faction wins > 80% of mirrorless matches (crude balance signal), log table of win rates
+- [x] write tests: difficulty modifiers applied; shortcut→command mapping unit test; the simulation suite above as a slow tagged test (`npm run test:balance`)
+- [x] run full check — must pass before task 19
+- ➕ note: difficulty moved into the core — `Difficulty`/`DIFFICULTY_PRESETS` live in `src/core/setup.ts` (`NewGameConfig.difficulty`; AI players get starting resources × 0.8/1.0/1.2 on easy/normal/hard, rounded); `newGameSetup.ts` re-exports them and passes the difficulty through `onStart`. Space "visit again" needed a new core command `visitObject` (re-triggers the object on the hero's tile; an own town opens the town screen instead); shortcut→action mapping is pure in `src/app/shortcuts.ts` (combat: Space = defend, Esc cancels spellbook/targeting; form controls never intercept). Balance suite: `src/core/balance.test.ts` excluded from the default vitest run, executed via `npm run test:balance` (vitest.balance.config.ts). The simulation exposed a real AI deadlock — a heroless AI never rehired from the tavern, so two heroless AIs ended turns forever; fixed with `chooseHireCommand` in `economyAI.ts`. Results (20/20 games end, ≤ day 68): castle 8/16 (50%), rampart 8/17 (47%), necropolis 4/17 (24%) — no data tweaks needed under the 80% gate
 
 ### Task 19: Verify acceptance criteria
 
-- [ ] verify all requirements from Overview are implemented: explore/collect/capture, town building, recruiting, hex combat with spells+sieges, 3 factions, AI opponents, fog, save/load, win/loss, hotseat
-- [ ] verify edge cases: 7-slot army limits, 8-skill cap, mana floors, last-town loss countdown, simultaneous-day mine income, mid-combat save
-- [ ] run full test suite: `npm run check`
-- [ ] run e2e tests: `npm run test:e2e`
-- [ ] verify coverage ≥80% on `src/core/` (`npm test -- --coverage`)
+- [x] verify all requirements from Overview are implemented: explore/collect/capture, town building, recruiting, hex combat with spells+sieges, 3 factions, AI opponents, fog, save/load, win/loss, hotseat
+- [x] verify edge cases: 7-slot army limits, 8-skill cap, mana floors, last-town loss countdown, simultaneous-day mine income, mid-combat save
+- [x] run full test suite: `npm run check`
+- [x] run e2e tests: `npm run test:e2e`
+- [x] verify coverage ≥80% on `src/core/` (`npm test -- --coverage`)
+- ➕ note: requirement→test evidence map: movement/pathfinding `movement.test.ts` + `e2e/adventure.spec.ts`; pickups/mines/town capture `objects.test.ts`; build/recruit/guild/trade `town.test.ts` + `e2e/town-hero.spec.ts`; hex combat/damage `combat/{engine,damage,grid}.test.ts` + `e2e/combat.spec.ts`; combat spells `magic.test.ts`; sieges `combat/siege.test.ts`; 3 factions `data.test.ts` ("42 faction creatures", "7+7 dwellings per faction"); AI `ai/ai.test.ts` (200-seed fuzz, AI-vs-AI termination); fog `fog.test.ts`; save/load+migration+mid-combat `app/saveload.test.ts` + `e2e/shell.spec.ts`; win/loss/townless `victory.test.ts`; hotseat `e2e/shell.spec.ts`; leveling/8-skill cap `hero.test.ts`; 7-slot limit `town.test.ts` + `armyCommands.test.ts`; same-day mine income `turn.test.ts` ("pays mine income to the mine owner only"). One gap found and fixed: mana-floor edge of Wraith drain (hero at 1 mana → floors at 0, no drain event at 0) had no explicit test — added to `combat/abilities.test.ts`. Coverage (lines): core 93.1%, core/combat 96.3%, core/ai 94.0%, all ≥80%; 512 unit + 18 e2e tests pass
 
 ### Task 20: [Final] Update documentation
 
-- [ ] write README.md: how to run/build/test, architecture overview, how to add a faction (data-only walkthrough), map DSL guide
-- [ ] create CLAUDE.md with project conventions (determinism rule, command pattern, data-driven content, test commands)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] write README.md: how to run/build/test, architecture overview, how to add a faction (data-only walkthrough), map DSL guide
+- [x] create CLAUDE.md with project conventions (determinism rule, command pattern, data-driven content, test commands)
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 

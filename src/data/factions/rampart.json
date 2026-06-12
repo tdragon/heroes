@@ -1,0 +1,190 @@
+{
+  "id": "rampart",
+  "name": "Rampart",
+  "color": "#2f855a",
+  "alignment": "good",
+  "creatures": [
+    { "tier": 1, "base": "centaur", "upgrade": "centaur_captain" },
+    { "tier": 2, "base": "dwarf", "upgrade": "battle_dwarf" },
+    { "tier": 3, "base": "wood_elf", "upgrade": "grand_elf" },
+    { "tier": 4, "base": "pegasus", "upgrade": "silver_pegasus" },
+    { "tier": 5, "base": "dendroid_guard", "upgrade": "dendroid_soldier" },
+    { "tier": 6, "base": "unicorn", "upgrade": "war_unicorn" },
+    { "tier": 7, "base": "green_dragon", "upgrade": "gold_dragon" }
+  ],
+  "dwellings": [
+    {
+      "id": "rampart_dwelling_1",
+      "name": "Centaur Field",
+      "kind": "dwelling",
+      "cost": { "gold": 400, "wood": 5 },
+      "prereqs": ["fort"],
+      "creature": "centaur"
+    },
+    {
+      "id": "rampart_dwelling_1u",
+      "name": "Upg. Centaur Field",
+      "kind": "dwelling",
+      "cost": { "gold": 400, "wood": 3 },
+      "prereqs": ["rampart_dwelling_1"],
+      "creature": "centaur_captain",
+      "upgradeOf": "rampart_dwelling_1"
+    },
+    {
+      "id": "rampart_dwelling_2",
+      "name": "Dwarf Burrow",
+      "kind": "dwelling",
+      "cost": { "gold": 1000, "ore": 5 },
+      "prereqs": ["rampart_dwelling_1"],
+      "creature": "dwarf"
+    },
+    {
+      "id": "rampart_dwelling_2u",
+      "name": "Upg. Dwarf Burrow",
+      "kind": "dwelling",
+      "cost": { "gold": 1000, "ore": 3 },
+      "prereqs": ["rampart_dwelling_2"],
+      "creature": "battle_dwarf",
+      "upgradeOf": "rampart_dwelling_2"
+    },
+    {
+      "id": "rampart_dwelling_3",
+      "name": "Elf Glade",
+      "kind": "dwelling",
+      "cost": { "gold": 1500, "wood": 5, "ore": 5 },
+      "prereqs": ["rampart_dwelling_2"],
+      "creature": "wood_elf"
+    },
+    {
+      "id": "rampart_dwelling_3u",
+      "name": "Upg. Elf Glade",
+      "kind": "dwelling",
+      "cost": { "gold": 1500, "wood": 3, "ore": 3 },
+      "prereqs": ["rampart_dwelling_3"],
+      "creature": "grand_elf",
+      "upgradeOf": "rampart_dwelling_3"
+    },
+    {
+      "id": "rampart_dwelling_4",
+      "name": "Pegasus Cliff",
+      "kind": "dwelling",
+      "cost": { "gold": 2000, "wood": 10, "ore": 10 },
+      "prereqs": ["rampart_dwelling_3"],
+      "creature": "pegasus"
+    },
+    {
+      "id": "rampart_dwelling_4u",
+      "name": "Upg. Pegasus Cliff",
+      "kind": "dwelling",
+      "cost": { "gold": 2000, "wood": 5, "ore": 5 },
+      "prereqs": ["rampart_dwelling_4"],
+      "creature": "silver_pegasus",
+      "upgradeOf": "rampart_dwelling_4"
+    },
+    {
+      "id": "rampart_dwelling_5",
+      "name": "Dendroid Grove",
+      "kind": "dwelling",
+      "cost": { "gold": 3000, "crystal": 5 },
+      "prereqs": ["rampart_dwelling_4"],
+      "creature": "dendroid_guard"
+    },
+    {
+      "id": "rampart_dwelling_5u",
+      "name": "Upg. Dendroid Grove",
+      "kind": "dwelling",
+      "cost": { "gold": 3000, "crystal": 3 },
+      "prereqs": ["rampart_dwelling_5"],
+      "creature": "dendroid_soldier",
+      "upgradeOf": "rampart_dwelling_5"
+    },
+    {
+      "id": "rampart_dwelling_6",
+      "name": "Unicorn Meadow",
+      "kind": "dwelling",
+      "cost": { "gold": 4000, "wood": 10, "ore": 10, "crystal": 5 },
+      "prereqs": ["rampart_dwelling_5"],
+      "creature": "unicorn"
+    },
+    {
+      "id": "rampart_dwelling_6u",
+      "name": "Upg. Unicorn Meadow",
+      "kind": "dwelling",
+      "cost": { "gold": 4000, "wood": 5, "ore": 5, "crystal": 3 },
+      "prereqs": ["rampart_dwelling_6"],
+      "creature": "war_unicorn",
+      "upgradeOf": "rampart_dwelling_6"
+    },
+    {
+      "id": "rampart_dwelling_7",
+      "name": "Dragon Peak",
+      "kind": "dwelling",
+      "cost": { "gold": 8000, "wood": 20, "ore": 20, "crystal": 10 },
+      "prereqs": ["rampart_dwelling_6"],
+      "creature": "green_dragon"
+    },
+    {
+      "id": "rampart_dwelling_7u",
+      "name": "Upg. Dragon Peak",
+      "kind": "dwelling",
+      "cost": { "gold": 8000, "wood": 10, "ore": 10, "crystal": 10 },
+      "prereqs": ["rampart_dwelling_7"],
+      "creature": "gold_dragon",
+      "upgradeOf": "rampart_dwelling_7"
+    }
+  ],
+  "specialBuildings": [
+    {
+      "id": "fountain_of_fortune",
+      "name": "Fountain of Fortune",
+      "kind": "special",
+      "cost": { "gold": 1500, "crystal": 2 },
+      "prereqs": [],
+      "special": "garrison defenders gain +2 luck"
+    },
+    {
+      "id": "treasury",
+      "name": "Treasury",
+      "kind": "special",
+      "cost": { "gold": 5000, "ore": 5 },
+      "prereqs": ["marketplace"],
+      "income": { "gold": 500 },
+      "special": "+500 gold per day"
+    },
+    {
+      "id": "mystic_pond",
+      "name": "Mystic Pond",
+      "kind": "special",
+      "cost": { "gold": 2000, "mercury": 2, "sulfur": 2, "crystal": 2, "gems": 2 },
+      "prereqs": [],
+      "special": "produces a random rare resource each week"
+    }
+  ],
+  "heroClasses": ["ranger", "druid"],
+  "spellPool": [
+    "magic_arrow",
+    "haste",
+    "slow",
+    "shield",
+    "stone_skin",
+    "bless",
+    "curse",
+    "bloodlust",
+    "cure",
+    "dispel",
+    "lightning_bolt",
+    "ice_bolt",
+    "blind",
+    "weakness",
+    "fireball",
+    "forgetfulness",
+    "chain_lightning",
+    "meteor_shower",
+    "resurrection",
+    "town_portal",
+    "implosion",
+    "dimension_door"
+  ],
+  "siloResource": "crystal",
+  "maxGuildLevel": 5
+}

@@ -1,0 +1,53 @@
+import type { MapSource } from '../dsl';
+
+export const tinyMapSource: MapSource = {
+  id: 'tiny',
+  name: 'Tiny Proving Grounds',
+  terrain: [
+    'gggggggggggg',
+    'gggggggggggg',
+    'gggggggggggg',
+    'gggggggggggg',
+    'ggggddddgggg',
+    'wwwgddddgggg',
+    'wwwggggggggg',
+    'gggggggggggg',
+    'gggggggggggg',
+    'gggggggggggg',
+    'gggggggggggg',
+    'gggggggggggg',
+  ],
+  roads: [
+    '............',
+    '............',
+    '............',
+    '............',
+    '....DDDD....',
+    '............',
+    '............',
+    '............',
+    '............',
+    '............',
+    '............',
+    '............',
+  ],
+  players: [
+    { color: 'red', faction: 'castle', isHuman: true, startTownAt: [2, 2], startHero: 'edric' },
+    {
+      color: 'blue',
+      faction: 'necropolis',
+      isHuman: false,
+      startTownAt: [9, 9],
+      startHero: 'mortus',
+    },
+  ],
+  objects: [
+    { type: 'town', at: [2, 2], owner: 'red' },
+    { type: 'town', at: [9, 9], owner: 'blue' },
+    { type: 'mine', subtype: 'sawmill', at: [6, 2], guard: { creature: 'wolf', count: 4 } },
+    { type: 'resource', subtype: 'wood', amount: 6, at: [4, 4] },
+    { type: 'resource', subtype: 'gold', amount: 600, at: [8, 7] },
+    { type: 'treasure_chest', at: [5, 7] },
+    { type: 'monster', creature: 'wolf', count: 6, at: [6, 6] },
+  ],
+};

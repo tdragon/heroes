@@ -1,0 +1,152 @@
+[
+  {
+    "id": "town",
+    "name": "Town",
+    "category": "enterable"
+  },
+  {
+    "id": "mine",
+    "name": "Mine",
+    "category": "flaggable",
+    "subtypes": [
+      { "id": "sawmill", "name": "Sawmill", "income": { "wood": 2 } },
+      { "id": "ore_pit", "name": "Ore Pit", "income": { "ore": 2 } },
+      { "id": "alchemist_lab", "name": "Alchemist Lab", "income": { "mercury": 1 } },
+      { "id": "sulfur_dune", "name": "Sulfur Dune", "income": { "sulfur": 1 } },
+      { "id": "crystal_cavern", "name": "Crystal Cavern", "income": { "crystal": 1 } },
+      { "id": "gem_pond", "name": "Gem Pond", "income": { "gems": 1 } },
+      { "id": "gold_mine", "name": "Gold Mine", "income": { "gold": 1000 } }
+    ]
+  },
+  {
+    "id": "resource",
+    "name": "Resource Pile",
+    "category": "pickup",
+    "amountRanges": {
+      "wood": [5, 10],
+      "ore": [5, 10],
+      "mercury": [3, 6],
+      "sulfur": [3, 6],
+      "crystal": [3, 6],
+      "gems": [3, 6],
+      "gold": [500, 1000]
+    }
+  },
+  {
+    "id": "treasure_chest",
+    "name": "Treasure Chest",
+    "category": "pickup",
+    "chestOptions": [
+      { "gold": 1000, "xp": 500 },
+      { "gold": 1500, "xp": 1000 },
+      { "gold": 2000, "xp": 1500 }
+    ]
+  },
+  {
+    "id": "artifact",
+    "name": "Artifact",
+    "category": "pickup"
+  },
+  {
+    "id": "monster",
+    "name": "Wandering Monster",
+    "category": "special"
+  },
+  {
+    "id": "dwelling",
+    "name": "External Dwelling",
+    "category": "flaggable",
+    "reset": "weekly"
+  },
+  {
+    "id": "windmill",
+    "name": "Windmill",
+    "category": "visitable",
+    "reset": "weekly",
+    "amountRanges": {
+      "mercury": [3, 6],
+      "sulfur": [3, 6],
+      "crystal": [3, 6],
+      "gems": [3, 6]
+    }
+  },
+  {
+    "id": "water_wheel",
+    "name": "Water Wheel",
+    "category": "visitable",
+    "reset": "weekly",
+    "reward": { "gold": 500, "firstWeekGold": 1000 }
+  },
+  {
+    "id": "mystical_garden",
+    "name": "Mystical Garden",
+    "category": "visitable",
+    "reset": "weekly",
+    "amountRanges": {
+      "gold": [500, 500],
+      "gems": [5, 5]
+    }
+  },
+  {
+    "id": "magic_well",
+    "name": "Magic Well",
+    "category": "visitable",
+    "reset": "daily",
+    "reward": { "manaRefill": true }
+  },
+  {
+    "id": "fountain_of_fortune",
+    "name": "Fountain of Fortune",
+    "category": "visitable",
+    "reward": { "luck": [1, 3] }
+  },
+  {
+    "id": "rally_flag",
+    "name": "Rally Flag",
+    "category": "visitable",
+    "reward": { "luck": [1, 1], "morale": 1 }
+  },
+  {
+    "id": "learning_stone",
+    "name": "Learning Stone",
+    "category": "visitable",
+    "reset": "oncePerHero",
+    "reward": { "xp": 1000 }
+  },
+  {
+    "id": "school_of_war",
+    "name": "School of War",
+    "category": "visitable",
+    "reset": "oncePerHero",
+    "reward": { "goldCost": 1000, "statChoice": ["attack", "defense"], "statAmount": 1 }
+  },
+  {
+    "id": "observatory",
+    "name": "Observatory",
+    "category": "visitable",
+    "reset": "oncePerPlayer",
+    "reward": { "revealRadius": 20 }
+  },
+  {
+    "id": "sign",
+    "name": "Sign",
+    "category": "special"
+  },
+  {
+    "id": "monolith",
+    "name": "Two-way Monolith",
+    "category": "special"
+  },
+  {
+    "id": "prison",
+    "name": "Prison",
+    "category": "special",
+    "reset": "once"
+  },
+  {
+    "id": "obelisk",
+    "name": "Obelisk",
+    "category": "special",
+    "reset": "once"
+  }
+]

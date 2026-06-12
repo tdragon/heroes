@@ -1,0 +1,176 @@
+# Heroes Clone
+
+A browser-based, single-player clone of a classic turn-based strategy game: heroes explore
+an adventure map, collect resources, capture mines and towns, build up towns, recruit
+creature armies, learn spells, and fight tactical hex-grid battles against AI opponents
+(plus local hotseat). All art is original placeholder art drawn in code; only game
+*mechanics* are cloned.
+
+Pure TypeScript, no UI framework, no runtime dependencies beyond `zod`.
+
+## Running
+
+```sh
+npm install
+npx playwright install chromium   # once, for e2e tests
+npm run dev                       # dev server (Vite) — open the printed URL
+npm run build                     # typecheck + production build (dist/)
+npm run preview                   # serve the production build
+```
+
+Dev/e2e boot shortcuts: `?map=<id>&seed=<n>` URL params skip the menu and start a game
+directly (e.g. `/?map=tiny&seed=42`). Plain `/` boots the main menu.
+
+## Testing
+
+```sh
+npm test                # unit tests (Vitest)
+npm run test:watch      # unit tests in watch mode
+npm run test:e2e        # browser tests (Playwright)
+npm run test:balance    # slow AI-vs-AI balance simulation suite
+npm run check           # tsc + eslint + unit tests — the pre-commit gate
+npm test -- --coverage  # coverage report (target: >=80% lines in src/core/)
+```
+
+## Architecture
+
+```
+src/
+  core/        pure game logic — no DOM, no rendering, fully deterministic
+    state.ts        GameState types
+    rng.ts          seeded PRNG (mulberry32) — ALL randomness flows through here
+    commands.ts     Command types + dispatcher (reducer pattern)
+    turn.ts         day/week/month cycle, income, growth
+    hero.ts         stats, experience, leveling, skills, army/artifact ops
+    movement.ts     A* pathfinding, movement points, terrain costs
+    objects.ts      adventure-map object interactions
+    town.ts         building, recruiting, mage guild, marketplace
+    combat/         battle engine (grid, damage, abilities, siege, resolve)
+    magic.ts        mana, spellbook, spell effects
+    fog.ts          fog of war / shroud
+    ai/             AI players (adventure, economy, combat)
+    victory.ts      win/loss evaluation
+    replay.ts       scripted command runner for golden tests
+  data/        JSON game content + zod schemas + loader (index.ts)
+    factions/       castle.json, rampart.json, necropolis.json
+    creatures.json  spells.json  artifacts.json  buildings.json
+    objects.json    terrain.json  heroes.json  skills.json
+  maps/        map zod schema, ASCII map DSL compiler, sample maps
+  render/      Canvas 2D renderers (adventure, combat) + placeholder token painter
+  ui/          DOM overlay screens (town, hero, combat, dialogs, HUD)
+  app/         game shell: main menu, screen router, save/load, input, shortcuts
+```
+
+### Key design decisions
+
+1. **Command/reducer core.** All gameplay is `dispatch(state, command) -> { state, events }`.
+   The UI and the AI both emit commands; the core does not know who is playing. This gives
+   unit testing, replays, save/load, and hotseat for free.
+2. **Determinism.** One seeded PRNG (`mulberry32`) lives inside `GameState` (`rngState`);
+   same seed + same command sequence produces an identical game. The core never calls
+   `Math.random()` or reads the clock. Golden replay tests in `src/core/replay.test.ts`
+   enforce this.
+3. **Data-driven content.** Creatures, buildings, spells, artifacts, factions, and map
+   objects are JSON validated by zod schemas at load time. Code references content only by
+   string id; the loader (`src/data/index.ts`) cross-validates references (dangling ids,
+   prereq cycles). Adding a faction means adding JSON, not code.
+4. **Canvas 2D + DOM overlay.** Tile map and battlefield are drawn on `<canvas>`;
+   menus, town screen, and dialogs are plain DOM — easy for text-heavy UI and
+   e2e-testable via selectors.
+5. **Placeholder art system.** `src/render/painter.ts` draws every entity as a labeled
+   token (faction-colored disc + creature initials + tier, hero shields, town silhouettes,
+   flat terrain colors). All drawing is behind the `Painter` interface so real art can be
+   swapped in later.
+
+## Adding a faction (data only)
+
+The engine is fully data-driven — a new faction requires zero engine code. Use
+`src/data/factions/castle.json` as the reference. Steps:
+
+1. **Allow the faction id.** Add the id to the faction id enum in `src/data/schema.ts`
+   (the one place the list of factions is declared).
+2. **Creatures** — in `src/data/creatures.json`, add 14 creatures (7 tiers, base +
+   upgrade), each with `faction` set to the new id and the upgrade carrying
+   `upgradeOf: "<base id>"`. Stats: attack, defense, damage min/max, hp, speed, growth,
+   cost, and ability flags (`ranged`, `flying`, `wide`, `undead`, named specials — see
+   existing entries; specials are implemented as data-selected hooks in
+   `src/core/combat/abilities.ts`, so reuse existing special ids).
+3. **Faction file** — create `src/data/factions/<id>.json` with:
+   - `id`, `name`, `color` (hex), `alignment`
+   - `creatures`: the 7 tier entries `{ tier, base, upgrade }`
+   - `dwellings`: 14 dwelling buildings (7 base + 7 upgrades with `upgradeOf`), each with
+     `cost`, `prereqs` (tier N requires `fort` + tier N-1 dwelling), and `creature`
+   - `specialBuildings`: faction specials (`kind: "special"`)
+   - `heroClasses`: exactly 2 class ids (defined in step 4)
+   - `spellPool`: spell ids the mage guild can roll
+   - `siloResource`: which rare resource the Resource Silo produces
+   - `maxGuildLevel`: 1–5
+4. **Hero classes and heroes** — in `src/data/heroes.json`, add 2 classes (start stats,
+   early/late level-up stat chances, `hasSpellbook`, `skillWeights` for the level-up skill
+   pool) and 4+ named hero templates per class (`startSkills`, `startArmy`, optional
+   `startSpell`).
+5. **Register the file** — import the new faction JSON in `src/data/index.ts` and add it
+   to the factions list (the only code edit, and it is one import line).
+6. **Validate** — `npm test` runs the schema + cross-reference checks in
+   `src/data/data.test.ts`; it will list every dangling id or broken prereq edge. Update
+   the data-shape assertions there (creature/dwelling counts) to include the new faction.
+
+Once data validates, the faction is selectable in new-game setup, buildable, recruitable,
+and playable by the AI with no further changes.
+
+## Map DSL guide
+
+Maps are authored as TypeScript `MapSource` objects (see `src/maps/dsl.ts`) and compiled
+to validated map JSON by `compileMap(source, data)`. Samples:
+`src/maps/tutorial-valley.dsl.ts`, `src/maps/contested-river.dsl.ts`, and the test
+fixture `src/maps/fixtures/tiny.dsl.ts`.
+
+A map source has:
+
+- `id`, `name`
+- `terrain`: a square char grid (array of equal-length strings), one char per tile.
+  Chars come from `src/data/terrain.json`:
+
+  | char | terrain | move cost |
+  |---|---|---|
+  | `g` | grass | 100 |
+  | `d` | dirt | 100 |
+  | `s` | sand | 150 |
+  | `n` | snow | 150 |
+  | `S` | swamp | 175 |
+  | `r` | rough | 125 |
+  | `l` | lava | 100 |
+  | `w` | water | impassable |
+
+- `roads` (optional): same-size grid layered over terrain; `.` = no road,
+  `D` dirt road (75), `G` gravel (65), `C` cobblestone (50). Road cost overrides terrain.
+- `players`: `{ color, faction, isHuman, startTownAt: [x, y], startHero }` — each player
+  needs a town object at `startTownAt` owned by their color, and a start hero of their
+  faction.
+- `objects`: list of `{ type, at: [x, y], ... }`. `at` is the trigger tile. Types and
+  their extra fields (validated by the compiler): `town` (`owner`), `mine` (`subtype`,
+  e.g. `sawmill`), `resource` (`subtype`, `amount`), `monster` (`creature`, `count`),
+  `dwelling` (`creature`), `artifact` (`artifact`), `sign` (`message`), `monolith`
+  (`pairId` — exactly 2 per pair), `prison` (`hero`), plus `treasure_chest`, wells,
+  and the rest of the catalog in `src/data/objects.json`. Any object may carry a
+  `guard: { creature, count }`.
+- `victory` / `loss` (optional): default `{ type: "defeatAll" }` / `{ type: "loseAll" }`.
+
+Towns occupy a 3x2 footprint (trigger tile = bottom-center); all other objects are 1 tile.
+The compiler reports every problem at once with row/col coordinates: unknown chars, ragged
+grids, out-of-bounds or overlapping footprints, roads/objects on impassable terrain,
+dangling content ids, unowned start towns, unpaired monoliths.
+
+Register a new map by adding its source to the `sources` list in `src/maps/index.ts`;
+it then appears in the new-game map list and is covered by the compile-all test in
+`src/maps/maps.test.ts`.
+
+## Game rules reference
+
+The full game specification (formulas, data tables, screens) lives in
+`docs/plans/completed/20260611-heroes3-browser-clone.md`. Quick pointers:
+
+- Damage formula: `src/core/combat/damage.ts` (attack/defense multiplier, caps 4.0/0.3)
+- Movement costs and MP formula: `src/core/movement.ts`, `src/core/hero.ts`
+- Income/growth cycle: `src/core/turn.ts`
+- Save format and migrations: `src/core/serialize.ts`, `src/app/saveload.ts`

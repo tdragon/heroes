@@ -1,0 +1,29 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`full siege battle > matches the siege replay snapshot 1`] = `
+{
+  "attacks": 6,
+  "rounds": 2,
+  "survivors": [
+    {
+      "count": 5,
+      "creature": "angel",
+      "id": "a0",
+    },
+    {
+      "count": 28,
+      "creature": "marksman",
+      "id": "a1",
+    },
+  ],
+  "towerShots": 3,
+  "wallHits": 1,
+  "walls": [
+    1,
+    1,
+    2,
+    2,
+  ],
+  "winner": "attacker",
+}
+`;

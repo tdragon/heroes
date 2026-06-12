@@ -1,0 +1,181 @@
+{
+  "id": "necropolis",
+  "name": "Necropolis",
+  "color": "#4a5568",
+  "alignment": "evil",
+  "creatures": [
+    { "tier": 1, "base": "skeleton", "upgrade": "skeleton_warrior" },
+    { "tier": 2, "base": "walking_dead", "upgrade": "zombie" },
+    { "tier": 3, "base": "wight", "upgrade": "wraith" },
+    { "tier": 4, "base": "vampire", "upgrade": "vampire_lord" },
+    { "tier": 5, "base": "lich", "upgrade": "power_lich" },
+    { "tier": 6, "base": "black_knight", "upgrade": "dread_knight" },
+    { "tier": 7, "base": "bone_dragon", "upgrade": "ghost_dragon" }
+  ],
+  "dwellings": [
+    {
+      "id": "necropolis_dwelling_1",
+      "name": "Bone Yard",
+      "kind": "dwelling",
+      "cost": { "gold": 400, "wood": 5 },
+      "prereqs": ["fort"],
+      "creature": "skeleton"
+    },
+    {
+      "id": "necropolis_dwelling_1u",
+      "name": "Upg. Bone Yard",
+      "kind": "dwelling",
+      "cost": { "gold": 400, "wood": 3 },
+      "prereqs": ["necropolis_dwelling_1"],
+      "creature": "skeleton_warrior",
+      "upgradeOf": "necropolis_dwelling_1"
+    },
+    {
+      "id": "necropolis_dwelling_2",
+      "name": "Grave Plot",
+      "kind": "dwelling",
+      "cost": { "gold": 1000, "ore": 5 },
+      "prereqs": ["necropolis_dwelling_1"],
+      "creature": "walking_dead"
+    },
+    {
+      "id": "necropolis_dwelling_2u",
+      "name": "Upg. Grave Plot",
+      "kind": "dwelling",
+      "cost": { "gold": 1000, "ore": 3 },
+      "prereqs": ["necropolis_dwelling_2"],
+      "creature": "zombie",
+      "upgradeOf": "necropolis_dwelling_2"
+    },
+    {
+      "id": "necropolis_dwelling_3",
+      "name": "Wight Tomb",
+      "kind": "dwelling",
+      "cost": { "gold": 1500, "wood": 5, "ore": 5 },
+      "prereqs": ["necropolis_dwelling_2"],
+      "creature": "wight"
+    },
+    {
+      "id": "necropolis_dwelling_3u",
+      "name": "Upg. Wight Tomb",
+      "kind": "dwelling",
+      "cost": { "gold": 1500, "wood": 3, "ore": 3 },
+      "prereqs": ["necropolis_dwelling_3"],
+      "creature": "wraith",
+      "upgradeOf": "necropolis_dwelling_3"
+    },
+    {
+      "id": "necropolis_dwelling_4",
+      "name": "Vampire Crypt",
+      "kind": "dwelling",
+      "cost": { "gold": 2000, "wood": 10, "ore": 10 },
+      "prereqs": ["necropolis_dwelling_3"],
+      "creature": "vampire"
+    },
+    {
+      "id": "necropolis_dwelling_4u",
+      "name": "Upg. Vampire Crypt",
+      "kind": "dwelling",
+      "cost": { "gold": 2000, "wood": 5, "ore": 5 },
+      "prereqs": ["necropolis_dwelling_4"],
+      "creature": "vampire_lord",
+      "upgradeOf": "necropolis_dwelling_4"
+    },
+    {
+      "id": "necropolis_dwelling_5",
+      "name": "Lich Mausoleum",
+      "kind": "dwelling",
+      "cost": { "gold": 3000, "mercury": 5 },
+      "prereqs": ["necropolis_dwelling_4"],
+      "creature": "lich"
+    },
+    {
+      "id": "necropolis_dwelling_5u",
+      "name": "Upg. Lich Mausoleum",
+      "kind": "dwelling",
+      "cost": { "gold": 3000, "mercury": 3 },
+      "prereqs": ["necropolis_dwelling_5"],
+      "creature": "power_lich",
+      "upgradeOf": "necropolis_dwelling_5"
+    },
+    {
+      "id": "necropolis_dwelling_6",
+      "name": "Knight Vault",
+      "kind": "dwelling",
+      "cost": { "gold": 4000, "wood": 10, "ore": 10, "mercury": 5 },
+      "prereqs": ["necropolis_dwelling_5"],
+      "creature": "black_knight"
+    },
+    {
+      "id": "necropolis_dwelling_6u",
+      "name": "Upg. Knight Vault",
+      "kind": "dwelling",
+      "cost": { "gold": 4000, "wood": 5, "ore": 5, "mercury": 3 },
+      "prereqs": ["necropolis_dwelling_6"],
+      "creature": "dread_knight",
+      "upgradeOf": "necropolis_dwelling_6"
+    },
+    {
+      "id": "necropolis_dwelling_7",
+      "name": "Dragon Catacomb",
+      "kind": "dwelling",
+      "cost": { "gold": 8000, "wood": 20, "ore": 20, "mercury": 10 },
+      "prereqs": ["necropolis_dwelling_6"],
+      "creature": "bone_dragon"
+    },
+    {
+      "id": "necropolis_dwelling_7u",
+      "name": "Upg. Dragon Catacomb",
+      "kind": "dwelling",
+      "cost": { "gold": 8000, "wood": 10, "ore": 10, "mercury": 10 },
+      "prereqs": ["necropolis_dwelling_7"],
+      "creature": "ghost_dragon",
+      "upgradeOf": "necropolis_dwelling_7"
+    }
+  ],
+  "specialBuildings": [
+    {
+      "id": "necromancy_amplifier",
+      "name": "Necromancy Amplifier",
+      "kind": "special",
+      "cost": { "gold": 1000, "wood": 5, "ore": 5 },
+      "prereqs": [],
+      "special": "all own heroes gain +10% necromancy"
+    },
+    {
+      "id": "skeleton_transformer",
+      "name": "Skeleton Transformer",
+      "kind": "special",
+      "cost": { "gold": 1500 },
+      "prereqs": [],
+      "special": "visiting hero may convert any own stack into same-count skeletons"
+    }
+  ],
+  "heroClasses": ["death_knight", "necromancer"],
+  "spellPool": [
+    "magic_arrow",
+    "haste",
+    "slow",
+    "shield",
+    "stone_skin",
+    "curse",
+    "bloodlust",
+    "cure",
+    "dispel",
+    "lightning_bolt",
+    "ice_bolt",
+    "blind",
+    "weakness",
+    "death_ripple",
+    "fireball",
+    "animate_dead",
+    "forgetfulness",
+    "chain_lightning",
+    "meteor_shower",
+    "town_portal",
+    "implosion",
+    "dimension_door"
+  ],
+  "siloResource": "mercury",
+  "maxGuildLevel": 5
+}

@@ -1,0 +1,23 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`full scripted battle > matches the replay snapshot 1`] = `
+{
+  "attacks": 20,
+  "rounds": 5,
+  "survivors": [
+    {
+      "count": 4,
+      "creature": "halberdier",
+      "firstHp": 10,
+      "id": "a0",
+    },
+    {
+      "count": 5,
+      "creature": "archer",
+      "firstHp": 10,
+      "id": "a1",
+    },
+  ],
+  "winner": "attacker",
+}
+`;
