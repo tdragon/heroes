@@ -20,8 +20,14 @@ export function heroesOfFaction(data: GameData, faction: FactionId): HeroTemplat
 
 // apply setup-screen choices to a map: per-player faction (with a matching
 // starting hero) and human/AI control; hero templates are never duplicated
+// and heroes locked in map prisons are never handed out as start heroes
 export function configureMap(map: GameMap, data: GameData, setups: PlayerSetup[]): GameMap {
   const usedHeroes = new Set<string>();
+  for (const obj of map.objects) {
+    if (obj.type === 'prison' && obj.hero !== undefined) {
+      usedHeroes.add(obj.hero);
+    }
+  }
   const players = map.players.map((player) => {
     const setup = setups.find((s) => s.color === player.color);
     const faction = setup?.faction ?? player.faction;

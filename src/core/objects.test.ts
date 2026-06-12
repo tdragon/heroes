@@ -12,7 +12,8 @@ import {
   resolveObjectChoice,
 } from './objects';
 import { dailyIncome } from './turn';
-import { newGame, townIdAt } from './setup';
+import { rollTavernOffers } from './town';
+import { instantiateHero, newGame, townIdAt } from './setup';
 import { isExplored } from './fog';
 import {
   type GameState,
@@ -88,7 +89,8 @@ function getHero(state: GameState, id: string): Hero {
 
 function visit(state: GameState, heroId: string, type: string, at?: Pos): GameEvent[] {
   const events: GameEvent[] = [];
-  handleObjectTrigger(state, getHero(state, heroId), findObject(state, type, at).id, data, events);
+  const hero = getHero(state, heroId);
+  handleObjectTrigger(state, hero, [...hero.pos], findObject(state, type, at).id, data, events);
   return events;
 }
 
@@ -286,6 +288,34 @@ describe('guards', () => {
     expect(mine.owner).toBeNull();
     expect(mine.guard?.count).toBe(4);
     expect(state.combat).toBeNull();
+  });
+
+  it('retreating from a guard returns the hero to the tile they came from', () => {
+    const state = makeGame();
+    const hero = getHero(state, 'edric');
+    hero.pos = [6, 1];
+    hero.movementPoints = 2000;
+    const moved = dispatch(
+      state,
+      { type: 'moveHero', player: 'red', hero: 'edric', path: [[7, 1]] },
+      data,
+    ).state;
+    expect(getHero(moved, 'edric').pos).toEqual([7, 1]);
+    const choice = moved.pendingChoices[0];
+    expect(choice?.kind).toBe('guardAttack');
+    expect(choice?.from).toEqual([6, 1]);
+    const mpAfterStep = getHero(moved, 'edric').movementPoints;
+
+    const done = dispatch(
+      moved,
+      { type: 'resolveChoice', player: 'red', choiceId: choice?.id ?? '', option: 1 },
+      data,
+    ).state;
+    // the hero is back where they came from (the step MP is not refunded), so
+    // the guard can never be bypassed by walking off the far side
+    expect(getHero(done, 'edric').pos).toEqual([6, 1]);
+    expect(getHero(done, 'edric').movementPoints).toBe(mpAfterStep);
+    expect(findObject(done, 'mine', [7, 1]).guard?.count).toBe(4);
   });
 
   it('attack starts a real combat against the guard', () => {
@@ -496,6 +526,21 @@ describe('visitables', () => {
       effect: false,
     });
   });
+
+  it('observatory consumption is per player: each player gets its own reveal', () => {
+    const state = makeGame();
+    visit(state, 'edric', 'observatory');
+    const blue = state.players[1];
+    if (!blue) throw new Error('missing blue player');
+    expect(isExplored(blue, SIZE, [0, 15])).toBe(false);
+    const events = visit(state, 'mortus', 'observatory');
+    expect(events).toContainEqual({
+      type: 'areaRevealed',
+      object: findObject(state, 'observatory').id,
+      player: 'blue',
+    });
+    expect(isExplored(blue, SIZE, [0, 15])).toBe(true);
+  });
 });
 
 describe('special objects', () => {
@@ -571,6 +616,32 @@ describe('special objects', () => {
     expect(state.heroes.gareth).toBeUndefined();
     expect(findObject(state, 'prison').removed).toBe(false);
     expect(events.some((e) => e.type === 'messageShown')).toBe(true);
+  });
+
+  it('a prison whose hero is already on the map clears gracefully instead of crashing', () => {
+    const state = makeGame();
+    // simulate a stale save where the prisoner was hired from a tavern
+    state.heroes.gareth = instantiateHero(state, 'gareth', 'blue', [10, 10], data);
+    state.players[1]?.heroes.push('gareth');
+    const events = visit(state, 'edric', 'prison');
+    expect(findObject(state, 'prison').removed).toBe(true);
+    expect(events.some((e) => e.type === 'messageShown')).toBe(true);
+    expect(events.some((e) => e.type === 'heroReleased')).toBe(false);
+    expect(state.players[0]?.heroes).not.toContain('gareth');
+  });
+
+  it('tavern offers never include heroes locked in a prison', () => {
+    const state = makeGame();
+    const town = state.towns[townIdAt([2, 2])];
+    if (!town) throw new Error('missing red town');
+    // make gareth the only free template so an unfixed roll would offer them
+    for (const id of Object.keys(data.heroes)) {
+      if (!(id in state.heroes) && id !== 'gareth') {
+        state.heroes[id] = instantiateHero(state, id, 'blue', [12, 12], data);
+      }
+    }
+    rollTavernOffers(state, town, data);
+    expect(town.tavernHeroes).toEqual([]);
   });
 });
 

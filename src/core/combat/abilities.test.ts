@@ -271,6 +271,27 @@ describe('bind', () => {
     expect(getEffect(wolves, 'bind')).toBeNull();
   });
 
+  it('bind is physical and works on undead targets too', () => {
+    const combat = makeCombat(
+      [{ creature: 'dendroid_guard', count: 5 }],
+      [{ creature: 'skeleton', count: 50 }],
+    );
+    place(combat, 'a0', { x: 5, y: 5 });
+    const skeletons = place(combat, 'd0', { x: 6, y: 5 });
+    while (activeCombatStack(combat)?.id !== 'a0') {
+      combatAct(combat, { type: 'defend' }, data);
+    }
+    const events = combatAct(combat, { type: 'melee', target: 'd0', from: { x: 5, y: 5 } }, data);
+    expect(events).toContainEqual({
+      type: 'effectApplied',
+      stack: 'd0',
+      kind: 'bind',
+      rounds: 1,
+      value: 0,
+    });
+    expect(getEffect(skeletons, 'bind')).not.toBeNull();
+  });
+
   it('an already bound defender does not retaliate (spec 7.3)', () => {
     const combat = makeCombat(
       [{ creature: 'pikeman', count: 5 }],
@@ -733,5 +754,31 @@ describe('blind behavior in combat', () => {
     // the wolves were skipped, the pikemen acted, the hit broke the blind: no retaliation
     expect(attackEvents(events).filter((e) => e.retaliation)).toHaveLength(0);
     expect(getEffect(wolves, 'blind')).toBeNull();
+  });
+
+  it('blind applied by the strike itself suppresses the retaliation (spec 7.3)', () => {
+    const fight = (seed: number): CombatEvent[] => {
+      const combat = makeCombat(
+        [{ creature: 'unicorn', count: 1 }],
+        [{ creature: 'wolf', count: 80 }],
+        { seed },
+      );
+      place(combat, 'a0', { x: 5, y: 5 });
+      place(combat, 'd0', { x: 7, y: 5 });
+      while (activeCombatStack(combat)?.id !== 'a0') {
+        combatAct(combat, { type: 'defend' }, data);
+      }
+      return combatAct(combat, { type: 'melee', target: 'd0', from: { x: 6, y: 5 } }, data);
+    };
+    const blindSeed = findSeed((seed) =>
+      fight(seed).some((e) => e.type === 'effectApplied' && e.kind === 'blind'),
+    );
+    expect(fight(blindSeed).some((e) => e.type === 'stackAttacked' && e.retaliation)).toBe(false);
+    const sightedSeed = findSeed(
+      (seed) => !fight(seed).some((e) => e.type === 'effectApplied' && e.kind === 'blind'),
+    );
+    expect(fight(sightedSeed).some((e) => e.type === 'stackAttacked' && e.retaliation)).toBe(
+      true,
+    );
   });
 });

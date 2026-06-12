@@ -255,6 +255,20 @@ describe('new game setup helpers', () => {
     expect(configured.players[1]?.startHero).toBe('mortus');
   });
 
+  it('configureMap never hands out a hero locked in a map prison', () => {
+    const withPrison = {
+      ...tinyMap,
+      objects: [...tinyMap.objects, { type: 'prison', hero: 'edric', at: [0, 0] as [number, number] }],
+    };
+    const configured = configureMap(withPrison, data, [
+      { color: 'red', faction: 'castle', isHuman: true },
+      { color: 'blue', faction: 'necropolis', isHuman: false },
+    ]);
+    const startHero = configured.players[0]?.startHero ?? '';
+    expect(startHero).not.toBe('edric');
+    expect(data.heroClasses[data.heroes[startHero]?.class ?? '']?.faction).toBe('castle');
+  });
+
   it('heroesOfFaction returns only matching templates', () => {
     const necro = heroesOfFaction(data, 'necropolis');
     expect(necro.length).toBeGreaterThanOrEqual(4);

@@ -62,6 +62,9 @@ test('full happy path: new game, play 2 days, save, reload, load — state intac
 
   await page.getByTestId('end-turn-button').click();
   await expect(page.getByTestId('date-indicator')).toHaveText('Day 2, Week 1, Month 1');
+  // the blue AI walks into the undefended red town: the loss is surfaced
+  await expect(page.getByTestId('modal-message')).toContainText('captured by blue');
+  await page.getByTestId('dialog-ok').click();
   await page.getByTestId('end-turn-button').click();
   await expect(page.getByTestId('date-indicator')).toHaveText('Day 3, Week 1, Month 1');
 

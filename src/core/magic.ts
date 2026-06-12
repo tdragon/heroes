@@ -66,23 +66,50 @@ export function learnGuildSpells(hero: Hero, town: Town, data: GameData): string
   return learned;
 }
 
-export function buySpellbook(state: GameState, hero: Hero, town: Town, data: GameData): void {
+export function buySpellbook(state: GameState, hero: Hero, town: Town, data: GameData): string[] {
   if (hero.hasSpellbook) {
-    throw new CombatRuleError(`${hero.id} already owns a spellbook`);
+    throw new CommandRejectedError(`${hero.id} already owns a spellbook`);
   }
   if (town.owner !== hero.owner) {
-    throw new CombatRuleError('can only buy a spellbook in an own town');
+    throw new CommandRejectedError('can only buy a spellbook in an own town');
   }
   if (!town.buildings.includes('mage_guild_1')) {
-    throw new CombatRuleError('the town has no mage guild');
+    throw new CommandRejectedError('the town has no mage guild');
   }
   const player = getPlayer(state, hero.owner);
   if (player.resources.gold < SPELLBOOK_COST) {
-    throw new CombatRuleError(`a spellbook costs ${String(SPELLBOOK_COST)} gold`);
+    throw new CommandRejectedError(`a spellbook costs ${String(SPELLBOOK_COST)} gold`);
   }
   player.resources.gold -= SPELLBOOK_COST;
   hero.hasSpellbook = true;
-  learnGuildSpells(hero, town, data);
+  return learnGuildSpells(hero, town, data);
+}
+
+export function buySpellbookCommand(
+  state: GameState,
+  command: Extract<Command, { type: 'buySpellbook' }>,
+  data: GameData,
+  events: GameEvent[],
+): void {
+  const hero = state.heroes[command.hero];
+  if (!hero) {
+    throw new CommandRejectedError(`unknown hero: ${command.hero}`);
+  }
+  if (hero.owner !== command.player) {
+    throw new CommandRejectedError(`hero ${hero.id} belongs to ${hero.owner}`);
+  }
+  const town = state.towns[command.town];
+  if (!town) {
+    throw new CommandRejectedError(`unknown town: ${command.town}`);
+  }
+  if (town.visitingHero !== hero.id) {
+    throw new CommandRejectedError(`hero ${hero.id} is not visiting ${town.id}`);
+  }
+  const learned = buySpellbook(state, hero, town, data);
+  events.push({ type: 'spellbookBought', hero: hero.id, town: town.id });
+  if (learned.length > 0) {
+    events.push({ type: 'spellsLearned', hero: hero.id, spells: learned });
+  }
 }
 
 // --- combat casting ---
@@ -182,12 +209,46 @@ function requireTargetStack(combat: CombatState, action: CastAction): CombatStac
   return getCombatStack(combat, action.target);
 }
 
-function stacksInArea(combat: CombatState, center: Hex, data: GameData): CombatStack[] {
-  const area = [center, ...hexNeighbors(center)];
+function stacksInHexes(combat: CombatState, area: Hex[], data: GameData): CombatStack[] {
   return livingStacks(combat).filter((stack) =>
     occupiedHexes(stack, requireCreature(data, stack.creature)).some((h) =>
       area.some((a) => h.x === a.x && h.y === a.y),
     ),
+  );
+}
+
+// fireball-style splash: target hex plus its 6 neighbors
+function stacksInArea(combat: CombatState, center: Hex, data: GameData): CombatStack[] {
+  return stacksInHexes(combat, [center, ...hexNeighbors(center)], data);
+}
+
+// meteor shower covers a 3x3 block in offset coordinates (9 hexes): the
+// 7-hex circle plus the two remaining corners of the square around the target
+function stacksIn3x3(combat: CombatState, center: Hex, data: GameData): CombatStack[] {
+  const area: Hex[] = [];
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const hex = { x: center.x + dx, y: center.y + dy };
+      if (inField(hex)) area.push(hex);
+    }
+  }
+  return stacksInHexes(combat, area, data);
+}
+
+// a dead stack can only be revived if no living stack moved onto its hexes
+export function corpseHexesBlocked(
+  combat: CombatState,
+  target: CombatStack,
+  data: GameData,
+): boolean {
+  if (isStackAlive(target)) return false;
+  const cells = occupiedHexes(target, requireCreature(data, target.creature));
+  return livingStacks(combat).some(
+    (other) =>
+      other.id !== target.id &&
+      occupiedHexes(other, requireCreature(data, other.creature)).some((h) =>
+        cells.some((c) => c.x === h.x && c.y === h.y),
+      ),
   );
 }
 
@@ -207,7 +268,9 @@ function resolveTargets(
       if (!action.hex || !inField(action.hex)) {
         throw new CombatRuleError(`spell ${spell.id} needs a target hex`);
       }
-      return stacksInArea(combat, action.hex, data);
+      return spell.id === 'meteor_shower'
+        ? stacksIn3x3(combat, action.hex, data)
+        : stacksInArea(combat, action.hex, data);
     }
     case 'friendlyStack': {
       if (tierData.mass) {
@@ -219,6 +282,9 @@ function resolveTargets(
       }
       if (spell.kind !== 'resurrect' && !isStackAlive(target)) {
         throw new CombatRuleError(`target ${target.id} is dead`);
+      }
+      if (spell.kind === 'resurrect' && corpseHexesBlocked(combat, target, data)) {
+        throw new CombatRuleError(`cannot revive ${target.id}: its hex is occupied`);
       }
       return [target];
     }
@@ -354,6 +420,8 @@ function applySpellToTarget(
   target: CombatStack,
   spell: Spell,
   tierData: SpellTier,
+  tier: number,
+  side: CombatSideId,
   spellPower: number,
   data: GameData,
   events: CombatEvent[],
@@ -372,7 +440,7 @@ function applySpellToTarget(
         throw new Error(`spell ${spell.id} has no effect mapping`);
       }
       const value = tierData.base ?? 0;
-      addEffect(target, { kind, positive: spell.kind === 'buff', rounds, value });
+      addEffect(target, { kind, positive: spell.kind === 'buff', rounds, value, castBy: side });
       events.push({ type: 'effectApplied', stack: target.id, kind, rounds, value });
       break;
     }
@@ -396,8 +464,12 @@ function applySpellToTarget(
       break;
     }
     case 'dispel': {
-      const removed = [...target.effects];
-      target.effects = [];
+      // tier progression (spec §6): none/basic remove only effects cast by
+      // the dispelling side; advanced also removes enemy-cast and creature
+      // effects; expert does the same battlefield-wide (mass tier)
+      const removesAll = tier >= 2;
+      const removed = target.effects.filter((e) => removesAll || e.castBy === side);
+      target.effects = target.effects.filter((e) => !removed.includes(e));
       for (const effect of removed) {
         events.push({ type: 'effectExpired', stack: target.id, kind: effect.kind });
       }
@@ -462,7 +534,7 @@ export function castCombatSpell(
   }
   for (const target of targets) {
     if (resistOrImmune(combat, side, target, spell, data, events)) continue;
-    applySpellToTarget(target, spell, tierData, hero.spellPower, data, events);
+    applySpellToTarget(target, spell, tierData, tier, side, hero.spellPower, data, events);
   }
 }
 

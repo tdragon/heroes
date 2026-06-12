@@ -50,6 +50,9 @@ const EDGE_SCROLL_MARGIN = 16;
 const EDGE_SCROLL_SPEED = 10;
 const KEY_SCROLL_STEP = TILE_PX;
 const AI_COMMAND_LIMIT = 2000;
+// off-screen AI-vs-AI battles are force-resolved past this many rounds so a
+// stalemate cannot eat the whole AI command budget
+const AI_COMBAT_ROUND_CAP = 200;
 
 interface PendingPath {
   dest: Pos;
@@ -183,6 +186,13 @@ export class AdventureScreen implements Screen {
     }
 
     this.bindInput();
+
+    // a loaded save can be mid-combat or mid-AI-turn: bring the combat panel
+    // and the AI turn driver up immediately or the session is unplayable
+    this.syncCombatPanel();
+    this.combatPanel?.ensureAiActs();
+    this.maybeResumeAiTurns();
+    this.checkPassDevice();
   }
 
   onShow(): void {
@@ -261,11 +271,29 @@ export class AdventureScreen implements Screen {
           break;
         case 'dayStarted':
           this.hud.setStatus(`Day ${String(event.day)}`);
-          autosave(this.shell.storage, this.state);
+          // a full localStorage must never break the turn/AI flow
+          try {
+            autosave(this.shell.storage, this.state);
+          } catch {
+            this.hud.setStatus(`Day ${String(event.day)} — autosave failed (storage unavailable)`);
+          }
           break;
         case 'messageShown':
           this.dialogs.enqueueInfo(event.message);
           break;
+        case 'townCaptured': {
+          // garrison-only defenses are auto-resolved off-screen (no hero, no
+          // combat panel), so losing a town must be surfaced explicitly
+          const previous = event.previousOwner;
+          const lostByHuman =
+            previous !== null &&
+            this.state.players.find((p) => p.id === previous)?.isHuman === true;
+          if (lostByHuman) {
+            const name = this.state.towns[event.town]?.name ?? event.town;
+            this.dialogs.enqueueInfo(`${name} has been captured by ${event.player}!`);
+          }
+          break;
+        }
         case 'combatResolved':
           // the combat panel is still open here iff the viewing player fought;
           // off-screen AI battles must not interrupt the player with dialogs
@@ -381,13 +409,17 @@ export class AdventureScreen implements Screen {
     this.markDirty();
   }
 
+  // a combat needs the screen when ANY human owns a fighting hero (hotseat
+  // battles included, not just the viewing player's). A garrison-only siege
+  // of a human town has no defender hero: it is auto-resolved off-screen and
+  // the outcome is surfaced via the townCaptured dialog (documented MVP rule)
   private humanInCombat(): boolean {
     const combat = this.state.combat;
     if (!combat) return false;
-    const humanId = this.viewPlayer().id;
-    return (
-      combat.combat.attackerHero.player === humanId ||
-      combat.combat.defenderHero.player === humanId
+    const attacker = combat.combat.attackerHero.player;
+    const defender = combat.combat.defenderHero.player;
+    return this.state.players.some(
+      (p) => p.isHuman && (p.id === attacker || p.id === defender),
     );
   }
 
@@ -401,9 +433,27 @@ export class AdventureScreen implements Screen {
     if (this.aiTurnRunning) return;
     this.aiTurnRunning = true;
     try {
-      let guard = 0;
-      while (guard++ < AI_COMMAND_LIMIT && this.state.status === 'running') {
+      // per-AI-turn command budget plus an absolute stop; both recovery paths
+      // (rejected command, exhausted budget) force endTurn for the stuck AI
+      // instead of freezing the game on "Enemy turn"
+      let total = 0;
+      let turnCommands = 0;
+      let turnOf = this.state.currentPlayer;
+      while (total++ < AI_COMMAND_LIMIT * 4 && this.state.status === 'running') {
+        if (this.state.currentPlayer !== turnOf) {
+          turnOf = this.state.currentPlayer;
+          turnCommands = 0;
+        }
         if (this.state.combat !== null && this.humanInCombat()) break;
+        if (this.state.combat !== null && this.state.combat.combat.round > AI_COMBAT_ROUND_CAP) {
+          // stalemated off-screen battle: the attacker withdraws (flee), so
+          // the round cap acts as an auto-resolve rule
+          console.warn(
+            `off-screen combat exceeded ${String(AI_COMBAT_ROUND_CAP)} rounds — attacker flees`,
+          );
+          if (!this.fleeAiAttacker()) break;
+          continue;
+        }
         const aiChoice = this.state.pendingChoices.find(
           (c) => this.state.players.find((p) => p.id === c.player)?.isHuman === false,
         );
@@ -421,11 +471,33 @@ export class AdventureScreen implements Screen {
         const player = this.state.players.find((p) => p.id === this.state.currentPlayer);
         if (!player || player.isHuman || player.defeated) break;
         this.hud.setStatus(`Enemy turn — ${player.id}…`);
-        if (!this.runCommand(chooseAICommand(this.state, this.data))) break;
+        const exhausted = turnCommands++ >= AI_COMMAND_LIMIT;
+        if (exhausted || !this.runCommand(chooseAICommand(this.state, this.data))) {
+          console.warn(
+            exhausted
+              ? `AI command limit exhausted for ${player.id} — forcing endTurn`
+              : `AI command rejected for ${player.id} — forcing endTurn`,
+          );
+          // a stuck battle is abandoned first (the turn cannot end mid-combat)
+          if (this.state.combat !== null) {
+            if (!this.fleeAiAttacker()) break;
+            continue;
+          }
+          if (!this.runCommand({ type: 'endTurn', player: this.state.currentPlayer })) break;
+        }
       }
     } finally {
       this.aiTurnRunning = false;
     }
+  }
+
+  // withdraw the attacker from an off-screen AI battle (recovery/auto-resolve)
+  private fleeAiAttacker(): boolean {
+    const combat = this.state.combat;
+    if (!combat) return false;
+    const owner = combat.combat.attackerHero.player;
+    const actor = this.state.players.find((p) => p.id === owner)?.id ?? this.state.currentPlayer;
+    return this.runCommand({ type: 'combatAction', player: actor, action: { type: 'flee' } });
   }
 
   private combatResultText(
@@ -505,8 +577,12 @@ export class AdventureScreen implements Screen {
         const label = el('span', 'slot-label', `slot-info-${String(slot)}`);
         label.textContent = `Slot ${String(slot)}: ${describeSlot(meta)}`;
         const save = button('Save', `save-slot-${String(slot)}`, () => {
-          saveToSlot(this.shell.storage, slot, this.state);
-          status.textContent = `Saved to slot ${String(slot)}`;
+          try {
+            saveToSlot(this.shell.storage, slot, this.state);
+            status.textContent = `Saved to slot ${String(slot)}`;
+          } catch {
+            status.textContent = `Could not save to slot ${String(slot)} (storage full?)`;
+          }
           renderSlots();
         });
         const load = button('Load', `load-slot-${String(slot)}`, () => {
@@ -689,8 +765,16 @@ export class AdventureScreen implements Screen {
   private describeTile(tile: Pos): string {
     const player = this.viewPlayer();
     const size = this.state.map.size;
-    if (!(player.explored[tile[1] * size + tile[0]] ?? false)) {
+    const index = tile[1] * size + tile[0];
+    if (!(player.explored[index] ?? false)) {
       return 'Unexplored';
+    }
+    // fog of war: live heroes and live object state are only described on
+    // tiles in current sight; fogged-but-explored tiles use the last-seen
+    // snapshot (no enemy hero positions, no live guard counts or owners)
+    const visible = visibleTiles(this.state, player, this.data)[index] ?? false;
+    if (!visible) {
+      return this.describeSeenTile(player, tile) ?? this.describeTerrain(tile);
     }
     for (const hero of Object.values(this.state.heroes)) {
       if (hero.pos[0] === tile[0] && hero.pos[1] === tile[1]) {
@@ -722,6 +806,32 @@ export class AdventureScreen implements Screen {
       }
       return text;
     }
+    return this.describeTerrain(tile);
+  }
+
+  private describeSeenTile(player: Player, tile: Pos): string | null {
+    for (const seen of Object.values(player.seenObjects)) {
+      if (seen.removed || seen.at[0] !== tile[0] || seen.at[1] !== tile[1]) continue;
+      if (seen.type === 'town') {
+        const town = Object.values(this.state.towns).find(
+          (t) => t.pos[0] === tile[0] && t.pos[1] === tile[1],
+        );
+        return `${town?.name ?? 'Town'} (${seen.owner ?? 'neutral'})`;
+      }
+      const typeName = this.data.objectTypes[seen.type]?.name ?? seen.type;
+      const sub =
+        seen.type === 'mine'
+          ? this.data.objectTypes.mine?.subtypes?.find((s) => s.id === seen.subtype)?.name
+          : seen.subtype;
+      let text = sub !== undefined ? `${sub} (${typeName})` : typeName;
+      if (seen.owner !== null) text += `, owned by ${seen.owner}`;
+      return text;
+    }
+    return null;
+  }
+
+  private describeTerrain(tile: Pos): string {
+    const size = this.state.map.size;
     const terrainChar = this.state.map.terrain[tile[1] * size + tile[0]] ?? '';
     const terrain = Object.values(this.data.terrains).find((t) => t.char === terrainChar);
     return terrain?.name ?? 'Unknown';

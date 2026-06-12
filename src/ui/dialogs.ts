@@ -44,10 +44,18 @@ export class DialogQueue {
       this.root.style.display = 'none';
       return;
     }
-    const choice = state.pendingChoices.find((c) => c.player === this.ctx.playerId);
+    // pending choices block every other command, so a choice owned by ANY
+    // human must be rendered even when it is not the viewing player's (e.g.
+    // a hotseat level-up earned in a defensive battle during the other
+    // player's turn) — otherwise the game soft-locks; the owner is labelled
+    const humans = new Set(state.players.filter((p) => p.isHuman).map((p) => p.id));
+    const choice =
+      state.pendingChoices.find((c) => c.player === this.ctx.playerId) ??
+      state.pendingChoices.find((c) => humans.has(c.player));
     if (choice) {
+      const ownerLabel = choice.player === this.ctx.playerId ? '' : `[${choice.player}] `;
       this.render(
-        choiceTitle(choice, state),
+        `${ownerLabel}${choiceTitle(choice, state)}`,
         choice.options.map((option, i) => ({
           label: choiceOptionLabel(choice, option, this.ctx.data),
           testId: `choice-option-${String(i)}`,

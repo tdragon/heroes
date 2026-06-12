@@ -66,6 +66,7 @@ export function liveGuard(obj: MapObjectState): Guard | null {
 function offerGuardFight(
   state: GameState,
   hero: Hero,
+  from: Pos,
   obj: MapObjectState,
   guard: Guard,
   data: GameData,
@@ -78,6 +79,7 @@ function offerGuardFight(
     object: obj.id,
     message: `${guardStrengthText(guard, data)} — would you like to attack?`,
     options: ['attack', 'retreat'],
+    from: [...from],
   });
 }
 
@@ -301,7 +303,9 @@ function visitObservatory(
   const radius = data.objectTypes[obj.type]?.reward?.revealRadius ?? 20;
   const player = getPlayer(state, hero.owner);
   revealFor(state, player, obj.at, radius);
-  obj.visitedBy.push(hero.id);
+  // the reveal is per player, so consumption is tracked per player: the
+  // observatory's visitedBy stores player ids (see 'oncePerPlayer' reset)
+  obj.visitedBy.push(hero.owner);
   events.push({ type: 'areaRevealed', object: obj.id, player: hero.owner });
 }
 
@@ -373,6 +377,14 @@ function visitPrison(
   if (obj.hero === undefined) {
     throw new Error(`prison ${obj.id} has no stored hero`);
   }
+  // a save from before prison heroes were excluded from tavern offers can
+  // have the prisoner already on the map: clear the stale prison gracefully
+  if (obj.hero in state.heroes) {
+    obj.removed = true;
+    events.push({ type: 'messageShown', object: obj.id, message: 'The prison stands empty.' });
+    events.push({ type: 'objectRemoved', object: obj.id });
+    return;
+  }
   const player = getPlayer(state, hero.owner);
   if (player.heroes.length >= MAX_HEROES) {
     events.push({
@@ -394,9 +406,6 @@ function visitPrison(
     return;
   }
   const freed = instantiateHero(state, obj.hero, hero.owner, spot, data);
-  if (freed.id in state.heroes) {
-    throw new Error(`prison hero ${freed.id} already exists on the map`);
-  }
   state.heroes[freed.id] = freed;
   player.heroes.push(freed.id);
   revealFor(state, player, freed.pos, sightRadius(freed, data));
@@ -411,6 +420,9 @@ function alreadyConsumed(hero: Hero, obj: MapObjectState, data: GameData): boole
     case 'oncePerHero':
     case 'daily':
       return obj.visitedBy.includes(hero.id);
+    case 'oncePerPlayer':
+      // visitedBy holds player ids for these objects (e.g. observatory)
+      return obj.visitedBy.includes(hero.owner);
     case 'weekly':
     case 'once':
       return obj.visitedBy.length > 0;
@@ -496,6 +508,7 @@ export function applyObjectReward(
 export function handleObjectTrigger(
   state: GameState,
   hero: Hero,
+  from: Pos,
   objectId: ObjectId,
   data: GameData,
   events: GameEvent[],
@@ -504,7 +517,7 @@ export function handleObjectTrigger(
   if (obj.removed) return;
   const guard = liveGuard(obj);
   if (guard) {
-    offerGuardFight(state, hero, obj, guard, data);
+    offerGuardFight(state, hero, from, obj, guard, data);
     return;
   }
   applyObjectReward(state, hero, obj, data, events);
@@ -589,12 +602,42 @@ function resolveGuardChoice(
   events: GameEvent[],
 ): void {
   const { hero, obj } = choiceContext(state, choice);
-  if (choice.options[option] !== 'attack') return;
+  if (choice.options[option] !== 'attack') {
+    retreatFromGuard(state, hero, choice, events);
+    return;
+  }
   const guard = liveGuard(obj);
   if (!guard) {
     throw new Error(`guard choice ${choice.id} has no living guard`);
   }
   startGuardCombat(state, hero, obj, guard, data, events);
+}
+
+// HoMM3-style retreat: the hero returns to the tile they came from, so a
+// guard can never be bypassed by stepping on and walking off the far side
+// (the movement points spent on the step are not refunded)
+function retreatFromGuard(
+  state: GameState,
+  hero: Hero,
+  choice: PendingChoice,
+  events: GameEvent[],
+): void {
+  const from = choice.from;
+  if (!from || (from[0] === hero.pos[0] && from[1] === hero.pos[1])) return;
+  const left: Pos = [...hero.pos];
+  hero.pos = [...from];
+  for (const town of Object.values(state.towns)) {
+    if (town.pos[0] === from[0] && town.pos[1] === from[1] && town.owner === hero.owner) {
+      town.visitingHero ??= hero.id;
+    }
+  }
+  events.push({
+    type: 'heroMoved',
+    hero: hero.id,
+    from: left,
+    to: [...from],
+    mpLeft: hero.movementPoints,
+  });
 }
 
 export const OBJECT_CHOICE_KINDS = ['chest', 'schoolOfWar', 'guardAttack'] as const;

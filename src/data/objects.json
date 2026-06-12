@@ -124,7 +124,7 @@
     "id": "observatory",
     "name": "Observatory",
     "category": "visitable",
-    "reset": "once",
+    "reset": "oncePerPlayer",
     "reward": { "revealRadius": 20 }
   },
   {

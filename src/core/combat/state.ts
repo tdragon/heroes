@@ -82,6 +82,9 @@ export interface StackEffect {
   positive: boolean;
   rounds: number;
   value: number;
+  // who applied the effect: a hero side, or a creature on-hit special;
+  // basic-tier Dispel only removes effects cast by the dispelling side
+  castBy?: CombatSideId | 'creature';
 }
 
 export interface CombatStack {

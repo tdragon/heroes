@@ -372,15 +372,50 @@ describe('damage spells', () => {
     expect(hits).toHaveLength(4); // basic tier: target + 3 jumps
   });
 
-  it('meteor shower damages a hex area', () => {
-    const combat = makeCastCombat({
-      attacker: [{ creature: 'pikeman', count: 1 }],
-      defender: [{ creature: 'bone_dragon', count: 20 }],
-      hero: caster({ spellPower: 2 }),
-    });
-    getCombatStack(combat, 'd0').pos = { x: 8, y: 4 };
-    const events = cast(combat, 'meteor_shower', undefined, { x: 8, y: 4 });
+  it('meteor shower damages a 3x3 block, wider than the fireball circle', () => {
+    const make = (): CombatState =>
+      makeCastCombat({
+        attacker: [{ creature: 'pikeman', count: 1 }],
+        defender: [
+          { creature: 'bone_dragon', count: 20 },
+          { creature: 'wolf', count: 50 },
+        ],
+        hero: caster({ spellPower: 2 }),
+      });
+    const meteor = make();
+    getCombatStack(meteor, 'd0').pos = { x: 8, y: 4 };
+    // (9,3) is a corner of the 3x3 block around (8,4) at hex distance 2:
+    // covered by meteor shower but not by the 7-hex fireball pattern
+    getCombatStack(meteor, 'd1').pos = { x: 9, y: 3 };
+    const events = cast(meteor, 'meteor_shower', undefined, { x: 8, y: 4 });
     expect(spellDamageOf(events, 'd0')).toBe(25 + 25 * 2);
+    expect(spellDamageOf(events, 'd1')).toBe(25 + 25 * 2);
+
+    const fire = make();
+    getCombatStack(fire, 'd0').pos = { x: 8, y: 4 };
+    getCombatStack(fire, 'd1').pos = { x: 9, y: 3 };
+    const fireEvents = cast(fire, 'fireball', undefined, { x: 8, y: 4 });
+    expect(fireEvents.some((e) => e.type === 'spellDamage' && e.stack === 'd1')).toBe(false);
+  });
+
+  it('resurrection is rejected when the corpse hex is occupied', () => {
+    const combat = makeCastCombat({
+      attacker: [
+        { creature: 'pikeman', count: 5 },
+        { creature: 'archer', count: 5 },
+      ],
+      defender: [{ creature: 'wolf', count: 5 }],
+    });
+    const fallen = getCombatStack(combat, 'a1');
+    fallen.count = 0;
+    fallen.firstHp = 0;
+    // another stack moved onto the corpse hex
+    getCombatStack(combat, 'a0').pos = { ...fallen.pos };
+    expect(() => cast(combat, 'resurrection', 'a1')).toThrow('hex is occupied');
+    // with the hex free again the revival works
+    getCombatStack(combat, 'a0').pos = { x: 0, y: 0 };
+    const events = cast(combat, 'resurrection', 'a1');
+    expect(events.some((e) => e.type === 'stackResurrected' && e.stack === 'a1')).toBe(true);
   });
 });
 
@@ -438,16 +473,45 @@ describe('buffs, debuffs, and disables', () => {
     expect(getEffect(pikemen, 'haste')).not.toBeNull(); // buffs stay
   });
 
-  it('dispel removes all effects from the target', () => {
+  it('basic dispel removes only effects cast by the dispelling side', () => {
     const combat = makeCastCombat({
       attacker: [{ creature: 'pikeman', count: 5 }],
       defender: [{ creature: 'wolf', count: 5 }],
     });
     const pikemen = getCombatStack(combat, 'a0');
-    addEffect(pikemen, { kind: 'slow', positive: false, rounds: 3, value: 25 });
-    addEffect(pikemen, { kind: 'haste', positive: true, rounds: 3, value: 3 });
+    addEffect(pikemen, { kind: 'haste', positive: true, rounds: 3, value: 3, castBy: 'attacker' });
+    addEffect(pikemen, { kind: 'slow', positive: false, rounds: 3, value: 25, castBy: 'defender' });
+    addEffect(pikemen, { kind: 'bind', positive: false, rounds: 1, value: 0, castBy: 'creature' });
+    cast(combat, 'dispel', 'a0'); // no water magic skill: basic tier
+    expect(pikemen.effects.map((e) => e.kind).sort()).toEqual(['bind', 'slow']);
+  });
+
+  it('advanced dispel removes enemy-cast and creature effects from the target', () => {
+    const combat = makeCastCombat({
+      attacker: [{ creature: 'pikeman', count: 5 }],
+      defender: [{ creature: 'wolf', count: 5 }],
+      hero: caster({ schoolTiers: { water: 2 } }),
+    });
+    const pikemen = getCombatStack(combat, 'a0');
+    addEffect(pikemen, { kind: 'slow', positive: false, rounds: 3, value: 25, castBy: 'defender' });
+    addEffect(pikemen, { kind: 'bind', positive: false, rounds: 1, value: 0, castBy: 'creature' });
     cast(combat, 'dispel', 'a0');
     expect(pikemen.effects).toEqual([]);
+  });
+
+  it('expert dispel clears effects on the whole battlefield', () => {
+    const combat = makeCastCombat({
+      attacker: [{ creature: 'pikeman', count: 5 }],
+      defender: [{ creature: 'wolf', count: 5 }],
+      hero: caster({ schoolTiers: { water: 3 } }),
+    });
+    const pikemen = getCombatStack(combat, 'a0');
+    const wolves = getCombatStack(combat, 'd0');
+    addEffect(pikemen, { kind: 'slow', positive: false, rounds: 3, value: 25, castBy: 'defender' });
+    addEffect(wolves, { kind: 'haste', positive: true, rounds: 3, value: 3, castBy: 'defender' });
+    cast(combat, 'dispel', 'a0');
+    expect(pikemen.effects).toEqual([]);
+    expect(wolves.effects).toEqual([]);
   });
 
   it('blind disables the target until damaged', () => {
@@ -828,5 +892,38 @@ describe('adventure spells', () => {
     const nextDay = dispatch(redDone, { type: 'endTurn', player: 'blue' }, data).state;
     expect(nextDay.day).toBe(2);
     expect(nextDay.heroes.edric?.dimensionDoorCasts).toBe(0);
+  });
+
+  it('buySpellbook is a dispatchable command for the visiting hero', () => {
+    const state = newGame(adventureMap, {}, 11, data);
+    const town = state.towns[NEAR_TOWN];
+    if (!town) throw new Error('missing town');
+    town.buildings.push('mage_guild_1');
+    town.guildSpells.push('haste');
+    town.visitingHero = 'edric';
+    const hero = state.heroes.edric;
+    if (!hero) throw new Error('missing hero');
+    hero.hasSpellbook = false;
+    hero.spells = [];
+    const goldBefore = state.players[0]?.resources.gold ?? 0;
+
+    const { state: after, events } = dispatch(
+      state,
+      { type: 'buySpellbook', player: 'red', hero: 'edric', town: NEAR_TOWN },
+      data,
+    );
+    expect(after.heroes.edric?.hasSpellbook).toBe(true);
+    expect(after.players[0]?.resources.gold).toBe(goldBefore - SPELLBOOK_COST);
+    expect(events).toContainEqual({ type: 'spellbookBought', hero: 'edric', town: NEAR_TOWN });
+    expect(after.heroes.edric?.spells).toContain('haste');
+
+    // a hero who is not visiting the town cannot buy there
+    expect(() =>
+      dispatch(
+        state,
+        { type: 'buySpellbook', player: 'red', hero: 'edric', town: FAR_TOWN },
+        data,
+      ),
+    ).toThrow('not visiting');
   });
 });

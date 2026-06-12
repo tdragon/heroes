@@ -2,8 +2,13 @@
 // Auto / Flee / Spellbook), combat log and hover damage estimates. All game
 // rules stay in the core; this screen only translates clicks into
 // `combatAction` commands and replays the emitted events as log lines and
-// small animations. Enemy-side stacks and the Auto button are played by the
+// small animations. AI-side stacks and the Auto button are played by the
 // combat AI.
+//
+// Hotseat human-vs-human battles share this one screen: control follows the
+// acting stack's side, so each human plays their own stacks in initiative
+// order (the hero panels show whose side is whose). Commands are issued as
+// the acting side's owner so the core can validate spellbook ownership.
 
 import type { GameEvent } from '../core/commands';
 import { chooseCombatAction } from '../core/ai/combatAI';
@@ -21,7 +26,7 @@ import {
   type CombatStack,
   type CombatState,
 } from '../core/combat/state';
-import type { GameState } from '../core/state';
+import type { GameState, PlayerId } from '../core/state';
 import {
   COMBAT_CANVAS_H,
   COMBAT_CANVAS_W,
@@ -119,7 +124,7 @@ export class CombatScreen {
       this.openSpellbook();
     });
     addButton('Flee', 'combat-flee-button', () => {
-      this.runAction({ type: 'flee' });
+      this.flee();
     });
     this.statusEl = el('div', 'combat-status', 'combat-status');
     const side = el('div', 'combat-side');
@@ -147,15 +152,38 @@ export class CombatScreen {
     return this.ctx.getState().combat?.combat ?? null;
   }
 
+  private isHumanOwned(playerId: string | null): boolean {
+    if (playerId === null) return false;
+    return this.ctx.getState().players.find((p) => p.id === playerId)?.isHuman === true;
+  }
+
+  // sides controlled by a human player (any human, not just the viewer:
+  // hotseat battles hand control to whichever human owns the acting stack)
+  private humanSides(combat: CombatState): CombatSideId[] {
+    const sides: CombatSideId[] = [];
+    if (this.isHumanOwned(combat.attackerHero.player)) sides.push('attacker');
+    if (this.isHumanOwned(combat.defenderHero.player)) sides.push('defender');
+    return sides;
+  }
+
+  // the side the human at the device currently speaks for: the acting
+  // stack's side when human-owned, otherwise the (single) human side
   private humanSide(combat: CombatState): CombatSideId | null {
-    if (combat.attackerHero.player === this.ctx.playerId) return 'attacker';
-    if (combat.defenderHero.player === this.ctx.playerId) return 'defender';
-    return null;
+    const sides = this.humanSides(combat);
+    const active = activeCombatStack(combat)?.side;
+    if (active !== undefined && sides.includes(active)) return active;
+    return sides[0] ?? null;
   }
 
   private isHumanTurn(combat: CombatState): boolean {
     const stack = activeCombatStack(combat);
-    return stack !== null && stack.side === this.humanSide(combat);
+    return stack !== null && this.humanSides(combat).includes(stack.side);
+  }
+
+  private sideOwnerId(combat: CombatState, side: CombatSideId | null): PlayerId {
+    const owner = side === null ? null : heroInfoFor(combat, side).player;
+    const state = this.ctx.getState();
+    return state.players.find((p) => p.id === owner)?.id ?? state.currentPlayer;
   }
 
   private stackAt(combat: CombatState, hex: Hex): CombatStack | null {
@@ -193,20 +221,34 @@ export class CombatScreen {
 
   // --- commands ---
 
-  private runAction(action: CombatAction | { type: 'flee' }): boolean {
-    const state = this.ctx.getState();
-    const message = this.ctx.run({ type: 'combatAction', player: state.currentPlayer, action });
+  private runAction(action: CombatAction | { type: 'flee' }, asPlayer: PlayerId): boolean {
+    const message = this.ctx.run({ type: 'combatAction', player: asPlayer, action });
     this.statusEl.textContent = message ?? '';
     return message === null;
   }
 
+  // human-initiated actions act for the human-controlled side
   private onHumanAction(action: CombatAction): void {
-    if (this.runAction(action)) {
+    const combat = this.combatState();
+    if (!combat) return;
+    if (this.runAction(action, this.sideOwnerId(combat, this.humanSide(combat)))) {
       this.ensureAiActs();
     }
   }
 
-  // auto-play enemy-side stacks with the combat AI
+  private flee(): void {
+    const combat = this.combatState();
+    if (!combat) return;
+    this.runAction({ type: 'flee' }, this.sideOwnerId(combat, this.humanSide(combat)));
+  }
+
+  // the combat AI plays a stack on behalf of the acting side's owner
+  private runAiAction(combat: CombatState): boolean {
+    const side = activeCombatStack(combat)?.side ?? null;
+    return this.runAction(chooseCombatAction(combat, this.ctx.data), this.sideOwnerId(combat, side));
+  }
+
+  // auto-play AI-side stacks with the combat AI
   ensureAiActs(): void {
     if (this.aiRunning) return;
     this.aiRunning = true;
@@ -216,8 +258,8 @@ export class CombatScreen {
         const combat = this.combatState();
         if (!combat) break;
         const stack = activeCombatStack(combat);
-        if (!stack || stack.side === this.humanSide(combat)) break;
-        if (!this.runAction(chooseCombatAction(combat, this.ctx.data))) break;
+        if (!stack || this.humanSides(combat).includes(stack.side)) break;
+        if (!this.runAiAction(combat)) break;
       }
     } finally {
       this.aiRunning = false;
@@ -232,7 +274,7 @@ export class CombatScreen {
       while (guard++ < AUTO_ACTION_LIMIT) {
         const combat = this.combatState();
         if (!combat || activeCombatStack(combat) === null) break;
-        if (!this.runAction(chooseCombatAction(combat, this.ctx.data))) break;
+        if (!this.runAiAction(combat)) break;
       }
     } finally {
       this.aiRunning = false;
@@ -610,7 +652,12 @@ export class CombatScreen {
       'combat-spellbook-button',
       human && humanSide !== null && heroInfoFor(combat, humanSide).hasSpellbook,
     );
-    setEnabled('combat-flee-button', humanSide === 'attacker');
+    // flee removes the fleeing side's own hero; siege defenders cannot flee
+    const canFlee =
+      humanSide !== null &&
+      heroInfoFor(combat, humanSide).hero !== null &&
+      !(state.combat?.reason === 'siege' && humanSide === 'defender');
+    setEnabled('combat-flee-button', canFlee);
 
     this.stackStrip.replaceChildren();
     for (const s of livingStacks(combat)) {

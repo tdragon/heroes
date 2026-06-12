@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { findPath } from '../core/movement';
+import { newGame } from '../core/setup';
 import { loadGameData } from '../data';
 import { compileMap } from './dsl';
 import { tinyMapSource } from './fixtures/tiny.dsl';
@@ -44,6 +46,32 @@ describe('map registry', () => {
     expect(map.players).toHaveLength(2);
     expect(map.players[0]?.startHero).toBe('edric');
     expect(map.players[0]?.startTownAt).toEqual([4, 5]);
+  });
+
+  it('tutorial-valley river crossing is actually gated by its guard', () => {
+    const map = getMap('tutorial-valley');
+    // the river bisects the map at x=17..18 everywhere except the single
+    // crossing row y=17, where the boar guard stands at (17,17)
+    for (let y = 0; y < map.size; y++) {
+      if (y === 17) continue;
+      expect(map.terrain[y * map.size + 17], `y=${String(y)}`).toBe('w');
+      expect(map.terrain[y * map.size + 18], `y=${String(y)}`).toBe('w');
+    }
+    const state = newGame(map, {}, 1, data);
+    const hero = state.heroes.edric;
+    if (!hero) throw new Error('missing edric');
+    hero.pos = [14, 17];
+    // no path to the east bank around the guard...
+    expect(findPath(state, data, hero, [20, 17])).toBeNull();
+    // ...but the guard tile itself is reachable, and once the guard falls
+    // the crossing opens
+    expect(findPath(state, data, hero, [17, 17])).not.toBeNull();
+    const guard = state.map.objects.find(
+      (o) => o.type === 'monster' && o.at[0] === 17 && o.at[1] === 17,
+    );
+    if (!guard) throw new Error('missing crossing guard');
+    guard.removed = true;
+    expect(findPath(state, data, hero, [20, 17])).not.toBeNull();
   });
 
   it('compiles contested-river as a 48x48 three-player map', () => {

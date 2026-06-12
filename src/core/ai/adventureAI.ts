@@ -7,6 +7,8 @@
 import type { GameData } from '../../data';
 import type { Pos } from '../../maps/schema';
 import type { Command } from '../commands';
+import { activeCombatStack } from '../combat/engine';
+import { heroInfoFor } from '../combat/state';
 import { findPathInContext, buildMoveContext, stepCost } from '../movement';
 import { liveGuard } from '../objects';
 import {
@@ -14,6 +16,7 @@ import {
   type ArmySlots,
   type GameState,
   type Hero,
+  type PlayerId,
   type Town,
 } from '../state';
 import { chooseCombatAction } from './combatAI';
@@ -139,10 +142,18 @@ export function chooseAICommand(state: GameState, data: GameData): Command {
   const playerId = state.currentPlayer;
 
   if (state.combat !== null) {
+    const combat = state.combat.combat;
+    // act on behalf of the side whose stack moves: casts are validated
+    // against the side hero's owner, and heroless sides fall back to the
+    // current player
+    const side = activeCombatStack(combat)?.side;
+    const sideOwner = side === undefined ? null : heroInfoFor(combat, side).player;
+    const actor: PlayerId =
+      state.players.find((p) => p.id === sideOwner)?.id ?? playerId;
     return {
       type: 'combatAction',
-      player: playerId,
-      action: chooseCombatAction(state.combat.combat, data),
+      player: actor,
+      action: chooseCombatAction(combat, data),
     };
   }
 

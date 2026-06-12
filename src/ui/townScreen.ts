@@ -1,6 +1,7 @@
 import { RESOURCE_IDS, type Building, type ResourceId } from '../data/schema';
 import type { ArmyDest, ArmyLocation } from '../core/commands';
 import { getPlayer, type ArmySlots, type Town, type TownId } from '../core/state';
+import { SPELLBOOK_COST } from '../core/magic';
 import { townBuildingCatalog, HERO_HIRE_COST } from '../core/town';
 import { button, el, type UiContext } from './components';
 import { buildAvailability, costText, maxTrades, tradeModel } from './helpers';
@@ -241,6 +242,33 @@ export class TownScreen {
   private guildSection(town: Town): HTMLElement {
     const section = el('div', 'panel-section');
     section.appendChild(this.sectionTitle('Mage guild'));
+    // might-class visiting heroes can buy a spellbook here (spec §6)
+    const visiting =
+      town.visitingHero === null ? null : this.ctx.getState().heroes[town.visitingHero];
+    if (
+      visiting?.owner === this.ctx.playerId &&
+      !visiting.hasSpellbook &&
+      town.buildings.includes('mage_guild_1')
+    ) {
+      const row = el('div', 'recruit-row');
+      const label = el('span', 'recruit-label');
+      label.textContent = `${visiting.name} has no spellbook — ${String(SPELLBOOK_COST)} gold`;
+      row.append(
+        label,
+        button('Buy Spellbook', 'buy-spellbook', () => {
+          this.run(
+            this.ctx.run({
+              type: 'buySpellbook',
+              player: this.ctx.playerId,
+              hero: visiting.id,
+              town: this.townId,
+            }),
+          );
+          this.update();
+        }),
+      );
+      section.appendChild(row);
+    }
     const list = el('div', 'guild-spells', 'guild-spells');
     if (town.guildSpells.length === 0) {
       list.textContent = 'No spells taught here.';

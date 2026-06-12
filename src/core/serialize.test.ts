@@ -54,4 +54,29 @@ describe('serializeGame / deserializeGame', () => {
     const missing = JSON.stringify({ version: SAVE_VERSION });
     expect(() => deserializeGame(missing)).toThrow('malformed');
   });
+
+  it('defaults a missing combat field to null instead of soft-locking', () => {
+    const state = newGame(tinyMap, {}, 3, data);
+    const raw = JSON.parse(serializeGame(state)) as { version: number; state: { combat?: unknown } };
+    delete raw.state.combat;
+    const restored = deserializeGame(JSON.stringify(raw));
+    expect(restored.combat).toBeNull();
+    // and the restored state accepts commands
+    const next = dispatch(restored, { type: 'endTurn', player: restored.currentPlayer }, data);
+    expect(next.state).toBeDefined();
+  });
+
+  it('rejects malformed players and entities that would crash the renderer', () => {
+    const state = newGame(tinyMap, {}, 3, data);
+    const breakField = (mutate: (s: Record<string, unknown>) => void): string => {
+      const raw = JSON.parse(serializeGame(state)) as { version: number; state: Record<string, unknown> };
+      mutate(raw.state);
+      return JSON.stringify(raw);
+    };
+    expect(() => deserializeGame(breakField((s) => (s.players = [42])))).toThrow('malformed');
+    expect(() =>
+      deserializeGame(breakField((s) => (s.heroes = { edric: { id: 'edric' } }))),
+    ).toThrow('malformed');
+    expect(() => deserializeGame(breakField((s) => (s.combat = 'fighting')))).toThrow('malformed');
+  });
 });

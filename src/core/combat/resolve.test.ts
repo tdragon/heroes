@@ -255,7 +255,7 @@ describe('siege resolution', () => {
     const edric = getHero(state, 'edric');
     edric.army[0] = { creature: 'angel', count: 4 };
     const events: GameEvent[] = [];
-    handleObjectTrigger(state, edric, findObject(state, 'town', [13, 13]).id, data, events);
+    handleObjectTrigger(state, edric, [...edric.pos], findObject(state, 'town', [13, 13]).id, data, events);
     expect(state.combat?.reason).toBe('siege');
     return state;
   }
@@ -286,14 +286,46 @@ describe('siege resolution', () => {
     blueTown.buildings.push('fort');
     blueTown.garrison[0] = { creature: 'skeleton', count: 5 };
     const events: GameEvent[] = [];
+    const attacker = getHero(state, 'edric');
     handleObjectTrigger(
       state,
-      getHero(state, 'edric'),
+      attacker,
+      [...attacker.pos],
       findObject(state, 'town', [13, 13]).id,
       data,
       events,
     );
     expect(state.combat?.combat.siege?.level).toBe('fort');
+  });
+
+  it('the defending hero cannot flee a siege', () => {
+    const start = startSiege();
+    expect(() =>
+      dispatch(start, { type: 'combatAction', player: 'blue', action: { type: 'flee' } }, data),
+    ).toThrow('cannot flee while defending a siege');
+  });
+
+  it('a defending hero wiped while the garrison wins gets a minimal tier-1 stack', () => {
+    const start = startSiege();
+    const active = start.combat;
+    if (!active) throw new Error('no combat');
+    // cripple the attacker so the garrison wins, and wipe the visiting hero's
+    // own stacks: the surviving hero must never end with an empty army
+    for (const stack of active.combat.stacks) {
+      if (stack.side === 'attacker') {
+        stack.count = 1;
+        stack.firstHp = 1;
+        stack.creature = 'peasant';
+      }
+      if (stack.side === 'defender' && active.defenderSlots[stack.slot]?.source === 'hero') {
+        stack.count = 0;
+        stack.firstHp = 0;
+      }
+    }
+    const { state } = driveCombat(start, 'red');
+    expect(state.heroes.edric).toBeUndefined();
+    const mortus = getHero(state, 'mortus');
+    expect(mortus.army.filter((s) => s !== null)).toEqual([{ creature: 'skeleton', count: 1 }]);
   });
 
   it('defender survivors are written back to garrison and hero army', () => {
@@ -314,6 +346,66 @@ describe('siege resolution', () => {
     const garrisonCount = blueTown?.garrison[0]?.count ?? 0;
     expect(garrisonCount).toBeGreaterThan(0);
     expect(state.heroes.mortus).toBeDefined();
+  });
+});
+
+describe('flee sides and cast ownership', () => {
+  function startFieldFight(): GameState {
+    const state = makeGame();
+    const edric = getHero(state, 'edric');
+    const mortus = getHero(state, 'mortus');
+    mortus.pos = [9, 8];
+    edric.pos = [8, 8];
+    edric.movementPoints = 2000;
+    const result = dispatch(
+      state,
+      { type: 'moveHero', player: 'red', hero: 'edric', path: [[9, 8]] },
+      data,
+    );
+    expect(result.state.combat?.reason).toBe('field');
+    return result.state;
+  }
+
+  it('the defender can flee a field battle: their hero leaves, nothing is seized', () => {
+    const start = startFieldFight();
+    getHero(start, 'mortus').backpack.push('iron_sword');
+    const result = dispatch(
+      start,
+      { type: 'combatAction', player: 'blue', action: { type: 'flee' } },
+      data,
+    );
+    const state = result.state;
+    expect(state.combat).toBeNull();
+    expect(state.heroes.mortus).toBeUndefined();
+    expect(state.heroes.edric).toBeDefined();
+    expect(state.tavernPool).toContain('mortus');
+    // flee never transfers artifacts to the winner
+    expect(getHero(state, 'edric').backpack).not.toContain('iron_sword');
+    expect(result.events.some((e) => e.type === 'heroFled')).toBe(true);
+  });
+
+  it('a player without a hero in the battle cannot issue a flee', () => {
+    const fight = startGuardFight();
+    expect(() =>
+      dispatch(fight, { type: 'combatAction', player: 'blue', action: { type: 'flee' } }, data),
+    ).toThrow(CommandRejectedError);
+  });
+
+  it("a player cannot cast from the enemy hero's spellbook", () => {
+    const start = startFieldFight();
+    const combat = start.combat?.combat;
+    if (!combat) throw new Error('no combat');
+    // force a defender (blue) stack to be the active one
+    const defenderStack = combat.stacks.find((s) => s.side === 'defender' && s.count > 0);
+    if (!defenderStack) throw new Error('no defender stack');
+    combat.queue = [defenderStack.id, ...combat.queue.filter((id) => id !== defenderStack.id)];
+    expect(() =>
+      dispatch(
+        start,
+        { type: 'combatAction', player: 'red', action: { type: 'cast', spell: 'magic_arrow' } },
+        data,
+      ),
+    ).toThrow("only blue may cast from this side's spellbook");
   });
 });
 

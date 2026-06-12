@@ -116,24 +116,56 @@ describe('giveExperience', () => {
     expect(events.some((e) => e.type === 'heroLevelUp')).toBe(true);
   });
 
-  it('queues one choice per level for a multi-level gain', () => {
+  it('offers one level-up choice at a time for a multi-level gain', () => {
     const state = makeGame();
     const events: GameEvent[] = [];
     giveExperience(state, 'edric', 5000, data, events);
     const edric = getHero(state, 'edric');
     expect(edric.level).toBe(5);
     expect(statSum(edric)).toBe(6 + 4);
-    expect(state.pendingChoices).toHaveLength(4);
-    const ids = state.pendingChoices.map((c) => c.id);
-    expect(new Set(ids).size).toBe(4);
     expect(events.filter((e) => e.type === 'heroLevelUp')).toHaveLength(4);
+    // only one choice pending: further offers are owed (remaining) and rolled
+    // lazily on resolve, so they never use stale skill state
+    expect(state.pendingChoices).toHaveLength(1);
+    expect(state.pendingChoices[0]?.remaining).toBe(3);
+
+    let current = state;
+    let resolved = 0;
+    while (current.pendingChoices.length > 0 && resolved < 10) {
+      expect(current.pendingChoices).toHaveLength(1);
+      const choice = current.pendingChoices[0];
+      if (!choice) break;
+      const hero = getHero(current, 'edric');
+      // every offer is valid against the CURRENT skills: an upgrade option
+      // names a held skill, a new-skill option requires a free slot
+      for (const option of choice.options) {
+        const parsed = parseSkillOption(option);
+        const held = hero.skills.find((s) => s.skill === parsed.skill);
+        if (held) {
+          expect(parsed.rank).not.toBe(held.rank);
+        } else {
+          expect(hero.skills.length).toBeLessThan(8);
+          expect(parsed.rank).toBe('basic');
+        }
+      }
+      current = dispatch(
+        current,
+        { type: 'resolveChoice', player: 'red', choiceId: choice.id, option: 0 },
+        data,
+      ).state;
+      resolved += 1;
+    }
+    expect(resolved).toBe(4);
+    expect(current.pendingChoices).toEqual([]);
   });
 
   it('rolls primary stats with the seeded rng (golden values)', () => {
     const state = makeGame(42);
     giveExperience(state, 'edric', 5000, data, []);
     const edric = getHero(state, 'edric');
-    expect([edric.attack, edric.defense, edric.spellPower, edric.knowledge]).toEqual([5, 3, 1, 1]);
+    // golden values re-baselined when level-up skill offers became lazy
+    // (deferred levels no longer consume rng at giveExperience time)
+    expect([edric.attack, edric.defense, edric.spellPower, edric.knowledge]).toEqual([3, 4, 2, 1]);
 
     const replay = makeGame(42);
     giveExperience(replay, 'edric', 5000, data, []);
@@ -225,6 +257,7 @@ describe('level-up choice resolution', () => {
         options: ['leadership:advanced'],
       },
       0,
+      data,
     );
     expect(edric.skills).toEqual([{ skill: 'leadership', rank: 'advanced' }]);
   });
@@ -237,13 +270,13 @@ describe('level-up choice resolution', () => {
       kind: 'levelUp',
       options: ['offense:basic'],
     };
-    expect(() => { applyLevelUpChoice(state, { ...base, hero: 'nobody' }, 0); }).toThrow(
+    expect(() => { applyLevelUpChoice(state, { ...base, hero: 'nobody' }, 0, data); }).toThrow(
       'no valid hero',
     );
     expect(() =>
-      { applyLevelUpChoice(state, { ...base, hero: 'edric', options: ['offense:legendary'] }, 0); },
+      { applyLevelUpChoice(state, { ...base, hero: 'edric', options: ['offense:legendary'] }, 0, data); },
     ).toThrow('malformed skill option');
-    expect(() => { applyLevelUpChoice(state, { ...base, hero: 'edric' }, 5); }).toThrow('out of range');
+    expect(() => { applyLevelUpChoice(state, { ...base, hero: 'edric' }, 5, data); }).toThrow('out of range');
   });
 });
 

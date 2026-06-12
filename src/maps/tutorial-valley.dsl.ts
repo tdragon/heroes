@@ -19,9 +19,9 @@ export const tutorialValleySource: MapSource = {
   name: 'Tutorial Valley',
   terrain: [
     ...rows(4, snowRow), // y 0..3: north with a snowy ridge in the east
-    ...rows(12, riverRow), // y 4..15: river splits west/east
-    ...rows(4, grassRow), // y 16..19: river crossing
-    ...rows(10, riverRow), // y 20..29
+    ...rows(13, riverRow), // y 4..16: river splits west/east
+    ...rows(1, grassRow), // y 17: the single-row river crossing, guarded
+    ...rows(12, riverRow), // y 18..29
     ...rows(6, sandRow), // y 30..35: sandy south-west shore
   ],
   roads: buildRoadLayer(SIZE, 'D', roadTiles),
@@ -68,7 +68,8 @@ export const tutorialValleySource: MapSource = {
     },
     { type: 'rally_flag', at: [15, 30] },
     { type: 'school_of_war', at: [5, 28] },
-    // river crossing guard
+    // river crossing guard: the crossing is one row (y 17) and every path
+    // through it funnels into the boar tile, so the guard actually gates it
     { type: 'monster', creature: 'boar', count: 10, at: [17, 17] },
     // east (blue) side
     { type: 'mine', subtype: 'sawmill', at: [28, 33] },

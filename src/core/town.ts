@@ -142,7 +142,17 @@ export function rollGuildSpells(
 }
 
 export function rollTavernOffers(state: GameState, town: Town, data: GameData): void {
-  const candidates = Object.keys(data.heroes).filter((id) => !(id in state.heroes));
+  // heroes locked in a prison must stay there until freed: offering them in a
+  // tavern would duplicate the hero when the prison is visited
+  const imprisoned = new Set<string>();
+  for (const obj of state.map.objects) {
+    if (obj.type === 'prison' && !obj.removed && obj.hero !== undefined) {
+      imprisoned.add(obj.hero);
+    }
+  }
+  const candidates = Object.keys(data.heroes).filter(
+    (id) => !(id in state.heroes) && !imprisoned.has(id),
+  );
   const offers: string[] = [];
   while (offers.length < TAVERN_OFFER_COUNT && candidates.length > 0) {
     const [index, next] = rollRange(state.rngState, 0, candidates.length - 1);

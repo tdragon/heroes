@@ -16,8 +16,30 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-// Structural sanity check; full zod validation of saves arrives with the
-// save/load UI task. Trusts nested entity shapes after checking the envelope.
+function isArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+function isValidPlayer(p: unknown): boolean {
+  return (
+    isRecord(p) &&
+    typeof p.id === 'string' &&
+    typeof p.isHuman === 'boolean' &&
+    isArray(p.heroes) &&
+    isArray(p.towns) &&
+    isArray(p.explored) &&
+    isRecord(p.resources) &&
+    isRecord(p.seenObjects)
+  );
+}
+
+function isValidEntity(e: unknown): boolean {
+  return isRecord(e) && typeof e.id === 'string' && isArray(e.pos);
+}
+
+// Structural sanity check; trusts deeply nested entity shapes after checking
+// the envelope plus the per-player and per-hero fields the UI reads every
+// frame (so a malformed import fails on load instead of inside the rAF loop).
 function isGameState(value: unknown): value is GameState {
   if (!isRecord(value)) return false;
   const map = value.map;
@@ -26,15 +48,19 @@ function isGameState(value: unknown): value is GameState {
     typeof value.rngState === 'number' &&
     typeof value.day === 'number' &&
     typeof value.currentPlayer === 'string' &&
-    Array.isArray(value.players) &&
-    Array.isArray(value.tavernPool) &&
-    Array.isArray(value.pendingChoices) &&
+    isArray(value.players) &&
+    value.players.every(isValidPlayer) &&
+    isArray(value.tavernPool) &&
+    isArray(value.pendingChoices) &&
     isRecord(value.heroes) &&
+    Object.values(value.heroes).every(isValidEntity) &&
     isRecord(value.towns) &&
+    Object.values(value.towns).every(isValidEntity) &&
     isRecord(map) &&
     typeof map.size === 'number' &&
     typeof map.terrain === 'string' &&
-    Array.isArray(map.objects) &&
+    isArray(map.objects) &&
+    (value.combat === null || isRecord(value.combat)) &&
     (value.status === 'running' || isRecord(value.status))
   );
 }
@@ -72,6 +98,10 @@ export function deserializeGame(
       );
     }
     state = step(state);
+  }
+  // a save without a combat field means "no battle in progress"
+  if (isRecord(state) && state.combat === undefined) {
+    state.combat = null;
   }
   if (!isGameState(state)) {
     throw new Error('save file state is malformed');

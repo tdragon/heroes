@@ -278,7 +278,7 @@ export function visitObject(
     throw new CommandRejectedError('nothing to visit here');
   }
   events.push({ type: 'objectTriggered', hero: hero.id, object: triggerId });
-  handleObjectTrigger(state, hero, triggerId, data, events);
+  handleObjectTrigger(state, hero, [...hero.pos], triggerId, data, events);
 }
 
 function townAt(state: GameState, pos: Pos): string | null {
@@ -367,7 +367,8 @@ export function moveHero(
     const triggerId = ctx.triggers[tileIndex(ctx, step)] ?? null;
     if (triggerId !== null) {
       events.push({ type: 'objectTriggered', hero: hero.id, object: triggerId });
-      handleObjectTrigger(state, hero, triggerId, data, events);
+      // `from` lets a guard dialog send the hero back on retreat
+      handleObjectTrigger(state, hero, from, triggerId, data, events);
       break;
     }
   }

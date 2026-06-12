@@ -246,10 +246,22 @@ export function renderMinimap(
 
   const dot = Math.max(2, scale * 1.5);
   for (const obj of view.state.map.objects) {
-    if (obj.removed || obj.owner === null) continue;
     const [x, y] = obj.at;
-    if (!(view.player.explored[y * mapTiles + x] ?? false)) continue;
-    ctx.fillStyle = PLAYER_COLOR_HEX[obj.owner];
+    const index = y * mapTiles + x;
+    if (!(view.player.explored[index] ?? false)) continue;
+    // fog of war: live ownership only inside current sight, otherwise the
+    // viewing player's last-seen snapshot (never leak off-screen captures)
+    const inSight = view.visible[index] ?? false;
+    const seen = view.player.seenObjects[obj.id];
+    const owner = inSight
+      ? obj.removed
+        ? null
+        : obj.owner
+      : seen !== undefined && !seen.removed
+        ? seen.owner
+        : null;
+    if (owner === null) continue;
+    ctx.fillStyle = PLAYER_COLOR_HEX[owner];
     ctx.fillRect(x * scale - dot / 2 + scale / 2, y * scale - dot / 2 + scale / 2, dot, dot);
   }
   for (const hero of Object.values(view.state.heroes)) {

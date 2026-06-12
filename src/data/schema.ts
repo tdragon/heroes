@@ -300,7 +300,14 @@ export type Faction = z.infer<typeof FactionSchema>;
 const ObjectCategorySchema = z.enum(['enterable', 'flaggable', 'pickup', 'visitable', 'special']);
 export type ObjectCategory = z.infer<typeof ObjectCategorySchema>;
 
-const ObjectResetSchema = z.enum(['none', 'daily', 'weekly', 'oncePerHero', 'once']);
+const ObjectResetSchema = z.enum([
+  'none',
+  'daily',
+  'weekly',
+  'oncePerHero',
+  'oncePerPlayer',
+  'once',
+]);
 export type ObjectReset = z.infer<typeof ObjectResetSchema>;
 
 const AmountRangeSchema = z.tuple([z.number().int(), z.number().int()]);

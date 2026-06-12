@@ -174,6 +174,17 @@ function levelUp(state: GameState, hero: Hero, data: GameData, events: GameEvent
   hero[stat] += 1;
   events.push({ type: 'heroLevelUp', hero: hero.id, level: hero.level, stat });
 
+  // only one level-up choice per hero is pending at a time: offers computed
+  // from the current skills would go stale once the earlier choice resolves
+  // (duplicate picks, unresolvable 8-skill offers), so further level-ups are
+  // queued on the pending choice and rolled lazily in applyLevelUpChoice
+  const existing = state.pendingChoices.find(
+    (c) => c.kind === 'levelUp' && c.hero === hero.id,
+  );
+  if (existing) {
+    existing.remaining = (existing.remaining ?? 0) + 1;
+    return;
+  }
   const options = levelUpSkillOptions(state, hero, heroClass);
   if (options.length > 0) {
     state.pendingChoices.push({
@@ -208,7 +219,12 @@ export function giveExperience(
   }
 }
 
-export function applyLevelUpChoice(state: GameState, choice: PendingChoice, option: number): void {
+export function applyLevelUpChoice(
+  state: GameState,
+  choice: PendingChoice,
+  option: number,
+  data: GameData,
+): void {
   const heroId = choice.hero;
   const hero = heroId === undefined ? undefined : state.heroes[heroId];
   if (!hero) {
@@ -222,12 +238,39 @@ export function applyLevelUpChoice(state: GameState, choice: PendingChoice, opti
   const existing = hero.skills.find((entry) => entry.skill === skill);
   if (existing) {
     existing.rank = rank;
-    return;
+  } else {
+    if (hero.skills.length >= MAX_SKILLS) {
+      throw new Error(`hero ${hero.id} already has ${String(MAX_SKILLS)} skills`);
+    }
+    hero.skills.push({ skill, rank });
   }
-  if (hero.skills.length >= MAX_SKILLS) {
-    throw new Error(`hero ${hero.id} already has ${String(MAX_SKILLS)} skills`);
+  queueDeferredLevelUpChoice(state, hero, choice, data);
+}
+
+// roll the next level-up offer for the levels deferred while this choice was
+// pending — computed now, against the hero's up-to-date skills
+function queueDeferredLevelUpChoice(
+  state: GameState,
+  hero: Hero,
+  resolved: PendingChoice,
+  data: GameData,
+): void {
+  const remaining = resolved.remaining ?? 0;
+  if (remaining <= 0) return;
+  const heroClass = data.heroClasses[hero.class];
+  if (!heroClass) {
+    throw new Error(`unknown hero class: ${hero.class}`);
   }
-  hero.skills.push({ skill, rank });
+  const options = levelUpSkillOptions(state, hero, heroClass);
+  if (options.length === 0) return;
+  state.pendingChoices.push({
+    id: `levelup-${hero.id}-${String(hero.level)}-${String(remaining)}`,
+    player: hero.owner,
+    kind: 'levelUp',
+    hero: hero.id,
+    options,
+    remaining: remaining - 1,
+  });
 }
 
 // --- army management ---

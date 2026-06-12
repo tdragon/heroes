@@ -5,7 +5,7 @@
 import type { GameData } from '../../data';
 import type { Guard } from '../../maps/schema';
 import type { GameEvent } from '../commands';
-import { giveExperience } from '../hero';
+import { countStacks, giveExperience } from '../hero';
 import { learnGuildSpells } from '../magic';
 import {
   defenderLuckBonus,
@@ -24,10 +24,12 @@ import {
   type Hero,
   type MapObjectState,
   type ObjectId,
+  type PlayerId,
   type Town,
 } from '../state';
 import { requireCreature } from './abilities';
 import {
+  activeCombatStack,
   combatAct,
   createCombat,
   heroCombatInfo,
@@ -37,7 +39,9 @@ import {
 import { siegeLevelFromBuildings } from './siege';
 import {
   CombatRuleError,
+  heroInfoFor,
   noHero,
+  oppositeSide,
   type CombatSideId,
   type CombatStack,
   type CombatState,
@@ -397,9 +401,26 @@ function applyNecromancy(
   events.push({ type: 'necromancyRaised', hero: hero.id, count });
 }
 
+// a hero who survives a battle must never end with an empty army (e.g. a
+// siege defender whose personal stacks were wiped while the garrison won, or
+// an area spell killing the caster's own last stack): grant a single tier-1
+// creature of the hero's faction (documented MVP rule, see plan spec §7.6)
+function ensureHeroHasArmy(hero: Hero, data: GameData): void {
+  if (countStacks(hero.army) > 0) return;
+  const faction = data.heroClasses[hero.class]?.faction;
+  const creatures = Object.values(data.creatures);
+  const tier1 =
+    creatures.find((c) => c.faction === faction && c.tier === 1 && c.upgradeOf === undefined) ??
+    creatures.find((c) => c.tier === 1 && c.upgradeOf === undefined);
+  if (!tier1) {
+    throw new Error(`no tier-1 creature to restock hero ${hero.id}`);
+  }
+  hero.army[0] = { creature: tier1.id, count: 1 };
+}
+
 function finishCombat(
   state: GameState,
-  fled: boolean,
+  fledSide: CombatSideId | null,
   data: GameData,
   events: GameEvent[],
   onGuardVictory: GuardVictoryHandler,
@@ -429,11 +450,20 @@ function finishCombat(
     defenderHero.tempMorale = 0;
   }
 
-  const winner: CombatSideId = fled ? 'defender' : (battle.winner ?? 'defender');
+  const winner: CombatSideId =
+    fledSide !== null ? oppositeSide(fledSide) : (battle.winner ?? 'defender');
   state.combat = null;
 
-  if (fled) {
-    removeHero(state, attacker, 'fled', events);
+  if (fledSide !== null) {
+    // flee = defeat for the fleeing hero except nothing is seized and no XP
+    // is awarded; the hero's template returns to the tavern pool for rehire
+    const fleeing = fledSide === 'attacker' ? attacker : defenderHero;
+    if (!fleeing) {
+      throw new Error('fleeing side has no hero');
+    }
+    removeHero(state, fleeing, 'fled', events);
+    const survivor = fledSide === 'attacker' ? defenderHero : attacker;
+    if (survivor) ensureHeroHasArmy(survivor, data);
     events.push({
       type: 'combatResolved',
       outcome: 'fled',
@@ -451,6 +481,7 @@ function finishCombat(
     }
     applyNecromancy(state, attacker, losses.hpLost, data, events);
     giveExperience(state, attacker.id, losses.xp, data, events);
+    ensureHeroHasArmy(attacker, data);
     if (active.reason === 'siege') {
       const town = active.defenderTown === null ? null : state.towns[active.defenderTown];
       const obj = active.object === null ? null : requireObject(state, active.object);
@@ -467,6 +498,7 @@ function finishCombat(
       transferArtifacts(attacker, defenderHero, events);
       applyNecromancy(state, defenderHero, losses.hpLost, data, events);
       giveExperience(state, defenderHero.id, losses.xp, data, events);
+      ensureHeroHasArmy(defenderHero, data);
     }
     removeHero(state, attacker, 'defeated', events);
   }
@@ -479,8 +511,15 @@ function finishCombat(
   });
 }
 
+function fleeingSideFor(combat: CombatState, player: PlayerId): CombatSideId | null {
+  if (combat.attackerHero.player === player) return 'attacker';
+  if (combat.defenderHero.player === player) return 'defender';
+  return null;
+}
+
 export function applyCombatAction(
   state: GameState,
+  player: PlayerId,
   action: GameCombatAction,
   data: GameData,
   events: GameEvent[],
@@ -491,12 +530,30 @@ export function applyCombatAction(
     throw new CombatRuleError('no combat in progress');
   }
   if (action.type === 'flee') {
-    finishCombat(state, true, data, events, onGuardVictory);
+    // flee removes the FLEEING side's hero: the side is the one whose hero
+    // belongs to the commanding player; siege defenders cannot flee
+    const side = fleeingSideFor(active.combat, player);
+    if (side === null) {
+      throw new CombatRuleError(`${player} has no hero in this battle to flee with`);
+    }
+    if (side === 'defender' && active.reason === 'siege') {
+      throw new CombatRuleError('cannot flee while defending a siege');
+    }
+    finishCombat(state, side, data, events, onGuardVictory);
     return;
+  }
+  if (action.type === 'cast') {
+    // the cast comes from the active stack's side hero: only that hero's
+    // owner may order it (heroless sides cannot cast at all)
+    const stack = activeCombatStack(active.combat);
+    const sideOwner = stack === null ? null : heroInfoFor(active.combat, stack.side).player;
+    if (sideOwner !== null && sideOwner !== player) {
+      throw new CombatRuleError(`only ${sideOwner} may cast from this side's spellbook`);
+    }
   }
   const combatEvents = combatAct(active.combat, action, data);
   pushCombatEvents(events, combatEvents);
   if (active.combat.winner !== null) {
-    finishCombat(state, false, data, events, onGuardVictory);
+    finishCombat(state, null, data, events, onGuardVictory);
   }
 }

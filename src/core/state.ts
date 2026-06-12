@@ -130,6 +130,11 @@ export interface PendingChoice {
   hero?: HeroId;
   object?: ObjectId;
   message?: string;
+  // guardAttack: tile the hero came from, restored when the player retreats
+  from?: Pos;
+  // levelUp: further level-ups owed to the hero; the next choice is computed
+  // lazily when this one resolves so the offers never use stale skill state
+  remaining?: number;
 }
 
 export type CombatReason = 'guard' | 'siege' | 'field';

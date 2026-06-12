@@ -43,7 +43,7 @@ import {
   inField,
   type Hex,
 } from './grid';
-import { castCombatSpell, type CastAction } from '../magic';
+import { castCombatSpell, corpseHexesBlocked, type CastAction } from '../magic';
 import {
   CATAPULT_HIT_CHANCE,
   createSiege,
@@ -603,6 +603,7 @@ function applyOnHitEffects(
       positive: false,
       rounds: ON_HIT_EFFECT_ROUNDS,
       value: entry.value,
+      castBy: 'creature',
     });
     if (entry.kind === 'aging') {
       // halving HP can shrink the current top-creature pool immediately
@@ -616,9 +617,11 @@ function applyOnHitEffects(
       value: entry.value,
     });
   }
-  if (hasSpecial(attackerCreature, 'bind') && !targetUndead) {
-    // dendroids always bind; freshness tracked per round in expireEffects
-    addEffect(target, { kind: 'bind', positive: false, rounds: 1, value: 0 });
+  // bind is physical, so it works on undead too (undead immunity covers mind
+  // spells and bless/curse only); dendroids always bind, freshness tracked
+  // per round in expireEffects
+  if (hasSpecial(attackerCreature, 'bind')) {
+    addEffect(target, { kind: 'bind', positive: false, rounds: 1, value: 0, castBy: 'creature' });
     events.push({ type: 'effectApplied', stack: target.id, kind: 'bind', rounds: 1, value: 0 });
   }
 }
@@ -854,11 +857,15 @@ function applyMelee(
   strikeOnce();
 
   const targetCreature = requireCreature(data, target.creature);
-  // spec §7.3: no retaliation when the defender is blinded, bound, or dead
+  // spec §7.3: no retaliation when the defender is blinded, bound, or dead.
+  // Blind applied by this very hit (unicorn on-hit blind) also suppresses the
+  // retaliation, hence the post-strike isBlinded check; a pre-strike blind
+  // broken by the damage still retaliates at the captured blindMult penalty
   const canRetaliate =
     isStackAlive(target) &&
     isStackAlive(stack) &&
     blindMult > 0 &&
+    !isBlinded(target) &&
     !wasBound &&
     !hasSpecial(creature, 'noRetaliation') &&
     (hasSpecial(targetCreature, 'unlimitedRetaliation') || target.retaliationsLeft > 0);
@@ -985,6 +992,9 @@ function applyResurrect(
   const target = getCombatStack(combat, action.target);
   if (target.side !== stack.side || target.id === stack.id) {
     throw new CombatRuleError('can only resurrect another friendly stack');
+  }
+  if (corpseHexesBlocked(combat, target, data)) {
+    throw new CombatRuleError(`cannot revive ${target.id}: its hex is occupied`);
   }
   const targetCreature = requireCreature(data, target.creature);
   const maxHp = effectiveHp(target, targetCreature);

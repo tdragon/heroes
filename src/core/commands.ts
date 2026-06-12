@@ -11,7 +11,7 @@ import {
   unequipArtifactCommand,
   type PrimaryStat,
 } from './hero';
-import { castAdventureSpell } from './magic';
+import { buySpellbookCommand, castAdventureSpell } from './magic';
 import { moveHero, visitObject } from './movement';
 import { applyObjectReward, OBJECT_CHOICE_KINDS, resolveObjectChoice } from './objects';
 import {
@@ -71,6 +71,7 @@ export type Command =
   | { type: 'equipArtifact'; player: PlayerId; hero: HeroId; artifact: string }
   | { type: 'unequipArtifact'; player: PlayerId; hero: HeroId; artifact: string }
   | { type: 'transferArtifact'; player: PlayerId; from: HeroId; to: HeroId; artifact: string }
+  | { type: 'buySpellbook'; player: PlayerId; hero: HeroId; town: TownId }
   | {
       type: 'castAdventureSpell';
       player: PlayerId;
@@ -125,6 +126,7 @@ export type GameEvent =
   | { type: 'necromancyRaised'; hero: HeroId; count: number }
   | { type: 'artifactsSeized'; hero: HeroId; artifacts: string[] }
   | { type: 'spellsLearned'; hero: HeroId; spells: string[] }
+  | { type: 'spellbookBought'; hero: HeroId; town: TownId }
   | { type: 'buildingBuilt'; town: TownId; building: string }
   | { type: 'guildSpellsRolled'; town: TownId; level: number; spells: string[] }
   | {
@@ -191,7 +193,7 @@ function resolveChoice(
   }
   state.pendingChoices = state.pendingChoices.filter((c) => c.id !== choice.id);
   if (choice.kind === 'levelUp') {
-    applyLevelUpChoice(state, choice, command.option);
+    applyLevelUpChoice(state, choice, command.option, data);
   } else if ((OBJECT_CHOICE_KINDS as readonly string[]).includes(choice.kind)) {
     resolveObjectChoice(state, choice, command.option, data, events);
   }
@@ -207,7 +209,14 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
   const resolvesOwnChoice =
     command.type === 'resolveChoice' &&
     state.pendingChoices.some((c) => c.id === command.choiceId && c.player === command.player);
-  if (command.player !== state.currentPlayer && !resolvesOwnChoice) {
+  // a player whose hero fights in the active combat may act in it even
+  // off-turn (e.g. the human defender of an AI attack, hotseat battles)
+  const actsInOwnCombat =
+    command.type === 'combatAction' &&
+    state.combat !== null &&
+    (state.combat.combat.attackerHero.player === command.player ||
+      state.combat.combat.defenderHero.player === command.player);
+  if (command.player !== state.currentPlayer && !resolvesOwnChoice && !actsInOwnCombat) {
     throw new CommandRejectedError(
       `command from ${command.player}, but current player is ${state.currentPlayer}`,
     );
@@ -238,7 +247,7 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
       resolveChoice(next, command, data, events);
       break;
     case 'combatAction':
-      applyCombatAction(next, command.action, data, events, (s, hero, obj, evts) => {
+      applyCombatAction(next, command.player, command.action, data, events, (s, hero, obj, evts) => {
         applyObjectReward(s, hero, obj, data, evts);
       });
       break;
@@ -274,6 +283,9 @@ export function dispatch(state: GameState, command: Command, data: GameData): Di
       break;
     case 'transferArtifact':
       transferArtifactCommand(next, command, events);
+      break;
+    case 'buySpellbook':
+      buySpellbookCommand(next, command, data, events);
       break;
     case 'castAdventureSpell':
       castAdventureSpell(next, command, data, events);
