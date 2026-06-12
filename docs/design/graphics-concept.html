@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Open Heroes — Gilded Woodcut · Visual Design Language</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@400;600;800&family=Alegreya:ital,wght@0,400;0,500;0,700;1,400&family=Alegreya+SC:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #241b16;
+    --ink-soft: #3a2d23;
+    --night: #16100c;
+    --night-2: #1f1812;
+    --parchment: #ece0c4;
+    --parchment-deep: #ddcba1;
+    --parchment-edge: #c9b384;
+    --gold: #c9a13b;
+    --gold-bright: #e8c75e;
+    --gold-deep: #9a7322;
+    --crimson: #a32638;
+    --leaf: #4e8a3a;
+    --grave: #7fae6a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: auto; }
+  body {
+    background: var(--night);
+    color: var(--parchment);
+    font-family: 'Alegreya', Georgia, serif;
+    font-size: 17px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 50;
+  }
+  .wrap { max-width: 1140px; margin: 0 auto; padding: 0 32px; }
+
+  /* ---------- masthead ---------- */
+  header { padding: 84px 0 56px; text-align: center; position: relative; }
+  .kicker {
+    font-family: 'Alegreya SC', serif; font-weight: 700;
+    letter-spacing: 0.42em; text-transform: uppercase; font-size: 13px;
+    color: var(--gold);
+  }
+  h1 {
+    font-family: 'Grenze Gotisch', serif; font-weight: 800;
+    font-size: clamp(64px, 10vw, 124px); line-height: 0.92;
+    color: var(--parchment); margin: 18px 0 6px;
+    text-shadow: 0 4px 0 rgba(0,0,0,0.55);
+  }
+  h1 .gilt { color: var(--gold-bright); }
+  .subtitle {
+    font-style: italic; font-size: 21px; color: #b8a583;
+    max-width: 620px; margin: 14px auto 0;
+  }
+  .rule { display: flex; align-items: center; gap: 18px; justify-content: center; margin: 34px 0 0; }
+  .rule::before, .rule::after { content: ''; height: 1px; width: 180px; background: linear-gradient(90deg, transparent, var(--gold)); }
+  .rule::after { background: linear-gradient(90deg, var(--gold), transparent); }
+  .rule svg { display: block; }
+
+  /* ---------- sections ---------- */
+  section { padding: 56px 0; position: relative; }
+  .chapter {
+    display: flex; align-items: baseline; gap: 22px; margin-bottom: 8px;
+  }
+  .chapter .num {
+    font-family: 'Grenze Gotisch', serif; font-weight: 400; font-size: 88px;
+    color: transparent; -webkit-text-stroke: 1.5px var(--gold-deep); line-height: 1;
+  }
+  .chapter h2 {
+    font-family: 'Grenze Gotisch', serif; font-weight: 600; font-size: 52px;
+    line-height: 1; color: var(--parchment);
+  }
+  .chapter h2 em { color: var(--gold-bright); font-style: normal; }
+  .lede { max-width: 720px; color: #c4b291; font-size: 18.5px; margin-bottom: 36px; }
+  .lede strong { color: var(--parchment); }
+
+  /* parchment plates */
+  .plate {
+    background:
+      radial-gradient(120% 90% at 30% 0%, #f4ead2 0%, var(--parchment) 45%, var(--parchment-deep) 100%);
+    color: var(--ink);
+    border: 1px solid var(--parchment-edge);
+    outline: 4px solid var(--night-2);
+    box-shadow: 0 0 0 5px var(--gold-deep), 0 26px 60px -18px rgba(0,0,0,0.85);
+    padding: 36px 40px;
+    position: relative;
+  }
+  .plate + .plate { margin-top: 42px; }
+  .plate-title {
+    font-family: 'Alegreya SC', serif; font-weight: 700; letter-spacing: 0.3em;
+    text-transform: uppercase; font-size: 13px; color: #6e5328;
+    border-bottom: 1px solid rgba(110, 83, 40, 0.35); padding-bottom: 10px; margin-bottom: 26px;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .plate-title .folio { letter-spacing: 0.1em; color: #a18653; }
+  .plate p { color: var(--ink-soft); }
+
+  /* ---------- creed ---------- */
+  .creed { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid rgba(110,83,40,0.35); }
+  .creed li {
+    list-style: none; padding: 22px 24px 26px;
+    border-right: 1px solid rgba(110,83,40,0.35);
+    border-bottom: 1px solid rgba(110,83,40,0.35);
+  }
+  .creed li:nth-child(3n) { border-right: none; }
+  .creed li:nth-child(n+4) { border-bottom: none; }
+  .creed .n {
+    font-family: 'Grenze Gotisch', serif; font-size: 34px; font-weight: 600;
+    color: var(--gold-deep); display: block; line-height: 1;
+  }
+  .creed h3 { font-family: 'Grenze Gotisch', serif; font-size: 25px; font-weight: 600; margin: 6px 0 6px; color: var(--ink); }
+  .creed p { font-size: 15.5px; line-height: 1.5; }
+
+  /* ---------- palette ---------- */
+  .swatch-row { display: flex; flex-wrap: wrap; gap: 14px; }
+  .swatch { width: 108px; }
+  .swatch .chip {
+    height: 64px; border: 2px solid var(--ink);
+    box-shadow: inset 0 -8px 0 rgba(0,0,0,0.14), 3px 3px 0 rgba(36,27,22,0.25);
+  }
+  .swatch .name { font-family: 'Alegreya SC', serif; font-size: 13.5px; font-weight: 700; margin-top: 7px; line-height: 1.2; }
+  .swatch .hex { font-size: 12.5px; color: #7a6748; letter-spacing: 0.05em; }
+  .pal-group { margin-bottom: 30px; }
+  .pal-group:last-child { margin-bottom: 0; }
+  .pal-label {
+    font-family: 'Grenze Gotisch', serif; font-size: 24px; font-weight: 600; color: var(--ink);
+    margin-bottom: 12px; display: flex; align-items: center; gap: 12px;
+  }
+  .pal-label::after { content: ''; flex: 1; height: 1px; background: rgba(110,83,40,0.3); }
+  .pal-note { font-size: 14.5px; color: #6e5b3e; font-style: italic; margin-top: 8px; }
+
+  .faction-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+  .faction { border: 2px solid var(--ink); background: #f5edd9; }
+  .faction .band { height: 10px; }
+  .faction .inner { padding: 18px 20px 20px; }
+  .faction h4 { font-family: 'Grenze Gotisch', serif; font-size: 28px; font-weight: 600; line-height: 1; }
+  .faction .motto { font-style: italic; font-size: 14px; color: #7a6748; margin: 2px 0 12px; }
+  .faction .chips { display: flex; gap: 8px; }
+  .faction .chips i { display: block; flex: 1; height: 34px; border: 1.5px solid var(--ink); }
+  .faction .roster { font-size: 13.5px; color: #5d4c33; margin-top: 12px; line-height: 1.45; }
+
+  /* ---------- sprite stages ---------- */
+  .stage-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+  .stage-grid.three { grid-template-columns: repeat(3, 1fr); }
+  .stage {
+    text-align: center;
+  }
+  .stage .well {
+    background: #efe5cb;
+    border: 2px solid var(--ink);
+    box-shadow: 4px 4px 0 rgba(36,27,22,0.22);
+    padding: 14px; display: flex; align-items: center; justify-content: center;
+  }
+  .stage .well.dark { background: #2b2119; }
+  .stage figcaption { margin-top: 10px; }
+  .stage .t { font-family: 'Grenze Gotisch', serif; font-size: 21px; font-weight: 600; color: var(--ink); line-height: 1.1; }
+  .stage .d { font-size: 13px; color: #7a6748; }
+  .stage svg { display: block; }
+
+  .tile-frame { border: 2px solid var(--ink); box-shadow: 4px 4px 0 rgba(36,27,22,0.22); display: block; }
+
+  /* unit cards */
+  .unit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+  .unit-card { border: 2px solid var(--ink); background: #efe5cb; box-shadow: 5px 5px 0 rgba(36,27,22,0.22); }
+  .unit-card .art { display: flex; justify-content: center; padding: 18px 0 6px; }
+  .unit-card .meta { padding: 4px 16px 16px; text-align: center; }
+  .unit-card h4 { font-family: 'Grenze Gotisch', serif; font-size: 26px; font-weight: 600; line-height: 1; color: var(--ink); }
+  .unit-card .cls { font-family: 'Alegreya SC', serif; font-size: 12.5px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; }
+  .unit-card .band { height: 7px; border-bottom: 2px solid var(--ink); }
+  .f-castle .band { background: var(--crimson); } .f-castle .cls { color: var(--crimson); }
+  .f-rampart .band { background: var(--leaf); } .f-rampart .cls { color: #3a6b2b; }
+  .f-necro .band { background: #3b2d45; } .f-necro .cls { color: #574569; }
+
+  .scale-row { display: flex; align-items: flex-end; gap: 36px; justify-content: center; padding: 10px 0 4px; }
+  .scale-row .cell { text-align: center; }
+  .scale-row .d { font-size: 12.5px; color: #7a6748; margin-top: 8px; }
+
+  /* anatomy */
+  .anatomy { display: grid; grid-template-columns: 320px 1fr; gap: 40px; align-items: center; }
+  .callouts { list-style: none; }
+  .callouts li { display: flex; gap: 14px; padding: 10px 0; border-bottom: 1px dashed rgba(110,83,40,0.35); font-size: 15.5px; }
+  .callouts li:last-child { border-bottom: none; }
+  .callouts .mark {
+    font-family: 'Grenze Gotisch', serif; font-weight: 800; font-size: 19px;
+    background: var(--ink); color: var(--gold-bright);
+    width: 28px; height: 28px; flex: 0 0 28px; display: flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+  }
+  .callouts b { color: var(--ink); }
+
+  /* verdict */
+  .verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 2px solid var(--ink); }
+  .verdict > div { padding: 28px 30px; }
+  .verdict .yes { background: #e7ecdc; border-right: 2px solid var(--ink); }
+  .verdict .no { background: #f0e2d8; }
+  .verdict h3 { font-family: 'Grenze Gotisch', serif; font-size: 30px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+  .verdict .stamp {
+    display: inline-block; font-family: 'Alegreya SC', serif; font-weight: 700; font-size: 12px;
+    letter-spacing: 0.22em; text-transform: uppercase; padding: 3px 12px;
+    border: 2px solid; transform: rotate(-2deg); margin-bottom: 14px;
+  }
+  .verdict .yes .stamp { color: #2f6b22; border-color: #2f6b22; }
+  .verdict .no .stamp { color: #8a4a1f; border-color: #8a4a1f; }
+  .verdict ul { list-style: none; }
+  .verdict li { padding: 7px 0 7px 26px; position: relative; font-size: 15.5px; border-bottom: 1px dashed rgba(110,83,40,0.3); }
+  .verdict li:last-child { border-bottom: none; }
+  .verdict li::before { content: '❧'; position: absolute; left: 2px; color: var(--gold-deep); }
+
+  .pipeline { display: flex; align-items: stretch; gap: 0; margin-top: 34px; }
+  .pipe-step { flex: 1; border: 2px solid var(--ink); background: #f5edd9; padding: 18px 18px 16px; position: relative; }
+  .pipe-step + .pipe-step { margin-left: 34px; }
+  .pipe-step + .pipe-step::before {
+    content: '➤'; position: absolute; left: -29px; top: 50%; transform: translateY(-50%);
+    color: var(--gold-deep); font-size: 20px;
+  }
+  .pipe-step .ph { font-family: 'Alegreya SC', serif; font-weight: 700; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: #8a4a1f; }
+  .pipe-step h4 { font-family: 'Grenze Gotisch', serif; font-size: 22px; font-weight: 600; color: var(--ink); margin: 2px 0 6px; line-height: 1.05; }
+  .pipe-step p { font-size: 13.5px; line-height: 1.45; }
+  .pipe-step code { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 12px; background: rgba(36,27,22,0.08); padding: 1px 5px; }
+
+  /* ledger */
+  table.ledger { width: 100%; border-collapse: collapse; font-size: 15.5px; }
+  table.ledger th {
+    font-family: 'Alegreya SC', serif; font-weight: 700; font-size: 12.5px; letter-spacing: 0.18em;
+    text-transform: uppercase; text-align: left; color: #6e5328;
+    border-bottom: 2px solid var(--ink); padding: 8px 12px;
+  }
+  table.ledger td { padding: 9px 12px; border-bottom: 1px solid rgba(110,83,40,0.28); color: var(--ink-soft); vertical-align: top; }
+  table.ledger td:first-child { font-family: 'Grenze Gotisch', serif; font-size: 20px; color: var(--ink); white-space: nowrap; }
+  table.ledger td.count { font-weight: 700; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+  .phase-tag {
+    display: inline-block; font-family: 'Alegreya SC', serif; font-size: 11.5px; font-weight: 700;
+    letter-spacing: 0.14em; padding: 1px 9px; border: 1.5px solid var(--gold-deep); color: var(--gold-deep);
+    white-space: nowrap;
+  }
+
+  footer { padding: 60px 0 80px; text-align: center; color: #8a7355; font-style: italic; }
+  footer .rule { margin-bottom: 26px; }
+
+  .sprite-css-note { font-size: 14px; color: #6e5b3e; font-style: italic; margin-top: 18px; }
+
+  /* sprite shared styles */
+  svg .s   { stroke: #241b16; stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+  svg .s2  { stroke: #241b16; stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+  svg .shdw { fill: rgba(20,14,10,0.26); }
+
+  @media (max-width: 900px) {
+    .creed, .faction-grid, .unit-grid, .stage-grid, .stage-grid.three { grid-template-columns: 1fr 1fr; }
+    .anatomy, .verdict { grid-template-columns: 1fr; }
+    .verdict .yes { border-right: none; border-bottom: 2px solid var(--ink); }
+    .pipeline { flex-direction: column; }
+    .pipe-step + .pipe-step { margin-left: 0; margin-top: 30px; }
+    .pipe-step + .pipe-step::before { left: 50%; top: -27px; transform: translateX(-50%) rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════ SPRITE LIBRARY ════════════════════════ -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+
+  <!-- ─── terrain tiles (64×64, tileable) ─── -->
+  <symbol id="t-grass" viewBox="0 0 64 64">
+    <rect width="64" height="64" fill="#4a7c2f"/>
+    <path d="M6 14 Q16 8 26 14 Q20 20 8 19 Z" fill="#538935"/>
+    <path d="M36 44 Q48 38 58 46 Q50 53 38 51 Z" fill="#538935"/>
+    <path d="M44 10 Q53 7 59 12 Q52 17 45 15 Z" fill="#436f2a"/>
+    <path d="M8 38 Q15 34 21 39 Q15 44 9 42 Z" fill="#436f2a"/>
+    <g stroke="#2f5722" stroke-width="1.3" stroke-linecap="round" fill="none">
+      <path d="M14 28 v-5 M17 28 v-7 M20 28 v-5"/>
+      <path d="M46 26 v-5 M49 26 v-7 M52 26 v-5"/>
+      <path d="M28 54 v-5 M31 54 v-7 M34 54 v-5"/>
+    </g>
+    <g stroke="#6aa345" stroke-width="1.3" stroke-linecap="round" fill="none">
+      <path d="M15 27 v-4 M18 27 v-5"/>
+      <path d="M47 25 v-4 M50 25 v-5"/>
+      <path d="M29 53 v-4 M32 53 v-5"/>
+      <path d="M55 58 v-4 M58 58 v-5"/>
+      <path d="M5 56 v-4 M8 56 v-5"/>
+    </g>
+  </symbol>
+
+  <symbol id="t-dirt" viewBox="0 0 64 64">
+    <rect width="64" height="64" fill="#8b6b47"/>
+    <path d="M4 10 Q18 4 30 11 Q22 18 6 17 Z" fill="#7a5c3c"/>
+    <path d="M34 40 Q50 34 60 42 Q52 50 36 48 Z" fill="#7a5c3c"/>
+    <path d="M10 44 Q20 40 26 46 Q18 52 10 50 Z" fill="#967452"/>
+    <path d="M40 12 Q50 9 57 14 Q50 19 42 17 Z" fill="#967452"/>
+    <g class="pebbles">
+      <ellipse cx="16" cy="27" rx="3.4" ry="2.4" fill="#a3825c"/><ellipse cx="16" cy="27.8" rx="3.4" ry="1.5" fill="#6b4f34" opacity="0.45"/>
+      <ellipse cx="46" cy="55" rx="3" ry="2.1" fill="#a3825c"/><ellipse cx="46" cy="55.7" rx="3" ry="1.3" fill="#6b4f34" opacity="0.45"/>
+      <ellipse cx="52" cy="26" rx="2.4" ry="1.8" fill="#a3825c"/>
+      <ellipse cx="30" cy="58" rx="2.2" ry="1.6" fill="#6b4f34"/>
+      <ellipse cx="36" cy="22" rx="2" ry="1.5" fill="#6b4f34"/>
+      <ellipse cx="8" cy="58" rx="2.4" ry="1.7" fill="#a3825c"/>
+    </g>
+  </symbol>
+
+  <symbol id="t-sand" viewBox="0 0 64 64">
+    <rect width="64" height="64" fill="#d9c37e"/>
+    <path d="M2 16 Q14 10 28 15 Q40 19 50 14" fill="none" stroke="#e9d795" stroke-width="3" stroke-linecap="round"/>
+    <path d="M2 19 Q14 13 28 18 Q40 22 50 17" fill="none" stroke="#c4ab64" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M14 38 Q26 32 40 37 Q52 41 62 36" fill="none" stroke="#e9d795" stroke-width="3" stroke-linecap="round"/>
+    <path d="M14 41 Q26 35 40 40 Q52 44 62 39" fill="none" stroke="#c4ab64" stroke-width="1.4" stroke-linecap="round"/>
+    <path d="M2 56 Q12 51 24 55 Q34 58 44 54" fill="none" stroke="#e9d795" stroke-width="3" stroke-linecap="round"/>
+    <path d="M2 59 Q12 54 24 58 Q34 61 44 57" fill="none" stroke="#c4ab64" stroke-width="1.4" stroke-linecap="round"/>
+    <circle cx="54" cy="52" r="1.4" fill="#c4ab64"/><circle cx="8" cy="32" r="1.4" fill="#c4ab64"/>
+  </symbol>
+
+  <symbol id="t-snow" viewBox="0 0 64 64">
+    <rect width="64" height="64" fill="#e8edf2"/>
+    <path d="M0 22 Q16 14 34 21 Q50 27 64 20 L64 34 Q46 40 28 33 Q12 28 0 34 Z" fill="#dde5ec"/>
+    <path d="M0 23 Q16 15 34 22 Q50 28 64 21" fill="none" stroke="#c6d2dd" stroke-width="1.6"/>
+    <path d="M8 48 Q20 43 34 48 Q48 52 60 47" fill="none" stroke="#c6d2dd" stroke-width="1.6"/>
+    <circle cx="14" cy="10" r="1.3" fill="#ffffff"/><circle cx="48" cy="42" r="1.3" fill="#ffffff"/>
+    <circle cx="30" cy="58" r="1.3" fill="#ffffff"/><circle cx="56" cy="10" r="1.3" fill="#ffffff"/>
+  </symbol>
+
+  <symbol id="t-swamp" viewBox="0 0 64 64">
+    <rect width="64" height="64" fill="#4f6b4a"/>
+    <path d="M8 18 Q18 12 30 17 Q24 26 10 24 Z" fill="#3c5546"/>
+    <path d="M9 17.5 Q18 12.5 29 17" fill="none" stroke="#6c8a64" stroke-width="1.4"/>
+    <path d="M34 42 Q46 36 58 42 Q50 52 36 50 Z" fill="#3c5546"/>
+    <path d="M35 41.5 Q46 36.5 57 41.5" fill="none" stroke="#6c8a64" stroke-width="1.4"/>
+    <g stroke="#33492f" stroke-width="1.6" stroke-linecap="round" fill="none">
+      <path d="M48 24 v-9 M52 24 v-12 M56 24 v-8"/>
+      <path d="M12 50 v-9 M16 50 v-12 M20 50 v-8"/>
+    </g>
+    <ellipse cx="52" cy="12.5" rx="2.4" ry="1.6" fill="#5d7a55"/>
+    <ellipse cx="16" cy="38.5" rx="2.4" ry="1.6" fill="#5d7a55"/>
+  </symbol>
+
+  <symbol id="t-rough" viewBox="0 0 64 64">
+    <rect width="64" height="64" fill="#9c8a6e"/>
+    <path d="M6 20 L18 14 L30 19 L24 28 L10 26 Z" fill="#b0a085"/>
+    <path d="M6 20 L18 14 L30 19" fill="none" stroke="#c2b394" stroke-width="1.4"/>
+    <path d="M38 44 L50 38 L60 44 L54 52 L42 50 Z" fill="#b0a085"/>
+    <path d="M38 44 L50 38 L60 44" fill="none" stroke="#c2b394" stroke-width="1.4"/>
+    <g stroke="#6e5d44" stroke-width="1.5" fill="none" stroke-linecap="round">
+      <path d="M40 12 l7 4 l-3 6 l8 3"/>
+      <path d="M10 42 l6 5 l-2 6"/>
+      <path d="M28 56 l8 -3 l5 4"/>
+    </g>
+  </symbol>
+
+  <symbol id="t-lava" viewBox="0 0 64 64">
+    <rect width="64" height="64" fill="#3a3236"/>
+    <path d="M4 12 L20 6 L34 14 L26 24 L8 22 Z" fill="#463c42"/>
+    <path d="M36 38 L52 32 L62 42 L52 52 L38 48 Z" fill="#463c42"/>
+    <path d="M2 38 Q14 32 22 40 Q30 48 44 56" fill="none" stroke="#b8392a" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M2 38 Q14 32 22 40 Q30 48 44 56" fill="none" stroke="#f08c3a" stroke-width="1.3" stroke-linecap="round"/>
+    <path d="M40 8 Q48 14 46 24" fill="none" stroke="#b8392a" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M40 8 Q48 14 46 24" fill="none" stroke="#f08c3a" stroke-width="1" stroke-linecap="round"/>
+    <circle cx="54" cy="20" r="1.5" fill="#f0a13a"/><circle cx="12" cy="52" r="1.5" fill="#f0a13a"/>
+  </symbol>
+
+  <symbol id="t-water" viewBox="0 0 64 64">
+    <rect width="64" height="64" fill="#2a5d9c"/>
+    <path d="M0 30 Q18 22 36 30 Q52 37 64 30 L64 46 Q46 52 28 45 Q12 40 0 46 Z" fill="#234e85"/>
+    <g stroke="#4a7fb8" stroke-width="2" stroke-linecap="round" fill="none">
+      <path d="M8 14 q5 -4 10 0 q5 4 10 0"/>
+      <path d="M34 24 q5 -4 10 0 q5 4 10 0"/>
+      <path d="M10 40 q5 -4 10 0 q5 4 10 0"/>
+      <path d="M36 52 q5 -4 10 0 q5 4 10 0"/>
+    </g>
+    <path d="M9 13 q4 -3 8 0" stroke="#bcd6ee" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    <path d="M37 51 q4 -3 8 0" stroke="#bcd6ee" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  </symbol>
+
+  <!-- ─── roads (horizontal overlay band) ─── -->
+  <symbol id="r-dirt" viewBox="0 0 64 64">
+    <path d="M0 24 Q16 21 32 23 Q48 25 64 22 L64 42 Q48 45 32 43 Q16 41 0 44 Z" fill="#76603e"/>
+    <path d="M0 30 Q20 28 38 30 Q52 31.5 64 30" fill="none" stroke="#5f4c30" stroke-width="1.8"/>
+    <path d="M0 37 Q20 35 38 37 Q52 38.5 64 37" fill="none" stroke="#5f4c30" stroke-width="1.8"/>
+  </symbol>
+  <symbol id="r-gravel" viewBox="0 0 64 64">
+    <path d="M0 24 Q16 21 32 23 Q48 25 64 22 L64 42 Q48 45 32 43 Q16 41 0 44 Z" fill="#8d7a5c"/>
+    <g fill="#a8956f">
+      <circle cx="10" cy="30" r="1.6"/><circle cx="22" cy="36" r="1.6"/><circle cx="34" cy="29" r="1.6"/>
+      <circle cx="46" cy="35" r="1.6"/><circle cx="57" cy="29" r="1.6"/><circle cx="16" cy="40" r="1.3"/>
+      <circle cx="40" cy="39" r="1.3"/><circle cx="52" cy="26" r="1.3"/><circle cx="28" cy="26" r="1.3"/>
+    </g>
+  </symbol>
+  <symbol id="r-cobble" viewBox="0 0 64 64">
+    <path d="M0 24 Q16 21 32 23 Q48 25 64 22 L64 42 Q48 45 32 43 Q16 41 0 44 Z" fill="#8c8478"/>
+    <g fill="#a09a8c" stroke="#6b655b" stroke-width="1">
+      <ellipse cx="8" cy="29" rx="4.4" ry="3"/><ellipse cx="19" cy="32" rx="4.4" ry="3"/>
+      <ellipse cx="30" cy="28" rx="4.4" ry="3"/><ellipse cx="41" cy="32" rx="4.4" ry="3"/>
+      <ellipse cx="52" cy="28" rx="4.4" ry="3"/><ellipse cx="61" cy="32" rx="4" ry="3"/>
+      <ellipse cx="13" cy="38" rx="4.4" ry="3"/><ellipse cx="25" cy="38.5" rx="4.4" ry="3"/>
+      <ellipse cx="36" cy="38" rx="4.4" ry="3"/><ellipse cx="47" cy="38.5" rx="4.4" ry="3"/>
+      <ellipse cx="58" cy="38" rx="4" ry="3"/><ellipse cx="3" cy="35" rx="3.4" ry="2.8"/>
+    </g>
+  </symbol>
+
+  <!-- ─── unit emblems (64×64) ─── -->
+
+  <!-- CASTLE · pikeman t1 -->
+  <symbol id="u-pikeman" viewBox="0 0 64 64">
+    <ellipse class="shdw" cx="31" cy="56" rx="14" ry="3"/>
+    <path d="M21 57 L45 7" stroke="#6d4f33" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M43.4 9.6 C42 5 44.6 1.2 46.8 0.8 C48.6 3.6 47.8 8.2 45.6 10.8 Z" fill="#aebdca" class="s"/>
+    <path d="M27.5 41 L26 54.5 L30 54.5 L31 43 Z" fill="#7c8da0" class="s"/>
+    <path d="M33.5 43 L35.5 54.5 L39.5 54.5 L37 41 Z" fill="#7c8da0" class="s"/>
+    <path d="M25 54.5 h6 v2.6 h-6 Z" fill="#241b16"/>
+    <path d="M34.8 54.5 h6 v2.6 h-6 Z" fill="#241b16"/>
+    <path d="M26 27 H38 L40.5 44 H23.5 Z" fill="#a32638" class="s"/>
+    <path d="M24.4 38.5 H40" stroke="#d9ab3c" stroke-width="2.4"/>
+    <path d="M36 30.5 L42.5 24.5" stroke="#d9a886" stroke-width="3.4" stroke-linecap="round"/>
+    <circle cx="43" cy="24" r="2.3" fill="#d9a886" class="s"/>
+    <path d="M17.5 29.5 H28.5 V40 Q23 47.5 17.5 40 Z" fill="#aebdca" class="s"/>
+    <path d="M23 31.5 V43 M19.4 35.5 H26.8" stroke="#a32638" stroke-width="2.1"/>
+    <circle cx="32" cy="20.5" r="5.2" fill="#d9a886" class="s"/>
+    <path d="M26.6 20 Q26.6 13.4 32 13.4 Q37.4 13.4 37.4 20 Z" fill="#aebdca" class="s"/>
+    <path d="M24.4 20 H39.6 L38.4 22.6 H25.6 Z" fill="#7c8da0" class="s"/>
+    <path d="M32 13.4 Q33.6 9.2 37.4 9.2 Q36 11.8 35.6 14 Z" fill="#a32638" class="s"/>
+  </symbol>
+
+  <!-- CASTLE · griffin t3 -->
+  <symbol id="u-griffin" viewBox="0 0 64 64">
+    <ellipse class="shdw" cx="30" cy="56" rx="16" ry="3"/>
+    <path d="M15 42 Q6.5 44 6 36.5 Q9.5 38.5 12.5 38" fill="none" class="s2"/>
+    <circle cx="6.6" cy="37" r="2.5" fill="#c89a4f" class="s"/>
+    <path d="M18 34 Q7.5 13 30.5 7.5 Q30 13 26.5 16.5 Q35.5 12.5 40.5 16.5 Q35 19.5 33 22.5 Q41 22 43.5 26.5 L37.5 30 Q27 36.5 19.5 35.5 Z" fill="#cfd5da" class="s"/>
+    <g stroke="#241b16" stroke-width="0.9" fill="none" opacity="0.6">
+      <path d="M20 33 Q24 19 30 9.5 M21.5 34 Q29.5 23.5 39.5 17.5 M23 34.8 Q32 28.5 42.5 26.5"/>
+    </g>
+    <path d="M17 41.5 Q13.5 31 24 28.5 Q33.5 26.5 38.5 31.5 L36 45 Q28 50 21.5 47.5 Q17.5 45.5 17 41.5 Z" fill="#c89a4f" class="s"/>
+    <path d="M24 47 L23 54.5 L29 54.5 L28.2 48 Z" fill="#b3853e" class="s"/>
+    <path d="M21.5 54.5 h9.5" stroke="#241b16" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M33 29 Q39 28 41 33.5 Q42 39.5 36.5 44.5 Q33 41 32.8 36 Z" fill="#e3e7ec" class="s"/>
+    <path d="M38.5 34.5 Q46.5 34 49 27.5" fill="none" stroke="#d9ab3c" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M38.5 40.5 Q46 41 48 35" fill="none" stroke="#d9ab3c" stroke-width="3.2" stroke-linecap="round"/>
+    <g stroke="#241b16" stroke-width="1.5" stroke-linecap="round" fill="none">
+      <path d="M49 27.5 l3.2 -1.8 M49 27.5 l3.6 0.8 M49 27.5 l1.6 3"/>
+      <path d="M48 35 l3.2 -1.4 M48 35 l3.4 1.2 M48 35 l1.2 3.2"/>
+    </g>
+    <path d="M36 31 Q36.5 20 42.5 14.5 L48.5 18 Q46 22.5 44.5 27 Q43.5 30.5 44 33 Q39.5 33.8 36 31 Z" fill="#e3e7ec" class="s"/>
+    <circle cx="45.4" cy="14.6" r="5.7" fill="#e3e7ec" class="s"/>
+    <path d="M50.2 11.6 Q57 11.8 57.6 15.2 Q54.4 18.4 50.4 16.4 Q51.8 18.2 50.8 19.8 Q48 19.4 47 17 Z" fill="#d9ab3c" class="s"/>
+    <circle cx="47" cy="12.6" r="1.3" fill="#241b16"/>
+    <path d="M43 9.4 L41 4.2 L45 8.2 Z" fill="#e3e7ec" class="s"/>
+    <path d="M46.8 8.6 L46.8 3.4 L50 7.4 Z" fill="#e3e7ec" class="s"/>
+  </symbol>
+
+  <!-- CASTLE · archangel t7 -->
+  <symbol id="u-archangel" viewBox="0 0 64 64">
+    <ellipse class="shdw" cx="32" cy="56" rx="13" ry="3"/>
+    <g>
+      <path d="M31 34 L31 24 Q28 8 8 5 Q4 18 11 27 Q18 35 29 37 Z" fill="#ded6bd" class="s"/>
+      <path d="M33 34 L33 24 Q36 8 56 5 Q60 18 53 27 Q46 35 35 37 Z" fill="#ded6bd" class="s"/>
+      <g stroke="#241b16" stroke-width="0.85" fill="none" opacity="0.55">
+        <path d="M30 32 Q16 28 10.5 14 M30.5 27.5 Q23 13 10 7"/>
+        <path d="M34 32 Q48 28 53.5 14 M33.5 27.5 Q41 13 54 7"/>
+      </g>
+    </g>
+    <path d="M26.5 30 H37.5 L40 54 H24 Z" fill="#f2ead8" class="s"/>
+    <path d="M24.6 50 L39.6 50" stroke="#d9ab3c" stroke-width="2.6"/>
+    <path d="M27 29 H37 L36 40 H28 Z" fill="#d9ab3c" class="s"/>
+    <circle cx="32" cy="33.5" r="1.8" fill="#a32638" class="s"/>
+    <path d="M37 31.5 L43.5 25" stroke="#d9a886" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M44.5 26.5 V7" stroke="#aebdca" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M41 26.5 H48" stroke="#9a7322" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="44.5" cy="29.5" r="2" fill="#d9ab3c" class="s"/>
+    <path d="M27 31.5 L23 36.5" stroke="#d9a886" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="32" cy="22" r="4.9" fill="#d9a886" class="s"/>
+    <path d="M27.1 21 Q27.6 16.4 32 16.4 Q36.4 16.4 36.9 21 Q34.5 18.6 32 18.8 Q29.5 18.6 27.1 21 Z" fill="#b08226" class="s"/>
+    <circle cx="32" cy="12.6" r="4.4" fill="none" stroke="#e8c75e" stroke-width="1.8"/>
+  </symbol>
+
+  <!-- RAMPART · centaur t1 -->
+  <symbol id="u-centaur" viewBox="0 0 64 64">
+    <ellipse class="shdw" cx="30" cy="56" rx="17" ry="3"/>
+    <path d="M13 36 Q9 40 9.5 46 Q12 44.5 13.5 41.5" fill="none" class="s2"/>
+    <path d="M14 40 Q12.5 31 22 30.5 L38 30.5 Q44.5 32.5 43.5 40 L42.5 44 Q33 48 23 46 Q17 45 14 40 Z" fill="#8a5a34" class="s"/>
+    <path d="M17 44 L16.4 54.5 L20 54.5 L20.6 45.6 Z" fill="#724727" class="s"/>
+    <path d="M24 46 L23.6 54.5 L27.2 54.5 L27.6 46.6 Z" fill="#8a5a34" class="s"/>
+    <path d="M36 46.4 L35.6 54.5 L39.2 54.5 L39.6 46 Z" fill="#724727" class="s"/>
+    <path d="M40.8 44.5 L41.6 54.5 L45.2 54.5 L44.6 43 Z" fill="#8a5a34" class="s"/>
+    <path d="M34 30.5 Q33.6 20.5 38.8 18.4 L42.6 18.8 Q45 21.4 44.2 30.8 Z" fill="#4e8a3a" class="s"/>
+    <path d="M37 24 H44" stroke="#3a6b2b" stroke-width="1.6"/>
+    <path d="M25 21.5 L56.5 17.5" stroke="#6d4f33" stroke-width="2.3" stroke-linecap="round"/>
+    <path d="M56 15.2 L62 17 L56.6 19.8 Z" fill="#aebdca" class="s"/>
+    <path d="M42.5 21.5 L49 19.6" stroke="#d9a886" stroke-width="3.2" stroke-linecap="round"/>
+    <circle cx="49.6" cy="19.4" r="2.1" fill="#d9a886" class="s"/>
+    <circle cx="40.6" cy="13.6" r="4.6" fill="#d9a886" class="s"/>
+    <path d="M36.2 12.4 Q36.6 8.4 40.6 8.4 Q44.6 8.4 45 12.4 Q42.6 10.6 40.6 10.8 Q38.6 10.6 36.2 12.4 Z" fill="#54381f" class="s"/>
+    <path d="M36.4 11.4 Q40.6 9.4 44.8 11.4" stroke="#4e8a3a" stroke-width="1.6" fill="none"/>
+  </symbol>
+
+  <!-- RAMPART · wood elf t3 -->
+  <symbol id="u-woodelf" viewBox="0 0 64 64">
+    <ellipse class="shdw" cx="32" cy="56" rx="13" ry="3"/>
+    <path d="M22 26 Q16 32 17 44 L23 43 Q22 34 26 29 Z" fill="#3a6b2b" class="s"/>
+    <path d="M27 40 L24.5 54.5 L28.5 54.5 L30.5 42 Z" fill="#54663f" class="s"/>
+    <path d="M33 42 L36 54.5 L40 54.5 L37.5 40 Z" fill="#54663f" class="s"/>
+    <path d="M23.4 54.5 h6.2 v2.6 h-6.2 Z" fill="#6d4f33" class="s"/>
+    <path d="M35 54.5 h6.2 v2.6 h-6.2 Z" fill="#6d4f33" class="s"/>
+    <path d="M26.5 26.5 L37 25 L39.5 41 L25.5 42 Z" fill="#4e8a3a" class="s"/>
+    <path d="M26 36.2 L39 35" stroke="#6d4f33" stroke-width="2.2"/>
+    <path d="M47.5 10 Q60 30 47.5 50" fill="none" stroke="#6d4f33" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M47.5 10 L35 29.5 L47.5 50" fill="none" stroke="#241b16" stroke-width="1.1"/>
+    <path d="M35 29.5 H55.5" stroke="#8a5a34" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M55 27.6 L60 29.5 L55 31.4 Z" fill="#aebdca" class="s"/>
+    <path d="M35 27.8 l-3.4 -2 M35 31.2 l-3.4 2" stroke="#d9ab3c" stroke-width="1.6"/>
+    <path d="M36.5 27 L52.5 29.8" stroke="#d9a886" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="53" cy="30" r="2" fill="#d9a886" class="s"/>
+    <path d="M35.5 28.5 L34.6 29.6" stroke="#d9a886" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="33.8" cy="18.6" r="4.7" fill="#d9a886" class="s"/>
+    <path d="M28.4 19.6 Q27.6 11.6 34.6 11.4 Q40.4 11.2 39.2 17 Q38.8 14.4 35.8 14.2 Q31 14 30.6 21.4 Z" fill="#3a6b2b" class="s"/>
+  </symbol>
+
+  <!-- RAMPART · gold dragon t7 -->
+  <symbol id="u-golddragon" viewBox="0 0 64 64">
+    <ellipse class="shdw" cx="32" cy="56" rx="18" ry="3"/>
+    <path d="M26 47 Q14 56 5.5 49 Q3 46.5 4 43 Q7.5 46 13 44.5 Q19 42 24 38.5 Z" fill="#b08226" class="s"/>
+    <path d="M6 50.5 L0.8 44.5 L7.5 43.2 Z" fill="#b08226" class="s"/>
+    <path d="M19 33 Q9 12 32 7.5 Q31.5 13.5 28 17 Q38 12.5 43 17 Q37 20 35 23.5 Q44 22 46.5 27 L40 31 Q29 37.5 21 36 Z" fill="#b08226" class="s"/>
+    <g stroke="#241b16" stroke-width="0.9" fill="none" opacity="0.7">
+      <path d="M20.5 32 Q24 18 31 9"/>
+      <path d="M22 33 Q30 22 42 17.6"/>
+      <path d="M23 34.5 Q33 28 45.5 26.8"/>
+    </g>
+    <path d="M23 41 Q18.5 31.5 28.5 27 Q38 23 42.5 30 Q46.5 38 38.5 45.5 Q30 50.5 24.5 48 Q21.5 45.5 23 41 Z" fill="#d9ab3c" class="s"/>
+    <g stroke="#ecc964" stroke-width="2.4" fill="none" stroke-linecap="round">
+      <path d="M27 45.5 q6 2.5 11 -1"/>
+      <path d="M25.5 41.5 q7 3 13 -1.5"/>
+      <path d="M25.5 37 q7 3 13.5 -1.5"/>
+    </g>
+    <path d="M29.5 47.5 L28.5 54.5 L34.5 54.5 L33.5 48.5 Z" fill="#b08226" class="s"/>
+    <g stroke="#241b16" stroke-width="1.4" stroke-linecap="round">
+      <path d="M28.5 54.5 l-2 2 M31.5 54.6 l0 2.4 M34.5 54.5 l2 2"/>
+    </g>
+    <path d="M37 29 Q38.5 17 45.5 12.5 L49.5 16.5 Q44.5 20 43 25 Q42.2 28 43 31 Q39.5 31.5 37 29 Z" fill="#d9ab3c" class="s"/>
+    <g stroke="#241b16" stroke-width="1.4" fill="none" stroke-linecap="round">
+      <path d="M40 22 l-3 -1.4 M41.8 18.6 l-2.8 -1.8 M44 15.6 l-2.4 -2.2"/>
+    </g>
+    <path d="M43.5 9.5 Q47 6.5 51.5 7.5 L59 11 Q54 12.8 50.5 12.4 L52.6 15 Q48.5 17.5 45 15 Q43 13 43.5 9.5 Z" fill="#d9ab3c" class="s"/>
+    <path d="M46.2 16.6 L56.5 14.6 Q54 19.4 48 19 Q46.6 18.2 46.2 16.6 Z" fill="#b08226" class="s"/>
+    <path d="M50 14 L55.5 13.2" stroke="#7c1b2b" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="48.2" cy="10.2" r="1.2" fill="#241b16"/>
+    <path d="M45.5 8 Q43.5 4.5 40.5 4 M48.5 7 Q47.5 3.5 45 2.5" stroke="#241b16" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </symbol>
+
+  <!-- NECROPOLIS · skeleton t1 -->
+  <symbol id="u-skeleton" viewBox="0 0 64 64">
+    <ellipse class="shdw" cx="32" cy="56" rx="13" ry="3"/>
+    <path d="M36.5 26 L44 20" stroke="#241b16" stroke-width="4" stroke-linecap="round"/>
+    <path d="M36.5 26 L44 20" stroke="#ddd2b8" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M44.5 20.5 L54.5 6.5" stroke="#241b16" stroke-width="1.2" stroke-linecap="round"/>
+    <path d="M44.7 20.3 L54 7.2" stroke="#9a8f7a" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M42 16.8 L48.2 22.4" stroke="#6b5d49" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="44.6" cy="20.2" r="1.8" fill="#ddd2b8" class="s"/>
+    <path d="M27.5 27 L20.5 31" stroke="#241b16" stroke-width="4" stroke-linecap="round"/>
+    <path d="M27.5 27 L20.5 31" stroke="#ddd2b8" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="19.5" cy="33" r="5.6" fill="#6d4f33" class="s"/>
+    <circle cx="19.5" cy="33" r="2" fill="#241b16"/>
+    <path d="M32 23.5 V38" stroke="#241b16" stroke-width="2.2" stroke-linecap="round"/>
+    <g stroke="#241b16" stroke-width="3.2" fill="none" stroke-linecap="round">
+      <path d="M32 26.5 Q26.5 27 25.5 30 M32 26.5 Q37.5 27 38.5 30"/>
+      <path d="M32 30.5 Q26.5 31 25.5 34 M32 30.5 Q37.5 31 38.5 34"/>
+      <path d="M32 34.5 Q27.5 35 26.8 37.4 M32 34.5 Q36.5 35 37.2 37.4"/>
+    </g>
+    <g stroke="#ddd2b8" stroke-width="1.7" fill="none" stroke-linecap="round">
+      <path d="M32 26.5 Q26.5 27 25.5 30 M32 26.5 Q37.5 27 38.5 30"/>
+      <path d="M32 30.5 Q26.5 31 25.5 34 M32 30.5 Q37.5 31 38.5 34"/>
+      <path d="M32 34.5 Q27.5 35 26.8 37.4 M32 34.5 Q36.5 35 37.2 37.4"/>
+    </g>
+    <path d="M28.5 38 H35.5 L33.8 42 H30.2 Z" fill="#ddd2b8" class="s"/>
+    <path d="M30.4 42 L28.4 47.5 L28.8 54.5 M33.6 42 L35.6 47.5 L35.2 54.5" stroke="#241b16" stroke-width="4.2" fill="none" stroke-linecap="round"/>
+    <path d="M30.4 42 L28.4 47.5 L28.8 54.5 M33.6 42 L35.6 47.5 L35.2 54.5" stroke="#ddd2b8" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    <path d="M28.8 54.5 l-3 1.4 M35.2 54.5 l3 1.4" stroke="#ddd2b8" stroke-width="2.4" stroke-linecap="round"/>
+    <circle cx="32" cy="15.5" r="6" fill="#ddd2b8" class="s"/>
+    <path d="M28.6 20.6 H35.4 L34.6 24 H29.4 Z" fill="#ddd2b8" class="s"/>
+    <circle cx="29.6" cy="14.6" r="1.5" fill="#241b16"/>
+    <circle cx="34.4" cy="14.6" r="1.5" fill="#241b16"/>
+    <path d="M32 17 L31 19 H33 Z" fill="#241b16"/>
+  </symbol>
+
+  <!-- NECROPOLIS · vampire t4 -->
+  <symbol id="u-vampire" viewBox="0 0 64 64">
+    <ellipse class="shdw" cx="32" cy="56" rx="15" ry="3"/>
+    <path d="M32 16 Q17 17.5 12.5 29 L9.5 50 L17 42.5 L21.5 52.5 L27.5 44.5 L32 54.5 L36.5 44.5 L42.5 52.5 L47 42.5 L54.5 50 L51.5 29 Q47 17.5 32 16 Z" fill="#3b2d45" class="s"/>
+    <path d="M26 20 Q21 25 20 32 M38 20 Q43 25 44 32" stroke="#241b16" stroke-width="1.1" fill="none"/>
+    <path d="M27 19.5 L32 38 L37 19.5 Q32 17.5 27 19.5 Z" fill="#7c1b2b" class="s"/>
+    <path d="M29.5 21 L32 30.5 L34.5 21 Q32 20 29.5 21 Z" fill="#241b16"/>
+    <path d="M25.8 18.8 L21 7.5 L28.6 13.6 Z" fill="#3b2d45" class="s"/>
+    <path d="M38.2 18.8 L43 7.5 L35.4 13.6 Z" fill="#3b2d45" class="s"/>
+    <circle cx="32" cy="11.5" r="5.1" fill="#e8e0d0" class="s"/>
+    <path d="M26.7 10.6 Q27.1 5.9 32 5.9 Q36.9 5.9 37.3 10.6 Q34.9 8.6 32 12.2 Q29.1 8.6 26.7 10.6 Z" fill="#241b16" class="s"/>
+    <circle cx="29.8" cy="11.4" r="1.1" fill="#a32638"/>
+    <circle cx="34.2" cy="11.4" r="1.1" fill="#a32638"/>
+    <path d="M30.4 14.6 l1 1.8 M33.6 14.6 l-1 1.8" stroke="#e8e0d0" stroke-width="1.1" stroke-linecap="round"/>
+  </symbol>
+
+  <!-- NECROPOLIS · bone dragon t7 -->
+  <symbol id="u-bonedragon" viewBox="0 0 64 64">
+    <ellipse class="shdw" cx="32" cy="56" rx="18" ry="3"/>
+    <path d="M20 34 Q9 13 31 8 Q30 14 26.5 17.5 Q36 13 41 17.5 Q35.5 20.5 33.5 23.5 Q42 22.5 44.5 27.5 L40.5 29.5 L37.5 27 L37 31 L32.5 29.5 L31.5 33.5 L26.5 32 L25.5 35.5 Q22 35.5 20 34 Z" fill="#3b2d45" class="s"/>
+    <g stroke="#ddd2b8" stroke-width="1.3" fill="none" stroke-linecap="round" opacity="0.9">
+      <path d="M22 33 Q26 20 30.5 9.5 M22.5 33.5 Q31 23 40 18 M23 34.5 Q33 28.5 43.5 27"/>
+    </g>
+    <path d="M24 44 Q13 51 5 45.5" stroke="#241b16" stroke-width="4.4" fill="none" stroke-linecap="round"/>
+    <path d="M24 44 Q13 51 5 45.5" stroke="#ddd2b8" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-dasharray="3.2 1.8"/>
+    <path d="M6.5 48.5 L1.5 44 L7.5 42.5 Z" fill="#ddd2b8" class="s"/>
+    <path d="M22 43 Q31 38.5 33.5 30 Q35 22 42 15.5" stroke="#241b16" stroke-width="4.6" fill="none" stroke-linecap="round"/>
+    <path d="M22 43 Q31 38.5 33.5 30 Q35 22 42 15.5" stroke="#ddd2b8" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+    <g stroke="#241b16" stroke-width="1.3" stroke-linecap="round">
+      <path d="M30 39.5 l2.4 1.8 M33 34.5 l2.6 1.2 M34.8 29 l2.8 0.8 M36.4 23.5 l2.8 0.4"/>
+    </g>
+    <g stroke="#241b16" stroke-width="3.4" fill="none" stroke-linecap="round">
+      <path d="M27.5 41.5 Q24 46 26 50.5 M31.5 37.5 Q28.5 43 30.5 48 M34 32 Q31.5 38 33.5 43.5"/>
+    </g>
+    <g stroke="#ddd2b8" stroke-width="1.8" fill="none" stroke-linecap="round">
+      <path d="M27.5 41.5 Q24 46 26 50.5 M31.5 37.5 Q28.5 43 30.5 48 M34 32 Q31.5 38 33.5 43.5"/>
+    </g>
+    <circle cx="23" cy="43.5" r="2.8" fill="#ddd2b8" class="s"/>
+    <path d="M22 46 L19.5 50 L20.5 54.5 M25 46.5 L26.5 50.5 L25.5 54.5" stroke="#241b16" stroke-width="3.8" fill="none" stroke-linecap="round"/>
+    <path d="M22 46 L19.5 50 L20.5 54.5 M25 46.5 L26.5 50.5 L25.5 54.5" stroke="#ddd2b8" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M20.5 54.5 l-2.6 1.6 M25.5 54.5 l2.6 1.6" stroke="#ddd2b8" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M40 14 Q41 8 47 7 Q51 6.5 52.8 8.6 L60 12 Q54.5 14 51 13.4 L54 16.8 Q49 19.4 44.6 16.4 Q41 15.8 40 14 Z" fill="#ddd2b8" class="s"/>
+    <path d="M42.5 18 Q47.5 22 54.5 20.8 L45.5 24 Q42 22.4 41.6 19.6 Z" fill="#ddd2b8" class="s"/>
+    <path d="M48 17.6 l0.6 1.8 M51 18.4 l0.4 1.6" stroke="#241b16" stroke-width="1" stroke-linecap="round"/>
+    <ellipse cx="47.8" cy="11" rx="1.7" ry="1.9" fill="#241b16"/>
+    <path d="M44.6 7.6 Q42 3.6 38.6 3.2 M48.2 6.8 Q47 2.8 44 1.8" stroke="#241b16" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  </symbol>
+
+  <!-- ─── token furniture ─── -->
+  <symbol id="seal" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="29" fill="#1c1410" opacity="0.35"/>
+    <circle cx="32" cy="31" r="28" fill="#ead9b5" stroke="#241b16" stroke-width="2.6"/>
+    <circle cx="32" cy="31" r="23.6" fill="none" stroke="#241b16" stroke-width="0.9" opacity="0.55"/>
+    <path d="M22 52.5 L32 56.5 L42 52.5 L42 59 L37 57 L32 61 L27 57 L22 59 Z" fill="currentColor" stroke="#241b16" stroke-width="1.6" stroke-linejoin="round"/>
+  </symbol>
+
+  <symbol id="tier-pip" viewBox="0 0 10 10">
+    <path d="M5 0.8 L9.2 5 L5 9.2 L0.8 5 Z" fill="#d9ab3c" stroke="#241b16" stroke-width="1.1"/>
+  </symbol>
+
+  <symbol id="hero-shield" viewBox="0 0 64 64">
+    <path d="M14 8 H50 V36 Q50 50 32 58 Q14 50 14 36 Z" fill="currentColor" stroke="#241b16" stroke-width="2.8" stroke-linejoin="round"/>
+    <path d="M18 12 H46 V35 Q46 46.5 32 53.5 Q18 46.5 18 35 Z" fill="none" stroke="#ead9b5" stroke-width="1.6" opacity="0.75"/>
+    <path d="M14 8 H50 V16 H14 Z" fill="#241b16" opacity="0.22"/>
+  </symbol>
+
+  <symbol id="hex-plinth" viewBox="0 0 72 40">
+    <path d="M18 4 H54 L70 20 L54 36 H18 L2 20 Z" fill="#cbb88f" stroke="#241b16" stroke-width="2.2" stroke-linejoin="round"/>
+    <path d="M18 4 H54 L70 20 L54 36 H18 L2 20 Z" fill="none" stroke="#ead9b5" stroke-width="1" opacity="0.6" transform="translate(0 -1.5) scale(0.94)" transform-origin="36 20"/>
+  </symbol>
+
+  <!-- ─── map objects ─── -->
+  <symbol id="o-town" viewBox="0 0 96 96">
+    <ellipse cx="48" cy="84" rx="34" ry="6" class="shdw"/>
+    <path d="M20 50 H32 V84 H20 Z" fill="#b9a98c" class="s2"/>
+    <path d="M18 44 H34 L32 50 H20 Z" fill="#8d7d62" class="s"/>
+    <path d="M18 44 v-6 h4 v3 h4 v-3 h4 v3 h4 v-3 h4 v6" fill="#b9a98c" class="s"/>
+    <path d="M64 50 H76 V84 H64 Z" fill="#b9a98c" class="s2"/>
+    <path d="M62 44 H78 L76 50 H64 Z" fill="#8d7d62" class="s"/>
+    <path d="M62 44 v-6 h4 v3 h4 v-3 h4 v3 h4 v-3 h4 v6" fill="#b9a98c" class="s"/>
+    <path d="M32 58 H64 V84 H32 Z" fill="#cbbb9c" class="s2"/>
+    <path d="M30 52 H66 L64 58 H32 Z" fill="#8d7d62" class="s"/>
+    <path d="M30 52 v-5 h4.5 v2.5 h5 v-2.5 h4.5 v2.5 h5 v-2.5 h4.5 v2.5 h5 v-2.5 h4.5 v5" fill="#cbbb9c" class="s"/>
+    <path d="M41 84 V68 Q48 61 55 68 V84 Z" fill="#241b16" class="s"/>
+    <path d="M41 73 H55" stroke="#8d7d62" stroke-width="1.4"/>
+    <rect x="23.5" y="56" width="5" height="8" fill="#241b16"/>
+    <rect x="67.5" y="56" width="5" height="8" fill="#241b16"/>
+    <path d="M48 38 V18" stroke="#241b16" stroke-width="2"/>
+    <path d="M48 18 H62 L56 23 L62 28 H48 Z" fill="currentColor" class="s"/>
+    <path d="M44 38 H52 L51 44 H45 Z" fill="#8d7d62" class="s"/>
+  </symbol>
+
+  <symbol id="o-mine" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="54" rx="24" ry="4" class="shdw"/>
+    <path d="M8 54 Q10 30 32 26 Q54 30 56 54 Z" fill="#7a6a52" class="s2"/>
+    <path d="M14 47 Q18 34 32 31" fill="none" stroke="#94836a" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M24 54 V42 Q32 34 40 42 V54 Z" fill="#241b16" class="s"/>
+    <path d="M24 43.5 H40 M26.5 40 L26.5 54 M37.5 40 L37.5 54 M32 36.5 V54" stroke="#6d4f33" stroke-width="2"/>
+    <path d="M46 40 l6 -8 M52 32 l3.6 2.6" stroke="#6d4f33" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M50.5 29.5 Q56 27.5 58.5 31 Q55 32 52.8 34.8 Z" fill="#aebdca" class="s"/>
+  </symbol>
+
+  <symbol id="o-chest" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="52" rx="20" ry="4" class="shdw"/>
+    <path d="M14 32 H50 V51 H14 Z" fill="#8a5a34" class="s2"/>
+    <path d="M14 32 Q14 20 32 20 Q50 20 50 32 Z" fill="#a3713f" class="s2"/>
+    <path d="M14 32 H50" stroke="#241b16" stroke-width="1.6"/>
+    <path d="M20 20.8 V51 M44 20.8 V51" stroke="#d9ab3c" stroke-width="3"/>
+    <path d="M20 20.8 V51 M44 20.8 V51" stroke="#241b16" stroke-width="0.8" opacity="0.5"/>
+    <rect x="28.5" y="29" width="7" height="9" fill="#d9ab3c" class="s"/>
+    <circle cx="32" cy="32.4" r="1.4" fill="#241b16"/>
+    <path d="M32 33.6 v2.4" stroke="#241b16" stroke-width="1.4"/>
+  </symbol>
+
+  <symbol id="o-pine" viewBox="0 0 64 64">
+    <ellipse cx="32" cy="57" rx="14" ry="3" class="shdw"/>
+    <path d="M28.5 57 V49 H35.5 V57 Z" fill="#6d4f33" class="s"/>
+    <path d="M32 6 L46 26 H38 L50 42 H40 L48 51 H16 L24 42 H14 L26 26 H18 Z" fill="#2f5722" class="s2"/>
+    <path d="M32 12 L40 24 H35 L43 38" fill="none" stroke="#436f2a" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="o-mount" viewBox="0 0 96 64">
+    <ellipse cx="48" cy="56" rx="38" ry="4" class="shdw"/>
+    <path d="M6 56 L34 14 L48 34 L60 8 L90 56 Z" fill="#8d7d62" class="s2"/>
+    <path d="M34 14 L42 26 L38 26 L48 40 M60 8 L70 24 L65 24 L76 40" fill="none" stroke="#6e5d44" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M28 23 L34 14 L40 23 L36 21 L34 25 L31 20 Z" fill="#efe9d8" class="s"/>
+    <path d="M53 20 L60 8 L68 21 L63 18 L60 23 L56 17 Z" fill="#efe9d8" class="s"/>
+  </symbol>
+
+</defs>
+</svg>
+
+<!-- ════════════════════════ MASTHEAD ════════════════════════ -->
+<header>
+  <div class="wrap">
+    <div class="kicker">Open Heroes · Visual Design Language · Concept I</div>
+    <h1>Gilded <span class="gilt">Woodcut</span></h1>
+    <p class="subtitle">The land is the parchment. Every piece upon it is a seal,
+    stamped in ink and touched with gold.</p>
+    <div class="rule">
+      <svg width="40" height="40" viewBox="0 0 64 64"><use href="#o-chest"/></svg>
+    </div>
+  </div>
+</header>
+
+<!-- ════════════════════════ I · THE CREED ════════════════════════ -->
+<section>
+  <div class="wrap">
+    <div class="chapter"><span class="num">I</span><h2>The <em>Creed</em></h2></div>
+    <p class="lede">Six rules govern every asset, from a tuft of grass to an archangel.
+    They exist so that <strong>fifty-one creatures, sixty-four buildings, and eighteen map objects</strong>
+    can be drawn by many hands — or generated — and still feel like one game.</p>
+
+    <div class="plate">
+      <div class="plate-title"><span>Rules of the Hand</span><span class="folio">folio i</span></div>
+      <ul class="creed">
+        <li><span class="n">1</span><h3>Silhouette first</h3><p>Every emblem must read as pure ink at 24&nbsp;px. If the shadow doesn't say "griffin", no amount of detail will.</p></li>
+        <li><span class="n">2</span><h3>Ink holds everything</h3><p>One outline color — Peat Ink <code>#241b16</code> — binds every sprite. Same relative stroke weight everywhere.</p></li>
+        <li><span class="n">3</span><h3>Three tones per material</h3><p>Base, shade, light. Flat fills, no gradients on pieces — shading is a shape, not a blur.</p></li>
+        <li><span class="n">4</span><h3>Terrain whispers, pieces speak</h3><p>The land is desaturated and low-contrast. Saturation and gold belong to the things you click.</p></li>
+        <li><span class="n">5</span><h3>Gold is earned</h3><p>Gold marks meaning: selection, tier, treasure, ownership. It is never decoration on the land.</p></li>
+        <li><span class="n">6</span><h3>One sun</h3><p>Light always falls from the upper-left. Shade shapes sit low-right — on every tile, token and tower.</p></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════ II · THE PALETTE ════════════════════════ -->
+<section>
+  <div class="wrap">
+    <div class="chapter"><span class="num">II</span><h2>The <em>Palette</em></h2></div>
+    <p class="lede">Built on the eight terrain hues already in <strong>terrain.json</strong> and the four
+    player colors in <strong>painter.ts</strong> — refined into three-tone ramps rather than replaced.</p>
+
+    <div class="plate">
+      <div class="plate-title"><span>Core Inks</span><span class="folio">folio ii</span></div>
+      <div class="pal-group">
+        <div class="pal-label">Ink, Parchment &amp; Gold</div>
+        <div class="swatch-row">
+          <div class="swatch"><div class="chip" style="background:#241b16"></div><div class="name">Peat Ink</div><div class="hex">#241B16</div></div>
+          <div class="swatch"><div class="chip" style="background:#ead9b5"></div><div class="name">Seal Parchment</div><div class="hex">#EAD9B5</div></div>
+          <div class="swatch"><div class="chip" style="background:#d9ab3c"></div><div class="name">Gilt</div><div class="hex">#D9AB3C</div></div>
+          <div class="swatch"><div class="chip" style="background:#e8c75e"></div><div class="name">Gilt Bright</div><div class="hex">#E8C75E</div></div>
+          <div class="swatch"><div class="chip" style="background:#9a7322"></div><div class="name">Gilt Deep</div><div class="hex">#9A7322</div></div>
+          <div class="swatch"><div class="chip" style="background:#16100c"></div><div class="name">Night (fog)</div><div class="hex">#16100C</div></div>
+        </div>
+        <p class="pal-note">Peat Ink outlines every sprite. Night is the war-fog and UI void. Gilt is rule 5 — earned, never spent on scenery.</p>
+      </div>
+
+      <div class="pal-group">
+        <div class="pal-label">The Eight Lands</div>
+        <div class="swatch-row">
+          <div class="swatch"><div class="chip" style="background:linear-gradient(180deg,#6aa345 18%,#4a7c2f 18%,#4a7c2f 82%,#2f5722 82%)"></div><div class="name">Grass</div><div class="hex">#4A7C2F</div></div>
+          <div class="swatch"><div class="chip" style="background:linear-gradient(180deg,#a3825c 18%,#8b6b47 18%,#8b6b47 82%,#6b4f34 82%)"></div><div class="name">Dirt</div><div class="hex">#8B6B47</div></div>
+          <div class="swatch"><div class="chip" style="background:linear-gradient(180deg,#e9d795 18%,#d9c37e 18%,#d9c37e 82%,#c4ab64 82%)"></div><div class="name">Sand</div><div class="hex">#D9C37E</div></div>
+          <div class="swatch"><div class="chip" style="background:linear-gradient(180deg,#ffffff 18%,#e8edf2 18%,#e8edf2 82%,#c6d2dd 82%)"></div><div class="name">Snow</div><div class="hex">#E8EDF2</div></div>
+          <div class="swatch"><div class="chip" style="background:linear-gradient(180deg,#6c8a64 18%,#4f6b4a 18%,#4f6b4a 82%,#33492f 82%)"></div><div class="name">Swamp</div><div class="hex">#4F6B4A</div></div>
+          <div class="swatch"><div class="chip" style="background:linear-gradient(180deg,#b0a085 18%,#9c8a6e 18%,#9c8a6e 82%,#6e5d44 82%)"></div><div class="name">Rough</div><div class="hex">#9C8A6E</div></div>
+          <div class="swatch"><div class="chip" style="background:linear-gradient(180deg,#463c42 18%,#3a3236 18%,#3a3236 82%,#f08c3a 82%)"></div><div class="name">Lava</div><div class="hex">#3A3236</div></div>
+          <div class="swatch"><div class="chip" style="background:linear-gradient(180deg,#4a7fb8 18%,#2a5d9c 18%,#2a5d9c 82%,#234e85 82%)"></div><div class="name">Water</div><div class="hex">#2A5D9C</div></div>
+        </div>
+        <p class="pal-note">Each land is a ramp: light motif · base field · shade motif. Lava alone borrows ember orange — its "shade" glows.</p>
+      </div>
+
+      <div class="pal-group">
+        <div class="pal-label">Banners of the Realm</div>
+        <div class="swatch-row">
+          <div class="swatch"><div class="chip" style="background:#c53030"></div><div class="name">Red Banner</div><div class="hex">#C53030</div></div>
+          <div class="swatch"><div class="chip" style="background:#2b6cb0"></div><div class="name">Blue Banner</div><div class="hex">#2B6CB0</div></div>
+          <div class="swatch"><div class="chip" style="background:#b7791f"></div><div class="name">Tan Banner</div><div class="hex">#B7791F</div></div>
+          <div class="swatch"><div class="chip" style="background:#2f855a"></div><div class="name">Green Banner</div><div class="hex">#2F855A</div></div>
+          <div class="swatch"><div class="chip" style="background:#718096"></div><div class="name">Neutral</div><div class="hex">#718096</div></div>
+        </div>
+        <p class="pal-note">Unchanged from <code>PLAYER_COLOR_HEX</code>. Ownership is shown as a banner-notch on seals and flags on buildings — never by recoloring the creature.</p>
+      </div>
+
+      <div class="pal-label" style="margin-bottom:12px">Faction Triads</div>
+      <div class="faction-grid">
+        <div class="faction">
+          <div class="band" style="background:#a32638"></div>
+          <div class="inner">
+            <h4>Castle</h4>
+            <div class="motto">crimson · steel · gilt</div>
+            <div class="chips">
+              <i style="background:#a32638"></i><i style="background:#aebdca"></i><i style="background:#d9ab3c"></i>
+            </div>
+            <p class="roster">Pikeman → Archangel. Polished metal, banners, white feathers. The most "civilized" geometry: verticals and symmetry.</p>
+          </div>
+        </div>
+        <div class="faction">
+          <div class="band" style="background:#4e8a3a"></div>
+          <div class="inner">
+            <h4>Rampart</h4>
+            <div class="motto">leaf · bark · gilt</div>
+            <div class="chips">
+              <i style="background:#4e8a3a"></i><i style="background:#6d4f33"></i><i style="background:#d9ab3c"></i>
+            </div>
+            <p class="roster">Centaur → Gold Dragon. Curved, organic lines; wood and hide; gold reserved for the dragon and elven arrowheads.</p>
+          </div>
+        </div>
+        <div class="faction">
+          <div class="band" style="background:#3b2d45"></div>
+          <div class="inner">
+            <h4>Necropolis</h4>
+            <div class="motto">bone · shade-violet · grave-green</div>
+            <div class="chips">
+              <i style="background:#ddd2b8"></i><i style="background:#3b2d45"></i><i style="background:#7fae6a"></i>
+            </div>
+            <p class="roster">Skeleton → Bone Dragon. Jagged, asymmetric, hollow shapes. The only faction whose accent is a sickly green, never gold.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════ III · THE LAND ════════════════════════ -->
+<section>
+  <div class="wrap">
+    <div class="chapter"><span class="num">III</span><h2>The <em>Land</em></h2></div>
+    <p class="lede">Eight 64×64 tiles, each its base hue plus two motif tones — drawn so edges stay quiet
+    and tiles repeat without visible seams. The motifs are sparse on purpose: rule 4 says
+    <strong>terrain whispers</strong>.</p>
+
+    <div class="plate">
+      <div class="plate-title"><span>Terrain Plates · 64 px</span><span class="folio">folio iii</span></div>
+      <div class="stage-grid">
+        <figure class="stage"><div class="well"><svg class="tile-frame" width="96" height="96" viewBox="0 0 64 64"><use href="#t-grass"/></svg></div><figcaption><div class="t">Grass</div><div class="d">move 100 · tufts &amp; meadow patches</div></figcaption></figure>
+        <figure class="stage"><div class="well"><svg class="tile-frame" width="96" height="96" viewBox="0 0 64 64"><use href="#t-dirt"/></svg></div><figcaption><div class="t">Dirt</div><div class="d">move 100 · pebbles &amp; dry blotches</div></figcaption></figure>
+        <figure class="stage"><div class="well"><svg class="tile-frame" width="96" height="96" viewBox="0 0 64 64"><use href="#t-sand"/></svg></div><figcaption><div class="t">Sand</div><div class="d">move 150 · wind ripples</div></figcaption></figure>
+        <figure class="stage"><div class="well"><svg class="tile-frame" width="96" height="96" viewBox="0 0 64 64"><use href="#t-snow"/></svg></div><figcaption><div class="t">Snow</div><div class="d">move 150 · drift lines, blue shade</div></figcaption></figure>
+        <figure class="stage"><div class="well"><svg class="tile-frame" width="96" height="96" viewBox="0 0 64 64"><use href="#t-swamp"/></svg></div><figcaption><div class="t">Swamp</div><div class="d">move 175 · pools &amp; reeds</div></figcaption></figure>
+        <figure class="stage"><div class="well"><svg class="tile-frame" width="96" height="96" viewBox="0 0 64 64"><use href="#t-rough"/></svg></div><figcaption><div class="t">Rough</div><div class="d">move 125 · cracked stone</div></figcaption></figure>
+        <figure class="stage"><div class="well"><svg class="tile-frame" width="96" height="96" viewBox="0 0 64 64"><use href="#t-lava"/></svg></div><figcaption><div class="t">Lava</div><div class="d">move 100 · ember veins — the one glow</div></figcaption></figure>
+        <figure class="stage"><div class="well"><svg class="tile-frame" width="96" height="96" viewBox="0 0 64 64"><use href="#t-water"/></svg></div><figcaption><div class="t">Water</div><div class="d">impassable · swell bands &amp; foam</div></figcaption></figure>
+      </div>
+
+      <div class="plate-title" style="margin-top:38px"><span>Tiling Proof · 3×1 each</span></div>
+      <div class="stage-grid">
+        <figure class="stage"><div class="well" style="padding:10px"><svg class="tile-frame" width="216" height="72" viewBox="0 0 192 64"><use href="#t-grass" width="64" height="64"/><use href="#t-grass" x="64" width="64" height="64"/><use href="#t-grass" x="128" width="64" height="64"/></svg></div><figcaption><div class="d">grass repeats — no seams, no obvious rhythm</div></figcaption></figure>
+        <figure class="stage"><div class="well" style="padding:10px"><svg class="tile-frame" width="216" height="72" viewBox="0 0 192 64"><use href="#t-water" width="64" height="64"/><use href="#t-water" x="64" width="64" height="64"/><use href="#t-water" x="128" width="64" height="64"/></svg></div><figcaption><div class="d">water swell aligns across tile edges</div></figcaption></figure>
+        <figure class="stage"><div class="well" style="padding:10px"><svg class="tile-frame" width="216" height="72" viewBox="0 0 192 64"><use href="#t-sand" width="64" height="64"/><use href="#t-sand" x="64" width="64" height="64"/><use href="#t-sand" x="128" width="64" height="64"/></svg></div><figcaption><div class="d">sand ripples read as one wind</div></figcaption></figure>
+        <figure class="stage"><div class="well" style="padding:10px"><svg class="tile-frame" width="216" height="72" viewBox="0 0 192 64"><use href="#t-lava" width="64" height="64"/><use href="#t-lava" x="64" width="64" height="64"/><use href="#t-lava" x="128" width="64" height="64"/></svg></div><figcaption><div class="d">ember veins stay sparse at scale</div></figcaption></figure>
+      </div>
+
+      <div class="plate-title" style="margin-top:38px"><span>The Three Roads · overlays on any land</span></div>
+      <div class="stage-grid three">
+        <figure class="stage"><div class="well" style="padding:10px"><svg class="tile-frame" width="216" height="72" viewBox="0 0 192 64"><use href="#t-grass" width="64" height="64"/><use href="#t-grass" x="64" width="64" height="64"/><use href="#t-grass" x="128" width="64" height="64"/><use href="#r-dirt" width="64" height="64"/><use href="#r-dirt" x="64" width="64" height="64"/><use href="#r-dirt" x="128" width="64" height="64"/></svg></div><figcaption><div class="t">Dirt road</div><div class="d">move 75 · rutted earth</div></figcaption></figure>
+        <figure class="stage"><div class="well" style="padding:10px"><svg class="tile-frame" width="216" height="72" viewBox="0 0 192 64"><use href="#t-grass" width="64" height="64"/><use href="#t-grass" x="64" width="64" height="64"/><use href="#t-grass" x="128" width="64" height="64"/><use href="#r-gravel" width="64" height="64"/><use href="#r-gravel" x="64" width="64" height="64"/><use href="#r-gravel" x="128" width="64" height="64"/></svg></div><figcaption><div class="t">Gravel road</div><div class="d">move 65 · crushed stone</div></figcaption></figure>
+        <figure class="stage"><div class="well" style="padding:10px"><svg class="tile-frame" width="216" height="72" viewBox="0 0 192 64"><use href="#t-grass" width="64" height="64"/><use href="#t-grass" x="64" width="64" height="64"/><use href="#t-grass" x="128" width="64" height="64"/><use href="#r-cobble" width="64" height="64"/><use href="#r-cobble" x="64" width="64" height="64"/><use href="#r-cobble" x="128" width="64" height="64"/></svg></div><figcaption><div class="t">Cobblestone</div><div class="d">move 50 · fitted stones</div></figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════ IV · THE PIECES ════════════════════════ -->
+<section>
+  <div class="wrap">
+    <div class="chapter"><span class="num">IV</span><h2>The <em>Pieces</em></h2></div>
+    <p class="lede">Nine of the fifty-one creatures, three per faction, spanning tier 1 to tier 7 —
+    enough to prove the grammar holds from a pikeman to a bone dragon. Each is a flat heraldic
+    emblem: <strong>not a miniature painting, a mark</strong>.</p>
+
+    <div class="plate">
+      <div class="plate-title"><span>Bestiary Emblems · 64 px grid</span><span class="folio">folio iv</span></div>
+      <div class="unit-grid">
+        <figure class="unit-card f-castle"><div class="band"></div><div class="art"><svg width="128" height="128" viewBox="0 0 64 64"><use href="#u-pikeman"/></svg></div><div class="meta"><h4>Pikeman</h4><div class="cls">Castle · Tier I</div></div></figure>
+        <figure class="unit-card f-castle"><div class="band"></div><div class="art"><svg width="128" height="128" viewBox="0 0 64 64"><use href="#u-griffin"/></svg></div><div class="meta"><h4>Griffin</h4><div class="cls">Castle · Tier III</div></div></figure>
+        <figure class="unit-card f-castle"><div class="band"></div><div class="art"><svg width="128" height="128" viewBox="0 0 64 64"><use href="#u-archangel"/></svg></div><div class="meta"><h4>Archangel</h4><div class="cls">Castle · Tier VII</div></div></figure>
+        <figure class="unit-card f-rampart"><div class="band"></div><div class="art"><svg width="128" height="128" viewBox="0 0 64 64"><use href="#u-centaur"/></svg></div><div class="meta"><h4>Centaur</h4><div class="cls">Rampart · Tier I</div></div></figure>
+        <figure class="unit-card f-rampart"><div class="band"></div><div class="art"><svg width="128" height="128" viewBox="0 0 64 64"><use href="#u-woodelf"/></svg></div><div class="meta"><h4>Wood Elf</h4><div class="cls">Rampart · Tier III</div></div></figure>
+        <figure class="unit-card f-rampart"><div class="band"></div><div class="art"><svg width="128" height="128" viewBox="0 0 64 64"><use href="#u-golddragon"/></svg></div><div class="meta"><h4>Gold Dragon</h4><div class="cls">Rampart · Tier VII</div></div></figure>
+        <figure class="unit-card f-necro"><div class="band"></div><div class="art"><svg width="128" height="128" viewBox="0 0 64 64"><use href="#u-skeleton"/></svg></div><div class="meta"><h4>Skeleton</h4><div class="cls">Necropolis · Tier I</div></div></figure>
+        <figure class="unit-card f-necro"><div class="band"></div><div class="art"><svg width="128" height="128" viewBox="0 0 64 64"><use href="#u-vampire"/></svg></div><div class="meta"><h4>Vampire</h4><div class="cls">Necropolis · Tier IV</div></div></figure>
+        <figure class="unit-card f-necro"><div class="band"></div><div class="art"><svg width="128" height="128" viewBox="0 0 64 64"><use href="#u-bonedragon"/></svg></div><div class="meta"><h4>Bone Dragon</h4><div class="cls">Necropolis · Tier VII</div></div></figure>
+      </div>
+
+      <div class="plate-title" style="margin-top:38px"><span>The Seal · token anatomy</span></div>
+      <div class="anatomy">
+        <svg width="300" height="300" viewBox="0 0 64 64" style="color:#2b6cb0">
+          <use href="#seal"/>
+          <use href="#u-griffin" x="9" y="5" width="46" height="46"/>
+          <use href="#tier-pip" x="24.5" y="44.5" width="5" height="5"/>
+          <use href="#tier-pip" x="29.5" y="45.5" width="5" height="5"/>
+          <use href="#tier-pip" x="34.5" y="44.5" width="5" height="5"/>
+        </svg>
+        <ul class="callouts">
+          <li><span class="mark">A</span><span><b>Parchment field</b> — every creature sits on the same warm disc, so any emblem reads against any terrain, fog included.</span></li>
+          <li><span class="mark">B</span><span><b>Double ink ring</b> — the woodcut frame; thick outer, hairline inner. Selection swaps the outer ring to Gilt Bright.</span></li>
+          <li><span class="mark">C</span><span><b>Tier pips</b> — gilt diamonds, one to seven, replacing today's numeric badge. Countable at a glance, language-free.</span></li>
+          <li><span class="mark">D</span><span><b>Banner notch</b> — the only place ownership color appears (here: Blue). Neutral stacks wear grey. Creatures are never recolored.</span></li>
+          <li><span class="mark">E</span><span><b>Same emblem everywhere</b> — adventure seal, combat plinth, recruitment row, garrison list. One SVG per creature, four contexts.</span></li>
+        </ul>
+      </div>
+
+      <div class="plate-title" style="margin-top:38px"><span>Scale Proof · the 24 px gate</span></div>
+      <div class="scale-row">
+        <div class="cell"><svg width="112" height="112" viewBox="0 0 64 64" style="color:#c53030"><use href="#seal"/><use href="#u-vampire" x="9" y="5" width="46" height="46"/></svg><div class="d">112 px · combat</div></div>
+        <div class="cell"><svg width="64" height="64" viewBox="0 0 64 64" style="color:#c53030"><use href="#seal"/><use href="#u-vampire" x="9" y="5" width="46" height="46"/></svg><div class="d">64 px · adventure</div></div>
+        <div class="cell"><svg width="40" height="40" viewBox="0 0 64 64" style="color:#c53030"><use href="#seal"/><use href="#u-vampire" x="9" y="5" width="46" height="46"/></svg><div class="d">40 px · zoomed out</div></div>
+        <div class="cell"><svg width="24" height="24" viewBox="0 0 64 64" style="color:#c53030"><use href="#seal"/><use href="#u-vampire" x="9" y="5" width="46" height="46"/></svg><div class="d">24 px · minimap-adjacent</div></div>
+        <div class="cell" style="margin-left:24px"><svg width="64" height="64" viewBox="0 0 64 64" style="color:#2f855a"><use href="#hero-shield"/><text x="32" y="40" text-anchor="middle" font-family="'Grenze Gotisch',serif" font-size="26" font-weight="800" fill="#ead9b5">E</text></svg><div class="d">hero shield · Green player</div></div>
+        <div class="cell"><svg width="120" height="86" viewBox="0 0 72 62"><use href="#hex-plinth" y="22" width="72" height="40"/><use href="#u-skeleton" x="14" y="-4" width="44" height="44"/></svg><div class="d">combat hex plinth</div></div>
+      </div>
+      <p class="sprite-css-note">Every sprite on this page is hand-written inline SVG using shared CSS material classes — the same source format proposed for the game.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════ V · THE FIELD ASSEMBLED ════════════════════════ -->
+<section>
+  <div class="wrap">
+    <div class="chapter"><span class="num">V</span><h2>The Field <em>Assembled</em></h2></div>
+    <p class="lede">Terrain, road, town, mine, treasure, monsters and a hero — composed exactly as the
+    adventure renderer would: quiet land below, stamped seals above, gold only where it means something.</p>
+
+    <div class="plate" style="padding:26px">
+      <div class="plate-title"><span>Adventure Map · 12 × 6 tiles</span><span class="folio">folio v</span></div>
+      <svg class="tile-frame" width="100%" viewBox="0 0 768 384" style="display:block">
+        <!-- terrain -->
+        <g>
+          <!-- row 0 -->
+          <use href="#t-grass" x="0" y="0" width="64" height="64"/><use href="#t-grass" x="64" y="0" width="64" height="64"/><use href="#t-grass" x="128" y="0" width="64" height="64"/><use href="#t-grass" x="192" y="0" width="64" height="64"/><use href="#t-grass" x="256" y="0" width="64" height="64"/><use href="#t-grass" x="320" y="0" width="64" height="64"/><use href="#t-grass" x="384" y="0" width="64" height="64"/><use href="#t-grass" x="448" y="0" width="64" height="64"/><use href="#t-water" x="512" y="0" width="64" height="64"/><use href="#t-water" x="576" y="0" width="64" height="64"/><use href="#t-water" x="640" y="0" width="64" height="64"/><use href="#t-water" x="704" y="0" width="64" height="64"/>
+          <!-- row 1 -->
+          <use href="#t-grass" x="0" y="64" width="64" height="64"/><use href="#t-grass" x="64" y="64" width="64" height="64"/><use href="#t-grass" x="128" y="64" width="64" height="64"/><use href="#t-grass" x="192" y="64" width="64" height="64"/><use href="#t-grass" x="256" y="64" width="64" height="64"/><use href="#t-grass" x="320" y="64" width="64" height="64"/><use href="#t-grass" x="384" y="64" width="64" height="64"/><use href="#t-grass" x="448" y="64" width="64" height="64"/><use href="#t-grass" x="512" y="64" width="64" height="64"/><use href="#t-water" x="576" y="64" width="64" height="64"/><use href="#t-water" x="640" y="64" width="64" height="64"/><use href="#t-water" x="704" y="64" width="64" height="64"/>
+          <!-- row 2 -->
+          <use href="#t-grass" x="0" y="128" width="64" height="64"/><use href="#t-grass" x="64" y="128" width="64" height="64"/><use href="#t-grass" x="128" y="128" width="64" height="64"/><use href="#t-grass" x="192" y="128" width="64" height="64"/><use href="#t-grass" x="256" y="128" width="64" height="64"/><use href="#t-grass" x="320" y="128" width="64" height="64"/><use href="#t-grass" x="384" y="128" width="64" height="64"/><use href="#t-grass" x="448" y="128" width="64" height="64"/><use href="#t-grass" x="512" y="128" width="64" height="64"/><use href="#t-sand" x="576" y="128" width="64" height="64"/><use href="#t-water" x="640" y="128" width="64" height="64"/><use href="#t-water" x="704" y="128" width="64" height="64"/>
+          <!-- row 3 (road) -->
+          <use href="#t-grass" x="0" y="192" width="64" height="64"/><use href="#t-grass" x="64" y="192" width="64" height="64"/><use href="#t-grass" x="128" y="192" width="64" height="64"/><use href="#t-grass" x="192" y="192" width="64" height="64"/><use href="#t-grass" x="256" y="192" width="64" height="64"/><use href="#t-grass" x="320" y="192" width="64" height="64"/><use href="#t-grass" x="384" y="192" width="64" height="64"/><use href="#t-grass" x="448" y="192" width="64" height="64"/><use href="#t-sand" x="512" y="192" width="64" height="64"/><use href="#t-sand" x="576" y="192" width="64" height="64"/><use href="#t-sand" x="640" y="192" width="64" height="64"/><use href="#t-water" x="704" y="192" width="64" height="64"/>
+          <!-- row 4 -->
+          <use href="#t-dirt" x="0" y="256" width="64" height="64"/><use href="#t-dirt" x="64" y="256" width="64" height="64"/><use href="#t-dirt" x="128" y="256" width="64" height="64"/><use href="#t-grass" x="192" y="256" width="64" height="64"/><use href="#t-grass" x="256" y="256" width="64" height="64"/><use href="#t-grass" x="320" y="256" width="64" height="64"/><use href="#t-grass" x="384" y="256" width="64" height="64"/><use href="#t-grass" x="448" y="256" width="64" height="64"/><use href="#t-sand" x="512" y="256" width="64" height="64"/><use href="#t-sand" x="576" y="256" width="64" height="64"/><use href="#t-sand" x="640" y="256" width="64" height="64"/><use href="#t-sand" x="704" y="256" width="64" height="64"/>
+          <!-- row 5 -->
+          <use href="#t-dirt" x="0" y="320" width="64" height="64"/><use href="#t-dirt" x="64" y="320" width="64" height="64"/><use href="#t-dirt" x="128" y="320" width="64" height="64"/><use href="#t-dirt" x="192" y="320" width="64" height="64"/><use href="#t-grass" x="256" y="320" width="64" height="64"/><use href="#t-grass" x="320" y="320" width="64" height="64"/><use href="#t-grass" x="384" y="320" width="64" height="64"/><use href="#t-grass" x="448" y="320" width="64" height="64"/><use href="#t-grass" x="512" y="320" width="64" height="64"/><use href="#t-sand" x="576" y="320" width="64" height="64"/><use href="#t-sand" x="640" y="320" width="64" height="64"/><use href="#t-sand" x="704" y="320" width="64" height="64"/>
+        </g>
+        <!-- shoreline -->
+        <path d="M512 0 L512 50 Q512 64 526 64 L568 64 Q576 64 576 76 L576 116 Q576 128 590 128 L626 128 Q640 128 640 142 L640 180 Q640 192 654 192 L692 192 Q704 192 704 206 L704 256" fill="none" stroke="#bcd6ee" stroke-width="2.5" opacity="0.8"/>
+        <!-- road across row 3 -->
+        <use href="#r-dirt" x="0" y="192" width="64" height="64"/><use href="#r-dirt" x="64" y="192" width="64" height="64"/><use href="#r-dirt" x="128" y="192" width="64" height="64"/><use href="#r-dirt" x="192" y="192" width="64" height="64"/><use href="#r-dirt" x="256" y="192" width="64" height="64"/><use href="#r-dirt" x="320" y="192" width="64" height="64"/><use href="#r-dirt" x="384" y="192" width="64" height="64"/><use href="#r-dirt" x="448" y="192" width="64" height="64"/><use href="#r-dirt" x="512" y="192" width="64" height="64"/><use href="#r-dirt" x="576" y="192" width="64" height="64"/><use href="#r-dirt" x="640" y="192" width="64" height="64"/>
+        <!-- decoration -->
+        <use href="#o-mount" x="320" y="0" width="132" height="88"/>
+        <use href="#o-pine" x="64" y="70" width="58" height="58"/>
+        <use href="#o-pine" x="104" y="92" width="52" height="52"/>
+        <use href="#o-pine" x="396" y="262" width="58" height="58"/>
+        <use href="#o-pine" x="440" y="286" width="52" height="52"/>
+        <use href="#o-pine" x="20" y="6" width="52" height="52"/>
+        <!-- objects -->
+        <g style="color:#2b6cb0"><use href="#o-town" x="180" y="38" width="120" height="120"/></g>
+        <use href="#o-mine" x="68" y="266" width="56" height="56"/>
+        <g style="color:#c53030">
+          <path d="M96 264 v-18 h12 l-5 4.5 5 4.5 h-12" fill="#c53030" stroke="#241b16" stroke-width="1.4"/>
+        </g>
+        <use href="#o-chest" x="524" y="262" width="48" height="48"/>
+        <!-- path dots for hero -->
+        <g fill="#e8c75e" stroke="#241b16" stroke-width="1">
+          <circle cx="416" cy="224" r="4"/><circle cx="448" cy="224" r="4"/><circle cx="480" cy="224" r="4"/><circle cx="512" cy="226" r="4"/>
+        </g>
+        <!-- monster seals -->
+        <g style="color:#718096"><use href="#seal" x="262" y="130" width="60" height="60"/><use href="#u-griffin" x="270.4" y="134.7" width="43.1" height="43.1"/></g>
+        <g style="color:#718096"><use href="#seal" x="582" y="262" width="60" height="60"/><use href="#u-skeleton" x="590.4" y="266.7" width="43.1" height="43.1"/></g>
+        <!-- selected hero on road -->
+        <g style="color:#2b6cb0">
+          <circle cx="368" cy="224" r="30" fill="none" stroke="#e8c75e" stroke-width="3"/>
+          <use href="#hero-shield" x="342" y="198" width="52" height="52"/>
+          <text x="368" y="231" text-anchor="middle" font-family="'Grenze Gotisch',serif" font-size="21" font-weight="800" fill="#ead9b5">E</text>
+        </g>
+        <!-- fog of war corner -->
+        <path d="M768 384 L768 280 Q700 290 668 320 Q640 352 628 384 Z" fill="#16100c" opacity="0.92"/>
+        <path d="M768 384 L768 252 Q688 268 650 306 Q618 340 600 384 Z" fill="#16100c" opacity="0.45"/>
+      </svg>
+      <p class="sprite-css-note" style="margin-top:14px">Blue town and hero "Edric" (selected, gilt ring); neutral griffin and skeleton stacks wear grey banner notches; red player's flag claims the ore mine; war-fog eats the south-east corner.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════ VI · VECTOR OR RASTER ════════════════════════ -->
+<section>
+  <div class="wrap">
+    <div class="chapter"><span class="num">VI</span><h2>Vector or <em>Raster?</em></h2></div>
+    <p class="lede"><strong>Verdict: author 100% of game art as SVG. Hand-made raster is not required
+    for anything.</strong> Raster appears only as a runtime optimization — and, optionally, for the
+    existing painterly logo and a future menu backdrop.</p>
+
+    <div class="plate">
+      <div class="plate-title"><span>The Case</span><span class="folio">folio vi</span></div>
+      <div class="verdict">
+        <div class="yes">
+          <h3>SVG — the source of truth</h3>
+          <span class="stamp">Adopted</span>
+          <ul>
+            <li><b>Crisp at every zoom.</b> The adventure map already scales tiles; vectors never blur on retina or zoom-out.</li>
+            <li><b>~1–3 KB per sprite.</b> The full ~230-asset set ships smaller than a single PNG spritesheet, and gzips brutally well.</li>
+            <li><b>Diffable &amp; reviewable.</b> Sprites live in git as text — PRs show real diffs, matching this repo's data-driven, zod-validated philosophy.</li>
+            <li><b>Parametric color.</b> Banner notches use <code>currentColor</code> — four player colors from one file, no recolored copies.</li>
+            <li><b>Editable by hand or model.</b> The flat woodcut style is deliberately path-friendly; every sprite on this page was written as text.</li>
+          </ul>
+        </div>
+        <div class="no">
+          <h3>Raster — only where it earns it</h3>
+          <span class="stamp">Optional</span>
+          <ul>
+            <li><b>Runtime atlas, not source.</b> Drawing complex paths every frame is slow — rasterize each SVG once per zoom level into an offscreen <code>ImageBitmap</code> atlas at load, then blit.</li>
+            <li><b>The painterly exceptions.</b> The existing Open Heroes logo stays a bitmap; a future main-menu backdrop may too. Neither is gameplay art.</li>
+            <li><b>Never needed for sprites.</b> No terrain, unit, building or icon requires hand-painted texture in this language.</li>
+            <li><b>No text inside sprites.</b> Glyphs rasterize differently across platforms; labels stay in canvas/DOM where the game already draws them.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="pipeline">
+        <div class="pipe-step">
+          <div class="ph">Author</div>
+          <h4>SVG symbols in git</h4>
+          <p><code>src/assets/sprites/*.svg</code> — one file per entity id (<code>creature.griffin.svg</code>), same id-keyed discipline as <code>src/data/</code>.</p>
+        </div>
+        <div class="pipe-step">
+          <div class="ph">Load</div>
+          <h4>Rasterize once</h4>
+          <p><code>createImageBitmap()</code> per sprite per zoom bucket (e.g. 32 / 64 / 96 px) at startup — milliseconds, off the hot path.</p>
+        </div>
+        <div class="pipe-step">
+          <div class="ph">Render</div>
+          <h4>Blit from atlas</h4>
+          <p>A new <code>SpritePainter</code> implements the existing <code>Painter</code> interface — <code>drawImage</code> per tile/token. Core stays untouched; determinism unaffected.</p>
+        </div>
+        <div class="pipe-step">
+          <div class="ph">Fallback</div>
+          <h4>Tokens remain</h4>
+          <p>Today's <code>TokenPainter</code> stays as the loading/error fallback and for entities without art yet — the swap is per-sprite, not all-or-nothing.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════ VII · THE LEDGER ════════════════════════ -->
+<section>
+  <div class="wrap">
+    <div class="chapter"><span class="num">VII</span><h2>The <em>Ledger</em></h2></div>
+    <p class="lede">Everything the game renders today, counted from <strong>src/data/</strong>, with a
+    rollout order chosen so each phase ships visible value on its own.</p>
+
+    <div class="plate">
+      <div class="plate-title"><span>Asset Inventory &amp; Rollout</span><span class="folio">folio vii</span></div>
+      <table class="ledger">
+        <thead><tr><th>Category</th><th style="text-align:right">Assets</th><th>Notes</th><th>Phase</th></tr></thead>
+        <tbody>
+          <tr><td>Terrain &amp; roads</td><td class="count">8 + 3</td><td>Tiles + road overlays; replaces <code>terrain()</code>/<code>road()</code> speckle fills. Fog stays procedural.</td><td><span class="phase-tag">i · the land</span></td></tr>
+          <tr><td>Creature emblems</td><td class="count">51</td><td>14 Castle · 14 Rampart · 14 Necropolis · 9 Neutral. One emblem serves adventure, combat, town &amp; garrison views.</td><td><span class="phase-tag">ii · the pieces</span></td></tr>
+          <tr><td>Map objects</td><td class="count">18 + 7</td><td>Towns, dwellings, pickups, visitables — plus 7 mine subtypes distinguished by a resource pip over one shared mine.</td><td><span class="phase-tag">iii · the field</span></td></tr>
+          <tr><td>Resource icons</td><td class="count">7</td><td>Gold, wood, ore, mercury, sulfur, crystal, gems — HUD bar, marketplace, costs. Small but seen constantly.</td><td><span class="phase-tag">iii · the field</span></td></tr>
+          <tr><td>Town buildings</td><td class="count">~64</td><td>13 shared + 42 dwellings + faction specials. Dwellings can derive from creature emblems over a shared structure base.</td><td><span class="phase-tag">iv · the town</span></td></tr>
+          <tr><td>Spell &amp; skill icons</td><td class="count">24 + 16</td><td>Spellbook and hero screen; school color-coded frames (air/earth/fire/water).</td><td><span class="phase-tag">v · the book</span></td></tr>
+          <tr><td>Artifacts</td><td class="count">22</td><td>Paper-doll slots + backpack; rarity shown by frame metal (bronze→gilt).</td><td><span class="phase-tag">v · the book</span></td></tr>
+          <tr><td>Hero portraits</td><td class="count">30</td><td>Woodcut bust per hero, 6 class templates varied by hair/insignia. Last — initialed shields work fine meanwhile.</td><td><span class="phase-tag">vi · the faces</span></td></tr>
+        </tbody>
+      </table>
+      <p class="sprite-css-note">Total ≈ 230 SVG sources. At ~2 KB each that is under half a megabyte of art — before gzip.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="rule">
+    <svg width="34" height="34" viewBox="0 0 64 64" style="color:#718096"><use href="#hero-shield"/></svg>
+  </div>
+  <div class="wrap">Open Heroes · Gilded Woodcut concept, first impression · no animation by decree of folio i</div>
+</footer>
+
+</body>
+</html>
