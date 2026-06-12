@@ -1,10 +1,13 @@
-# Heroes Clone
+<p align="center">
+  <img src="public/openheroes-logo.jpg" alt="Open Heroes" width="480" />
+</p>
+
+# Open Heroes
 
 A browser-based, single-player clone of a classic turn-based strategy game: heroes explore
 an adventure map, collect resources, capture mines and towns, build up towns, recruit
 creature armies, learn spells, and fight tactical hex-grid battles against AI opponents
-(plus local hotseat). All art is original placeholder art drawn in code; only game
-*mechanics* are cloned.
+(plus local hotseat). All art is original; only game *mechanics* are cloned.
 
 Pure TypeScript, no UI framework, no runtime dependencies beyond `zod`.
 
@@ -170,6 +173,12 @@ dangling content ids, unowned start towns, unpaired monoliths.
 Register a new map by adding its source to the `sources` list in `src/maps/index.ts`;
 it then appears in the new-game map list and is covered by the compile-all test in
 `src/maps/maps.test.ts`.
+
+## License
+
+[MIT](LICENSE) — covers the code, the game data, and the original artwork in
+`assets/` and `public/` (logo and icon). The game reimplements *mechanics* of a classic
+strategy game from scratch; it contains no assets, text, or code from the original.
 
 ## Game rules reference
 

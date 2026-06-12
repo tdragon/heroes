@@ -35,7 +35,7 @@ export class Hud {
     this.sidebar = el('div', 'sidebar', 'sidebar');
 
     const title = el('div', 'game-title', 'game-title');
-    title.textContent = 'Heroes Clone';
+    title.textContent = 'Open Heroes';
     this.sidebar.appendChild(title);
 
     this.minimapCanvas = el('canvas', 'minimap', 'minimap');
