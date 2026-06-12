@@ -252,16 +252,24 @@ Key decisions:
 
 ### Task 5: Verify acceptance criteria
 
-- [ ] all 8 terrains + 3 roads render as woodcut sprites on the adventure map;
-      fog uses Night palette (manual check via `npm run dev`, plus e2e green)
-- [ ] minimap unchanged (flat terrain colors)
-- [ ] golden replay tests pass untouched — no rng/core impact
-- [ ] run full gate: `npm run check`
-- [ ] coverage for `src/core/` still ≥ 80% (`npm test -- --coverage`) — note:
+- [x] all 8 terrains + 3 roads render as woodcut sprites on the adventure map;
+      fog uses Night palette (verified via Playwright screenshots against the
+      dev server: in-game map shows woodcut grass + dirt-road bands +
+      `#16100c` warm fog, and a sprite-grid render of all 11 theme SVGs
+      through the Vite loader confirms every terrain/road rasterizes
+      correctly; e2e suite green — 25 passed)
+- [x] minimap unchanged (flat terrain colors — `renderMinimap` fills
+      `terrain?.color` directly, no painter/sprite path; confirmed visually
+      in the full-page screenshot)
+- [x] golden replay tests pass untouched — no rng/core impact
+      (`src/core/replay.test.ts`: 16 passed, hashes unchanged)
+- [x] run full gate: `npm run check` (tsc + eslint + 619 unit tests, all green)
+- [x] coverage for `src/core/` still ≥ 80% (`npm test -- --coverage`) — note:
       trivially unaffected since coverage `include` is core/data/maps only;
       the new `src/render/` code is held to the per-task test checklists
       above, not the numeric gate (extending `coverage.include` to
-      `src/render/**` is a reasonable follow-up, out of scope here)
+      `src/render/**` is a reasonable follow-up, out of scope here) —
+      coverage run green: 94.52% lines overall (core/data/maps include)
 
 ### Task 6: [Final] Update documentation
 
