@@ -7,10 +7,12 @@ import { maxMovementPoints } from '../core/hero';
 import { buildMoveContext, findPath, stepCost } from '../core/movement';
 import type { GameState, Hero, MapObjectState, Player, PlayerId } from '../core/state';
 import {
+  cameraForViewport,
   centerCameraOn,
   panCamera,
   tileAtClientPoint,
   TILE_PX,
+  zoomCameraAt,
   type Camera,
 } from '../render/camera';
 import {
@@ -33,6 +35,7 @@ import { TownScreen } from '../ui/townScreen';
 import { AiDriver } from './aiDriver';
 import { autosave, type SaveStorage } from './saveload';
 import { adventureShortcut, isTypingTarget, type AdventureShortcutAction } from './shortcuts';
+import { canvasBackingSize, edgeScrollDelta } from './viewport';
 import type { Screen } from './screens';
 
 export interface ShellCallbacks {
@@ -41,12 +44,10 @@ export interface ShellCallbacks {
   storage: SaveStorage;
 }
 
-export const CANVAS_W = 1000;
-export const CANVAS_H = 760;
-
 const EDGE_SCROLL_MARGIN = 16;
 const EDGE_SCROLL_SPEED = 10;
 const KEY_SCROLL_STEP = TILE_PX;
+const WHEEL_ZOOM_STEP = 1.1;
 
 interface PendingPath {
   dest: Pos;
@@ -67,6 +68,12 @@ export class AdventureScreen implements Screen {
 
   private state: GameState;
   private camera: Camera;
+  // live CSS size of the canvas, kept in sync by the ResizeObserver
+  private cssW = 0;
+  private cssH = 0;
+  private dpr = 1;
+  private readonly canvasWrap: HTMLElement;
+  private readonly resizeObserver: ResizeObserver;
   private selectedHero: string | null = null;
   private pendingPath: PendingPath | null = null;
   private dirty = true;
@@ -110,11 +117,14 @@ export class AdventureScreen implements Screen {
 
     const canvasWrap = document.createElement('div');
     canvasWrap.className = 'canvas-wrap';
+    this.canvasWrap = canvasWrap;
     this.canvas = document.createElement('canvas');
-    this.canvas.width = CANVAS_W;
-    this.canvas.height = CANVAS_H;
     this.canvas.dataset.testid = 'adventure-canvas';
     canvasWrap.appendChild(this.canvas);
+    this.resizeObserver = new ResizeObserver(() => {
+      this.syncViewport();
+    });
+    this.resizeObserver.observe(canvasWrap);
 
     this.infoPopup = new InfoPopup();
     canvasWrap.appendChild(this.infoPopup.root);
@@ -177,8 +187,10 @@ export class AdventureScreen implements Screen {
       this.gameOverOverlay,
     );
 
+    // zero-size until the first syncViewport: centerCameraOn stores the focus
+    // point, cameraForViewport preserves it once the CSS size is known
     const startHero = this.viewPlayer().heroes[0];
-    this.camera = { x: 0, y: 0, width: CANVAS_W, height: CANVAS_H, zoom: 1 };
+    this.camera = { x: 0, y: 0, width: 0, height: 0, zoom: 1 };
     if (startHero !== undefined) {
       this.selectedHero = startHero;
       const hero = this.state.heroes[startHero];
@@ -211,6 +223,7 @@ export class AdventureScreen implements Screen {
 
   onShow(): void {
     this.running = true;
+    this.syncViewport();
     this.dirty = true;
     requestAnimationFrame(this.frame);
   }
@@ -221,10 +234,46 @@ export class AdventureScreen implements Screen {
 
   destroy(): void {
     this.running = false;
+    this.resizeObserver.disconnect();
     this.inputAborter.abort();
     this.dialogs.destroy();
     this.combatPanel?.destroy();
     this.combatPanel = null;
+  }
+
+  // keeps the canvas backing store (CSS size × dpr) and the camera viewport
+  // in sync with the live layout; runs on ResizeObserver, window resize
+  // (devicePixelRatio changes) and onShow
+  private syncViewport(): void {
+    const rect = this.canvasWrap.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    this.cssW = rect.width;
+    this.cssH = rect.height;
+    this.dpr = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+    const backing = canvasBackingSize(rect.width, rect.height, this.dpr);
+    if (this.canvas.width !== backing.width) this.canvas.width = backing.width;
+    if (this.canvas.height !== backing.height) this.canvas.height = backing.height;
+    this.camera = cameraForViewport(
+      this.camera,
+      rect.width,
+      rect.height,
+      this.camera.zoom,
+      this.state.map.size,
+    );
+    this.markDirty();
+  }
+
+  private applyZoom(factor: number, anchorSx: number, anchorSy: number): void {
+    this.camera = zoomCameraAt(
+      this.camera,
+      this.camera.zoom * factor,
+      anchorSx,
+      anchorSy,
+      this.cssW,
+      this.cssH,
+      this.state.map.size,
+    );
+    this.markDirty();
   }
 
   // --- state / commands ---
@@ -886,10 +935,11 @@ export class AdventureScreen implements Screen {
         const sx = e.clientX - rect.left;
         const sy = e.clientY - rect.top;
         if (this.dragFrom) {
+          // CSS px → world px so the map tracks the cursor 1:1 at any zoom
           this.camera = panCamera(
             this.camera,
-            this.dragFrom[0] - sx,
-            this.dragFrom[1] - sy,
+            (this.dragFrom[0] - sx) / this.camera.zoom,
+            (this.dragFrom[1] - sy) / this.camera.zoom,
             this.state.map.size,
           );
           this.dragFrom = [sx, sy];
@@ -922,6 +972,27 @@ export class AdventureScreen implements Screen {
       'mouseup',
       (e) => {
         if (e.button === 1) this.dragFrom = null;
+      },
+      opts,
+    );
+
+    this.canvas.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault();
+        if (e.deltaY === 0) return;
+        const rect = this.canvas.getBoundingClientRect();
+        const factor = e.deltaY < 0 ? WHEEL_ZOOM_STEP : 1 / WHEEL_ZOOM_STEP;
+        this.applyZoom(factor, e.clientX - rect.left, e.clientY - rect.top);
+      },
+      { signal: this.inputAborter.signal, passive: false },
+    );
+
+    window.addEventListener(
+      'resize',
+      () => {
+        // ResizeObserver misses pure devicePixelRatio changes (browser zoom)
+        this.syncViewport();
       },
       opts,
     );
@@ -992,6 +1063,9 @@ export class AdventureScreen implements Screen {
         this.camera = panCamera(this.camera, action.dx, action.dy, this.state.map.size);
         this.markDirty();
         break;
+      case 'zoom':
+        this.applyZoom(action.factor, this.cssW / 2, this.cssH / 2);
+        break;
     }
   }
 
@@ -1014,12 +1088,15 @@ export class AdventureScreen implements Screen {
   private edgeScroll(): void {
     if (!this.mousePos || this.dragFrom) return;
     const [sx, sy] = this.mousePos;
-    let dx = 0;
-    let dy = 0;
-    if (sx < EDGE_SCROLL_MARGIN) dx = -EDGE_SCROLL_SPEED;
-    else if (sx > CANVAS_W - EDGE_SCROLL_MARGIN) dx = EDGE_SCROLL_SPEED;
-    if (sy < EDGE_SCROLL_MARGIN) dy = -EDGE_SCROLL_SPEED;
-    else if (sy > CANVAS_H - EDGE_SCROLL_MARGIN) dy = EDGE_SCROLL_SPEED;
+    // bounds in live CSS px, pan delta a world-px constant
+    const [dx, dy] = edgeScrollDelta(
+      sx,
+      sy,
+      this.cssW,
+      this.cssH,
+      EDGE_SCROLL_MARGIN,
+      EDGE_SCROLL_SPEED,
+    );
     if (dx !== 0 || dy !== 0) {
       const moved = panCamera(this.camera, dx, dy, this.state.map.size);
       if (moved.x !== this.camera.x || moved.y !== this.camera.y) {
@@ -1055,6 +1132,7 @@ export class AdventureScreen implements Screen {
       player,
       visible: visibleTiles(this.state, player, this.data),
       camera: this.camera,
+      dpr: this.dpr,
       selectedHero: this.selectedHero,
       pathPreview: this.pendingPath?.preview ?? null,
     };
@@ -1063,6 +1141,7 @@ export class AdventureScreen implements Screen {
     this.hud.update(this.state, player, this.selectedHero);
     this.canvas.dataset.cameraX = String(Math.round(this.camera.x));
     this.canvas.dataset.cameraY = String(Math.round(this.camera.y));
+    this.canvas.dataset.zoom = String(this.camera.zoom);
     this.activePanel?.update();
     this.combatPanel?.update();
     this.dialogs.update(this.state);

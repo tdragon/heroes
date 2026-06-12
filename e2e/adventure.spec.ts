@@ -1,15 +1,7 @@
-import { expect, test, type Page } from '@playwright/test';
-
-const TILE = 48;
+import { expect, test } from '@playwright/test';
+import { canvasPoint } from './helpers';
 
 test.use({ viewport: { width: 1280, height: 800 } });
-
-async function canvasPoint(page: Page, tileX: number, tileY: number): Promise<[number, number]> {
-  const canvas = page.getByTestId('adventure-canvas');
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error('adventure canvas not visible');
-  return [box.x + (tileX + 0.5) * TILE, box.y + (tileY + 0.5) * TILE];
-}
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/?map=tutorial-valley&seed=42');

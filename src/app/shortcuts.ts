@@ -5,7 +5,11 @@ export type AdventureShortcutAction =
   | { type: 'endTurn' }
   | { type: 'nextHero' }
   | { type: 'visitHere' }
-  | { type: 'pan'; dx: number; dy: number };
+  | { type: 'pan'; dx: number; dy: number }
+  | { type: 'zoom'; factor: number };
+
+// keyboard zoom step (multiplicative, about the viewport center)
+export const KEY_ZOOM_STEP = 1.25;
 
 export function adventureShortcut(
   key: string,
@@ -20,6 +24,12 @@ export function adventureShortcut(
       return { type: 'nextHero' };
     case ' ':
       return { type: 'visitHere' };
+    case '+':
+    case '=':
+      return { type: 'zoom', factor: KEY_ZOOM_STEP };
+    case '-':
+    case '_':
+      return { type: 'zoom', factor: 1 / KEY_ZOOM_STEP };
     case 'ArrowLeft':
       return { type: 'pan', dx: -panStep, dy: 0 };
     case 'ArrowRight':

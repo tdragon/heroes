@@ -1,31 +1,9 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { moveHeroTo } from './helpers';
 
-const TILE = 48;
 const RED_TOWN = 'town-4-5';
 
 test.use({ viewport: { width: 1280, height: 800 } });
-
-async function cameraOffset(page: Page): Promise<[number, number]> {
-  const canvas = page.getByTestId('adventure-canvas');
-  const cx = Number(await canvas.getAttribute('data-camera-x'));
-  const cy = Number(await canvas.getAttribute('data-camera-y'));
-  return [cx, cy];
-}
-
-async function canvasPoint(page: Page, tileX: number, tileY: number): Promise<[number, number]> {
-  const canvas = page.getByTestId('adventure-canvas');
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error('adventure canvas not visible');
-  const [cx, cy] = await cameraOffset(page);
-  return [box.x + (tileX + 0.5) * TILE - cx, box.y + (tileY + 0.5) * TILE - cy];
-}
-
-async function moveHeroTo(page: Page, tileX: number, tileY: number): Promise<void> {
-  const [px, py] = await canvasPoint(page, tileX, tileY);
-  await page.mouse.click(px, py);
-  await expect(page.getByTestId('status-line')).toHaveText('Click again to move');
-  await page.mouse.click(px, py);
-}
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/?map=tutorial-valley&seed=42');

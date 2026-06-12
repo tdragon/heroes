@@ -287,27 +287,32 @@ via unit tests only if CDP proves flaky. Pinch is covered by unit tests only.
 - Modify: `e2e/adventure.spec.ts`, `e2e/shell.spec.ts`, `e2e/town-hero.spec.ts`
   (tile→pixel helpers rewritten — required, the fixed-canvas math breaks)
 
-- [ ] remove fixed `CANVAS_W`/`CANVAS_H` usage: `ResizeObserver` on `.canvas-wrap`
+- [x] remove fixed `CANVAS_W`/`CANVAS_H` usage: `ResizeObserver` on `.canvas-wrap`
       sizes the backing store (`css × devicePixelRatio`), updates the camera via
       `cameraForViewport`, and marks dirty; canvas CSS size `100%`
-- [ ] adventure renderer applies `ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, 0, 0)`
+- [x] adventure renderer applies `ctx.setTransform(dpr * zoom, 0, 0, dpr * zoom, 0, 0)`
       each frame and otherwise draws in world-px space as today; clear/letterbox in
       device space first
-- [ ] expose `data-zoom` on the canvas in `renderAll()` next to the existing
+- [x] expose `data-zoom` on the canvas in `renderAll()` next to the existing
       `data-camera-x`/`data-camera-y`
-- [ ] make shell CSS fluid per Technical Details (`100dvh` shell, flexing canvas-wrap,
+- [x] make shell CSS fluid per Technical Details (`100dvh` shell, flexing canvas-wrap,
       fluid `.menu-screen`/`.menu-box`); desktop keeps sidebar + bottom bar layout
-- [ ] edge scroll and keyboard pan: bounds checked against live CSS width/height, pan
+- [x] edge scroll and keyboard pan: bounds checked against live CSS width/height, pan
       deltas stay world-px constants (`EDGE_SCROLL_SPEED`, `KEY_SCROLL_STEP`)
-- [ ] wire mouse-wheel zoom (×1.1 per tick about the cursor) and `+`/`-` shortcuts
+- [x] wire mouse-wheel zoom (×1.1 per tick about the cursor) and `+`/`-` shortcuts
       (×1.25 about the viewport center) through `zoomCameraAt`; extend
       `src/app/shortcuts.ts` + `src/app/shortcuts.test.ts` for the new keys
-- [ ] rewrite the shared e2e tile→pixel helper(s) to derive positions from the live
+- [x] rewrite the shared e2e tile→pixel helper(s) to derive positions from the live
       canvas box + `data-camera-x/y` + `data-zoom` (`cssX = (worldX - cameraX) * zoom`)
-      instead of assuming a 1000×760 canvas at origin
-- [ ] write/extend unit tests for any new pure helpers (e.g. backing-size/letterbox
-      math, edge-scroll bound check) and the shortcut additions
-- [ ] run `npm run check` and `npm run test:e2e` — all desktop specs green before task 3
+      instead of assuming a 1000×760 canvas at origin (new `e2e/helpers.ts` shared by
+      adventure/shell/town-hero specs)
+- [x] write/extend unit tests for any new pure helpers (e.g. backing-size/letterbox
+      math, edge-scroll bound check) and the shortcut additions (`src/app/viewport.ts`
+      + `viewport.test.ts`: `canvasBackingSize`, `edgeScrollDelta`)
+- [x] run `npm run check` and `npm run test:e2e` — all desktop specs green before task 3
+- ➕ `.bottom-bar` gained `box-sizing: border-box` so its 1px top border doesn't
+      steal a pixel from the flexing canvas-wrap (kept the desktop canvas exactly
+      1000×760 at the 1280×800 e2e viewport)
 
 ### Task 3: Pointer-event gesture state machine and touch input
 

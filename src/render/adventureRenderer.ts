@@ -17,6 +17,7 @@ export interface AdventureView {
   player: Player; // whose fog of war we render
   visible: boolean[]; // bright-layer mask (fog.visibleTiles)
   camera: Camera;
+  dpr: number; // devicePixelRatio of the canvas backing store
   selectedHero: string | null;
   pathPreview: readonly PathStepPreview[] | null;
 }
@@ -66,8 +67,12 @@ export class AdventureRenderer {
     const { ctx } = this;
     const { state, camera } = view;
     const size = state.map.size;
+    // clear/letterbox in device space, then draw in world px scaled by dpr*zoom
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#000000';
-    ctx.fillRect(0, 0, camera.width, camera.height);
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    const scale = view.dpr * camera.zoom;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
     const range = visibleTileRange(camera, size);
     this.drawTerrain(view, range.x0, range.y0, range.x1, range.y1);
