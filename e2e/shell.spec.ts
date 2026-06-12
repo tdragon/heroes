@@ -123,3 +123,50 @@ test('hotseat: pass-device screen appears and switches the viewed player', async
   await expect(page.getByTestId('date-indicator')).toHaveText('Day 2, Week 1, Month 1');
   await expect(page.getByTestId('hero-item-edric')).toBeVisible();
 });
+
+test.describe('narrow viewport (390x844)', () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  async function expectNoHorizontalOverflow(page: Page): Promise<void> {
+    const fits = await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    );
+    expect(fits).toBe(true);
+  }
+
+  test('main menu renders without horizontal page overflow', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByTestId('main-menu')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    const box = await page.locator('.menu-box').boundingBox();
+    if (!box) throw new Error('menu box not visible');
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+  });
+
+  test('new-game setup is usable and starts a game', async ({ page }) => {
+    await page.goto('/');
+    await page.getByTestId('menu-new-game').click();
+    await expect(page.getByTestId('new-game-setup')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await page.getByTestId('map-option-tiny').click();
+    await page.getByTestId('seed-input').fill('42');
+    await page.getByTestId('start-game').click();
+    await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test('town panel opens within the viewport bounds', async ({ page }) => {
+    await page.goto('/?map=tiny&seed=42');
+    await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+    await page.getByTestId('town-item-town-2-2').click();
+    await expect(page.getByTestId('town-screen')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    const box = await page.locator('.town-panel').boundingBox();
+    if (!box) throw new Error('town panel not visible');
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+    expect(box.y + box.height).toBeLessThanOrEqual(844);
+  });
+});

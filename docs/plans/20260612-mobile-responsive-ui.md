@@ -350,18 +350,18 @@ via unit tests only if CDP proves flaky. Pinch is covered by unit tests only.
 - Modify: `index.html` (panel/dialog/spellbook/modal CSS + 768px breakpoint)
 - Modify: `e2e/shell.spec.ts` (narrow-viewport menu assertions)
 
-- [ ] cap `.panel`, `.modal-box`, `.spellbook-box`, `.system-panel-box`,
+- [x] cap `.panel`, `.modal-box`, `.spellbook-box`, `.system-panel-box`,
       `.count-dialog` content to `min(<current>, calc(100vw - 16px))` and
       `max-height: calc(100dvh - 16px)` with internal scroll
-- [ ] add the `@media (max-width: 768px)` breakpoint: `.hero-columns` stacks,
+- [x] add the `@media (max-width: 768px)` breakpoint: `.hero-columns` stacks,
       `.building-grid` → 2 columns, army rows/recruit rows wrap, menu logo scales,
       `.setup-options` wraps (new-game setup), `.menu-box` padding ~12px,
       count-dialog rows (`.count-row`/`.count-input`/slider) wrap and stay tappable
-- [ ] add a narrow-viewport e2e test (in `e2e/shell.spec.ts` via `test.describe` +
+- [x] add a narrow-viewport e2e test (in `e2e/shell.spec.ts` via `test.describe` +
       `test.use({ viewport: {width: 390, height: 844} })`): main menu renders with no
       horizontal page overflow (`document.documentElement.scrollWidth <= innerWidth`),
       new-game setup usable, a town panel opens within viewport bounds
-- [ ] run `npm run check` and `npm run test:e2e` - must pass before task 5
+- [x] run `npm run check` and `npm run test:e2e` - must pass before task 5
 
 ### Task 5: Combat screen scale-to-fit
 
