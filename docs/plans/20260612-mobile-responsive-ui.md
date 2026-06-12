@@ -427,17 +427,18 @@ via unit tests only if CDP proves flaky. Pinch is covered by unit tests only.
 **Files:**
 - Modify: `e2e/mobile.spec.ts`
 
-- [ ] touch tap selects own hero (tap hero tile → selected state in HUD)
-- [ ] two-tap move: tap destination (path preview/status appears), tap again → hero
-      moves (assert via `data-camera-x/y` change after auto-center or HUD movement
-      points decrease)
-- [ ] one-finger drag pans the camera via CDP `Input.dispatchTouchEvent`
+- [x] touch tap selects own hero (tap hero tile → selected state in HUD)
+- [x] two-tap move: tap destination (path preview/status appears), tap again → hero
+      moves (asserted via the HUD `hero-pos` changing 2,2 → 4,2 — simpler and
+      stronger than camera/movement-point proxies)
+- [x] one-finger drag pans the camera via CDP `Input.dispatchTouchEvent`
       (touchStart/touchMove/touchEnd through `page.context().newCDPSession(page)`;
       synthetic pointer events from `page.evaluate` are untrusted and bypass
       `setPointerCapture`); assert `data-camera-x/y` changed; if CDP proves flaky,
-      drop this case and rely on the FSM unit tests for pan
-- [ ] long-press shows the tile info popup; it dismisses on next tap
-- [ ] run full `npm run test:e2e` (desktop + mobile specs) - must pass before task 8
+      drop this case and rely on the FSM unit tests for pan — CDP proved reliable,
+      exact `data-camera-x` 0 → 120 asserted
+- [x] long-press shows the tile info popup; it dismisses on next tap
+- [x] run full `npm run test:e2e` (desktop + mobile specs) - must pass before task 8
 
 ### Task 8: Verify acceptance criteria
 

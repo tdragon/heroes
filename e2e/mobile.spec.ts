@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { canvasPoint } from './helpers';
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
@@ -102,4 +103,83 @@ test('End Turn works from the bottom bar without opening the drawer', async ({ p
   // Next Hero is reachable from the bottom bar too
   await expect(page.getByTestId('next-hero-button')).toBeVisible();
   await expectNoHorizontalOverflow(page);
+});
+
+// --- touch gameplay ---
+
+test('touch tap reaches tiles and selects the own hero', async ({ page }) => {
+  await bootAdventure(page);
+
+  // tap an empty tile: the tap pipeline hits the map (move preview starts)
+  const [ex, ey] = await canvasPoint(page, 6, 4);
+  await page.touchscreen.tap(ex, ey);
+  await expect(page.getByTestId('status-line')).toHaveText('Click again to move');
+
+  // tap the hero's tile (edric starts on the town tile at 2,2): the hero is
+  // selected in the HUD and the pending move is discarded
+  const [hx, hy] = await canvasPoint(page, 2, 2);
+  await page.touchscreen.tap(hx, hy);
+  await expect(page.getByTestId('hero-item-edric')).toHaveClass(/selected/);
+  await expect(page.getByTestId('hero-pos')).toHaveText('2,2');
+});
+
+test('two-tap move: first tap previews, second tap moves the hero', async ({ page }) => {
+  await bootAdventure(page);
+  await expect(page.getByTestId('hero-pos')).toHaveText('2,2');
+
+  const [px, py] = await canvasPoint(page, 4, 2);
+  await page.touchscreen.tap(px, py);
+  await expect(page.getByTestId('status-line')).toHaveText('Click again to move');
+
+  await page.touchscreen.tap(px, py);
+  await expect(page.getByTestId('hero-pos')).toHaveText('4,2');
+});
+
+test('one-finger drag pans the camera', async ({ page }) => {
+  await bootAdventure(page);
+  const canvas = page.getByTestId('adventure-canvas');
+  // camera clamps to the map origin at boot (hero near the top-left corner)
+  await expect(canvas).toHaveAttribute('data-camera-x', '0');
+
+  // synthetic pointer events from page.evaluate are untrusted and bypass
+  // setPointerCapture, so drive a trusted touch sequence via CDP
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x: 300, y: 400, id: 1 }],
+  });
+  for (const x of [280, 250, 220, 200, 180]) {
+    await cdp.send('Input.dispatchTouchEvent', {
+      type: 'touchMove',
+      touchPoints: [{ x, y: 400, id: 1 }],
+    });
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.detach();
+
+  // 120 css px dragged left at zoom 1 → camera moved +120 world px
+  await expect(canvas).toHaveAttribute('data-camera-x', '120');
+});
+
+test('long-press shows tile info and the next tap dismisses it', async ({ page }) => {
+  await bootAdventure(page);
+  const [hx, hy] = await canvasPoint(page, 2, 2);
+
+  // hold a single touch past LONG_PRESS_MS (500ms) without moving
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent', {
+    type: 'touchStart',
+    touchPoints: [{ x: hx, y: hy, id: 1 }],
+  });
+  await page.waitForTimeout(700);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await cdp.detach();
+
+  const popup = page.getByTestId('info-popup');
+  await expect(popup).toBeVisible();
+  await expect(popup).toContainText('Edric');
+
+  // the release after a long-press is not a tap; the NEXT tap dismisses
+  await page.touchscreen.tap(300, 400);
+  await expect(popup).not.toBeVisible();
 });
