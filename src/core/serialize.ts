@@ -249,21 +249,64 @@ function integrityError(path: string, message: string): Error {
 // heroes/towns/players that do not exist, which would crash much later (e.g.
 // visitingHeroOf or endTurn). Reject such saves at load time with the path.
 function assertReferentialIntegrity(state: GameState): void {
-  const playerIds = new Set<string>(state.players.map((p) => p.id));
+  const playersById = new Map(state.players.map((p) => [p.id, p]));
+  const playerIds = new Set<string>(playersById.keys());
   if (!playerIds.has(state.currentPlayer)) {
     throw integrityError('currentPlayer', `unknown player ${state.currentPlayer}`);
   }
   for (const [id, hero] of Object.entries(state.heroes)) {
-    if (!playerIds.has(hero.owner)) {
+    const owner = playersById.get(hero.owner);
+    if (!owner) {
       throw integrityError(`heroes.${id}.owner`, `unknown player ${hero.owner}`);
     }
+    // ownership is a two-way link: hero.owner names the player AND the
+    // player's roster lists the hero (endTurn/victory walk player.heroes)
+    if (!owner.heroes.includes(id)) {
+      throw integrityError(`heroes.${id}.owner`, `not listed in players.${hero.owner}.heroes`);
+    }
+  }
+  // a hero visits at most one town: visiting heroes stand on the town tile
+  // and a hero has a single position (movement clears the link on leaving)
+  const visitedTownByHero = new Map<string, string>();
+  for (const [id, town] of Object.entries(state.towns)) {
+    if (town.visitingHero === null) continue;
+    if (!(town.visitingHero in state.heroes)) {
+      throw integrityError(`towns.${id}.visitingHero`, `unknown hero ${town.visitingHero}`);
+    }
+    const alsoVisits = visitedTownByHero.get(town.visitingHero);
+    if (alsoVisits !== undefined) {
+      throw integrityError(
+        `towns.${id}.visitingHero`,
+        `hero ${town.visitingHero} already visits ${alsoVisits}`,
+      );
+    }
+    visitedTownByHero.set(town.visitingHero, id);
   }
   for (const [id, town] of Object.entries(state.towns)) {
-    if (town.owner !== null && !playerIds.has(town.owner)) {
-      throw integrityError(`towns.${id}.owner`, `unknown player ${town.owner}`);
+    if (town.owner !== null) {
+      const owner = playersById.get(town.owner);
+      if (!owner) {
+        throw integrityError(`towns.${id}.owner`, `unknown player ${town.owner}`);
+      }
+      if (!owner.towns.includes(id)) {
+        throw integrityError(`towns.${id}.owner`, `not listed in players.${town.owner}.towns`);
+      }
     }
-    if (town.visitingHero !== null && !(town.visitingHero in state.heroes)) {
-      throw integrityError(`towns.${id}.visitingHero`, `unknown hero ${town.visitingHero}`);
+    const visiting = town.visitingHero === null ? null : state.heroes[town.visitingHero];
+    if (!visiting) continue;
+    // the engine only lets a hero visit an own town (an enemy entering
+    // starts a siege or captures it), standing exactly on the town tile
+    if (visiting.owner !== town.owner) {
+      throw integrityError(
+        `towns.${id}.visitingHero`,
+        `hero ${visiting.id} belongs to ${visiting.owner} but the town belongs to ${town.owner ?? 'nobody'}`,
+      );
+    }
+    if (visiting.pos[0] !== town.pos[0] || visiting.pos[1] !== town.pos[1]) {
+      throw integrityError(
+        `towns.${id}.visitingHero`,
+        `hero ${visiting.id} is not on the town tile`,
+      );
     }
   }
   for (const player of state.players) {
@@ -294,10 +337,12 @@ function assertReferentialIntegrity(state: GameState): void {
   }
   const objectIds = new Set(state.map.objects.map((o) => o.id));
   if (state.combat !== null) {
-    if (!(state.combat.attackerHero in state.heroes)) {
+    const attacker = state.heroes[state.combat.attackerHero];
+    if (!attacker) {
       throw integrityError('combat.attackerHero', `unknown hero ${state.combat.attackerHero}`);
     }
-    if (state.combat.defenderHero !== null && !(state.combat.defenderHero in state.heroes)) {
+    const defender = state.combat.defenderHero === null ? null : state.heroes[state.combat.defenderHero];
+    if (state.combat.defenderHero !== null && !defender) {
       throw integrityError('combat.defenderHero', `unknown hero ${state.combat.defenderHero}`);
     }
     if (state.combat.defenderTown !== null && !(state.combat.defenderTown in state.towns)) {
@@ -305,6 +350,58 @@ function assertReferentialIntegrity(state: GameState): void {
     }
     if (state.combat.object !== null && !objectIds.has(state.combat.object)) {
       throw integrityError('combat.object', `unknown object ${state.combat.object}`);
+    }
+    // the CombatState hero infos drive who may command each side and where
+    // mana is copied back at combat end: they must mirror the ActiveCombat
+    // hero references and the heroes' real owners
+    const battle = state.combat.combat;
+    if (battle.attackerHero.hero !== state.combat.attackerHero) {
+      throw integrityError(
+        'combat.combat.attackerHero.hero',
+        `expected ${state.combat.attackerHero}, found ${battle.attackerHero.hero ?? 'nobody'}`,
+      );
+    }
+    if (battle.attackerHero.player !== attacker.owner) {
+      throw integrityError(
+        'combat.combat.attackerHero.player',
+        `expected ${attacker.owner}, found ${battle.attackerHero.player ?? 'nobody'}`,
+      );
+    }
+    if (battle.defenderHero.hero !== state.combat.defenderHero) {
+      throw integrityError(
+        'combat.combat.defenderHero.hero',
+        `expected ${state.combat.defenderHero ?? 'nobody'}, found ${battle.defenderHero.hero ?? 'nobody'}`,
+      );
+    }
+    if (battle.defenderHero.player !== (defender?.owner ?? null)) {
+      throw integrityError(
+        'combat.combat.defenderHero.player',
+        `expected ${defender?.owner ?? 'nobody'}, found ${battle.defenderHero.player ?? 'nobody'}`,
+      );
+    }
+    // queue/waitQueue are read via getCombatStack (throws on unknown ids)
+    // and a stack acts once per round: ids must name distinct real stacks
+    const stackIds = new Set<string>();
+    for (const stack of battle.stacks) {
+      if (stackIds.has(stack.id)) {
+        throw integrityError('combat.combat.stacks', `duplicate stack id ${stack.id}`);
+      }
+      stackIds.add(stack.id);
+    }
+    const queued = new Set<string>();
+    for (const [name, ids] of [
+      ['queue', battle.queue],
+      ['waitQueue', battle.waitQueue],
+    ] as const) {
+      for (const stackId of ids) {
+        if (!stackIds.has(stackId)) {
+          throw integrityError(`combat.combat.${name}`, `unknown combat stack ${stackId}`);
+        }
+        if (queued.has(stackId)) {
+          throw integrityError(`combat.combat.${name}`, `stack ${stackId} is queued twice`);
+        }
+        queued.add(stackId);
+      }
     }
   }
   state.pendingChoices.forEach((choice, index) => {

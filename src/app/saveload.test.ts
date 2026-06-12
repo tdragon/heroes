@@ -53,6 +53,10 @@ function makeMidCombatGame(): GameState {
   let state = makeGame(7);
   const hero = state.heroes.edric;
   if (!hero) throw new Error('missing edric');
+  // hand-teleport for test speed: clear the visit link like leaveTile does
+  for (const town of Object.values(state.towns)) {
+    if (town.visitingHero === hero.id) town.visitingHero = null;
+  }
   hero.pos = [5, 2];
   hero.movementPoints = 2000;
   state = dispatch(

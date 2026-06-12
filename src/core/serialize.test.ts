@@ -172,6 +172,10 @@ describe('referential integrity', () => {
     let s = newGame(tinyMap, {}, 7, data);
     const hero = s.heroes.edric;
     if (!hero) throw new Error('missing edric');
+    // hand-teleport for test speed: clear the visit link like leaveTile does
+    for (const town of Object.values(s.towns)) {
+      if (town.visitingHero === hero.id) town.visitingHero = null;
+    }
     hero.pos = [5, 2];
     hero.movementPoints = 2000;
     s = dispatch(s, { type: 'moveHero', player: 'red', hero: 'edric', path: [[6, 2]] }, data).state;
@@ -267,6 +271,65 @@ describe('referential integrity', () => {
     ).toThrow(/players\.red\.towns: town .* is owned by blue/);
   });
 
+  it('rejects a hero missing from its owner roster', () => {
+    expect(() =>
+      deserializeGame(
+        breakRefs((s) => {
+          const players = s.players as { heroes: string[] }[];
+          if (players[0]) players[0].heroes = players[0].heroes.filter((id) => id !== 'edric');
+        }),
+      ),
+    ).toThrow('heroes.edric.owner: not listed in players.red.heroes');
+  });
+
+  it('rejects a town missing from its owner town list', () => {
+    expect(() =>
+      deserializeGame(
+        breakRefs((s) => {
+          const players = s.players as { towns: string[] }[];
+          if (players[0]) players[0].towns = [];
+        }),
+      ),
+    ).toThrow(/towns\..*\.owner: not listed in players\.red\.towns/);
+  });
+
+  it('rejects a visiting hero that belongs to another player', () => {
+    expect(() =>
+      deserializeGame(
+        breakRefs((s) => {
+          const towns = Object.values(s.towns as Record<string, { owner: string | null; visitingHero: string | null }>);
+          for (const town of towns) {
+            // mortus (blue) ends up visiting only the red town
+            town.visitingHero = town.owner === 'red' ? 'mortus' : null;
+          }
+        }),
+      ),
+    ).toThrow(/towns\..*\.visitingHero: hero mortus belongs to blue but the town belongs to red/);
+  });
+
+  it('rejects a visiting hero standing off the town tile', () => {
+    expect(() =>
+      deserializeGame(
+        breakRefs((s) => {
+          const heroes = s.heroes as Record<string, { pos: [number, number] }>;
+          const edric = heroes.edric;
+          if (edric) edric.pos = [0, 0];
+        }),
+      ),
+    ).toThrow(/towns\..*\.visitingHero: hero edric is not on the town tile/);
+  });
+
+  it('rejects a hero visiting two towns at once', () => {
+    expect(() =>
+      deserializeGame(
+        breakRefs((s) => {
+          const towns = Object.values(s.towns as Record<string, { visitingHero: string | null }>);
+          for (const town of towns) town.visitingHero = 'edric';
+        }),
+      ),
+    ).toThrow(/towns\..*\.visitingHero: hero edric already visits/);
+  });
+
   it('rejects combat hero/town/object ids missing from the state', () => {
     const fighting = makeMidCombatGame();
     const breakCombat = (mutate: (c: Record<string, unknown>) => void): string => {
@@ -289,6 +352,59 @@ describe('referential integrity', () => {
     expect(() => deserializeGame(breakCombat((c) => (c.object = 'ghost-object')))).toThrow(
       'combat.object: unknown object ghost-object',
     );
+  });
+
+  it('rejects combat hero infos that disagree with the active combat', () => {
+    const fighting = makeMidCombatGame();
+    const breakBattle = (mutate: (battle: Record<string, unknown>) => void): string => {
+      const raw = JSON.parse(serializeGame(fighting)) as {
+        version: number;
+        state: { combat: { combat: Record<string, unknown> } };
+      };
+      mutate(raw.state.combat.combat);
+      return JSON.stringify(raw);
+    };
+    const heroInfo = (battle: Record<string, unknown>, side: string): Record<string, unknown> =>
+      battle[side] as Record<string, unknown>;
+    // edric (red) attacks a neutral guard: the defender side has no hero
+    expect(() =>
+      deserializeGame(breakBattle((b) => (heroInfo(b, 'attackerHero').hero = 'mortus'))),
+    ).toThrow('combat.combat.attackerHero.hero: expected edric, found mortus');
+    expect(() =>
+      deserializeGame(breakBattle((b) => (heroInfo(b, 'attackerHero').player = 'blue'))),
+    ).toThrow('combat.combat.attackerHero.player: expected red, found blue');
+    expect(() =>
+      deserializeGame(breakBattle((b) => (heroInfo(b, 'defenderHero').hero = 'mortus'))),
+    ).toThrow('combat.combat.defenderHero.hero: expected nobody, found mortus');
+    expect(() =>
+      deserializeGame(breakBattle((b) => (heroInfo(b, 'defenderHero').player = 'blue'))),
+    ).toThrow('combat.combat.defenderHero.player: expected nobody, found blue');
+  });
+
+  it('rejects combat queues naming unknown or repeated stacks', () => {
+    const fighting = makeMidCombatGame();
+    const breakBattle = (mutate: (battle: Record<string, unknown>) => void): string => {
+      const raw = JSON.parse(serializeGame(fighting)) as {
+        version: number;
+        state: { combat: { combat: Record<string, unknown> } };
+      };
+      mutate(raw.state.combat.combat);
+      return JSON.stringify(raw);
+    };
+    expect(() =>
+      deserializeGame(breakBattle((b) => ((b.queue as string[])[0] = 'ghost'))),
+    ).toThrow('combat.combat.queue: unknown combat stack ghost');
+    expect(() =>
+      deserializeGame(breakBattle((b) => (b.waitQueue = [(b.queue as string[])[0]]))),
+    ).toThrow(/combat\.combat\.waitQueue: stack .* is queued twice/);
+    expect(() =>
+      deserializeGame(
+        breakBattle((b) => {
+          const stacks = b.stacks as Record<string, unknown>[];
+          stacks.push({ ...stacks[0] });
+        }),
+      ),
+    ).toThrow(/combat\.combat\.stacks: duplicate stack id/);
   });
 
   it('rejects pendingChoices referencing missing heroes, objects, or players', () => {
