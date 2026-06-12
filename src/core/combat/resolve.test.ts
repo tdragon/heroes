@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { loadGameData } from '../../data';
 import { compileMap, type MapSource } from '../../maps/dsl';
 import { dispatch, CommandRejectedError, type GameEvent } from '../commands';
-import { handleObjectTrigger } from '../objects';
+import { applyObjectReward, handleObjectTrigger } from '../objects';
+import { applyCombatAction } from './resolve';
 import { newGame, townIdAt } from '../setup';
 import type { GameState, Hero, MapObjectState, PlayerId } from '../state';
 import { hexDistance, type Hex } from './grid';
@@ -187,6 +188,47 @@ describe('guard combat resolution', () => {
     expect(events.some((e) => e.type === 'combatResolved' && e.outcome === 'defender')).toBe(
       true,
     );
+  });
+
+  it('a dying hero takes their stale pending choices with them', () => {
+    const start = startGuardFight();
+    // cripple the attacker to guarantee a loss
+    const combat = start.combat?.combat;
+    if (!combat) throw new Error('no combat');
+    for (const stack of combat.stacks) {
+      if (stack.side === 'attacker') {
+        stack.count = stack.count > 0 ? 1 : 0;
+        stack.firstHp = 1;
+      }
+      if (stack.side === 'defender') {
+        stack.count = 99;
+        stack.initialCount = 99;
+      }
+    }
+    // a deferred level-up owed to the attacker from an earlier battle; it
+    // blocks dispatch entirely, so the battle is driven through the combat
+    // reducer directly — exactly what makes a stale survivor a soft-lock
+    start.pendingChoices.push({
+      id: 'levelup-edric-2',
+      player: 'red',
+      kind: 'levelUp',
+      hero: 'edric',
+      options: ['attack:1', 'logistics:1'],
+      remaining: 1,
+    });
+    const events: GameEvent[] = [];
+    let guard = 0;
+    while (start.combat !== null) {
+      guard += 1;
+      if (guard > 500) throw new Error('combat did not resolve');
+      applyCombatAction(start, 'red', pickAction(start), data, events, (s, h, o, evts) => {
+        applyObjectReward(s, h, o, data, evts);
+      });
+    }
+    expect(start.heroes.edric).toBeUndefined();
+    // the dead hero's choice is gone and the game accepts commands again
+    expect(start.pendingChoices).toEqual([]);
+    expect(() => dispatch(start, { type: 'endTurn', player: 'red' }, data)).not.toThrow();
   });
 
   it('fleeing loses the army but returns the hero template to the tavern pool', () => {

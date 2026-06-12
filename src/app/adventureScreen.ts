@@ -483,12 +483,35 @@ export class AdventureScreen implements Screen {
             if (!this.fleeAiAttacker()) break;
             continue;
           }
-          if (!this.runCommand({ type: 'endTurn', player: this.state.currentPlayer })) break;
+          if (!this.forceEndAiTurn()) break;
         }
       }
     } finally {
       this.aiTurnRunning = false;
     }
+  }
+
+  // dispatch rejects endTurn while pending choices exist, so the forced
+  // endTurn recovery must clear AI-owned choices first (option 0); a
+  // human-owned choice is a clean stop — the dialog queue will surface it
+  private forceEndAiTurn(): boolean {
+    while (this.state.status === 'running') {
+      const choice = this.state.pendingChoices[0];
+      if (!choice) break;
+      if (this.state.players.find((p) => p.id === choice.player)?.isHuman !== false) return false;
+      const resolve: Command = {
+        type: 'resolveChoice',
+        player: choice.player,
+        choiceId: choice.id,
+        option: 0,
+      };
+      if (!this.runCommand(resolve)) return false;
+      // resolving a choice can start a battle (e.g. guardAttack "fight"):
+      // hand control back to the main loop, which drives/aborts combats
+      if (this.state.combat !== null) return true;
+    }
+    if (this.state.status !== 'running') return true;
+    return this.runCommand({ type: 'endTurn', player: this.state.currentPlayer });
   }
 
   // withdraw the attacker from an off-screen AI battle (recovery/auto-resolve)

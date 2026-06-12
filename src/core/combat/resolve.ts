@@ -360,6 +360,10 @@ function removeHero(
     }
   }
   state.heroes = Object.fromEntries(Object.entries(state.heroes).filter(([id]) => id !== hero.id));
+  // a dead hero's queued choices (e.g. deferred level-ups) can never be
+  // resolved (applyLevelUpChoice would throw) yet block every other command,
+  // soft-locking the game — they die with the hero
+  state.pendingChoices = state.pendingChoices.filter((choice) => choice.hero !== hero.id);
   state.tavernPool.push(hero.template);
   events.push({
     type: outcome === 'fled' ? 'heroFled' : 'heroDefeated',

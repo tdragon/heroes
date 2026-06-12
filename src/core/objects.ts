@@ -1,7 +1,7 @@
 import type { GameData } from '../data';
 import type { ResourceId } from '../data/schema';
 import { objectFootprint } from '../maps/dsl';
-import type { Guard, Pos } from '../maps/schema';
+import { NO_ROAD_CHAR, type Guard, type Pos } from '../maps/schema';
 import { captureTown, startGuardCombat, startSiegeCombat } from './combat/resolve';
 import { CommandRejectedError, type GameEvent } from './commands';
 import { revealFor, sightRadius } from './fog';
@@ -316,6 +316,18 @@ function heroAt(state: GameState, pos: Pos): Hero | null {
   return null;
 }
 
+// trigger tiles are enterable whenever their road/terrain is passable —
+// mirrors buildMoveContext, where a trigger unblocks its own footprint tile
+function triggerTileEnterable(state: GameState, data: GameData, pos: Pos): boolean {
+  const { size, terrain, roads } = state.map;
+  const [x, y] = pos;
+  if (x < 0 || y < 0 || x >= size || y >= size) return false;
+  if ((roads[y * size + x] ?? NO_ROAD_CHAR) !== NO_ROAD_CHAR) return true;
+  const char = terrain[y * size + x] ?? '';
+  const t = Object.values(data.terrains).find((entry) => entry.char === char);
+  return t?.moveCost != null;
+}
+
 function visitMonolith(
   state: GameState,
   hero: Hero,
@@ -328,6 +340,11 @@ function visitMonolith(
   );
   if (!pair) {
     throw new Error(`monolith ${obj.id} has no pair '${obj.pairId ?? ''}'`);
+  }
+  if (!triggerTileEnterable(state, data, pair.at)) {
+    events.push({ type: 'messageShown', object: obj.id, message: 'The portal exit is blocked.' });
+    events.push({ type: 'objectVisited', hero: hero.id, object: obj.id, effect: false });
+    return;
   }
   if (heroAt(state, pair.at)) {
     events.push({ type: 'objectVisited', hero: hero.id, object: obj.id, effect: false });

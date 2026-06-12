@@ -593,6 +593,23 @@ describe('special objects', () => {
     expect(events.some((e) => e.type === 'heroTeleported')).toBe(false);
   });
 
+  it('monolith refuses to teleport when the exit tile is impassable', () => {
+    const state = makeGame();
+    // sink the pair's trigger tile [1,8] into water
+    const idx = 8 * SIZE + 1;
+    state.map.terrain = `${state.map.terrain.slice(0, idx)}w${state.map.terrain.slice(idx + 1)}`;
+    const hero = getHero(state, 'edric');
+    hero.pos = [13, 6];
+    const events = visit(state, 'edric', 'monolith', [13, 6]);
+    expect(hero.pos).toEqual([13, 6]);
+    expect(events.some((e) => e.type === 'heroTeleported')).toBe(false);
+    expect(events).toContainEqual({
+      type: 'messageShown',
+      object: findObject(state, 'monolith', [13, 6]).id,
+      message: 'The portal exit is blocked.',
+    });
+  });
+
   it('prison frees the stored hero next to it and removes the prison', () => {
     const state = makeGame();
     const events = visit(state, 'edric', 'prison');

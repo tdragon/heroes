@@ -45,6 +45,11 @@ test('menu shows new game setup with map list and player config', async ({ page 
   await expect(page.getByTestId('main-menu')).toBeVisible();
 });
 
+test('an empty ?map= boot param falls back to the main menu', async ({ page }) => {
+  await page.goto('/?map=');
+  await expect(page.getByTestId('main-menu')).toBeVisible();
+});
+
 test('full happy path: new game, play 2 days, save, reload, load — state intact', async ({
   page,
 }) => {

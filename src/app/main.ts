@@ -61,7 +61,8 @@ router.register(
 // dev/e2e direct boot: ?map=<id>&seed=<n> skips the menu
 const params = new URLSearchParams(window.location.search);
 const mapId = params.get('map');
-if (mapId !== null) {
+// '?map=' with an empty value means "no map": fall back to the menu
+if (mapId !== null && mapId !== '') {
   const seedParam = Number(params.get('seed') ?? '');
   const seed = Number.isFinite(seedParam) && params.get('seed') !== null ? seedParam : 42;
   const map = allMaps.find((m) => m.id === mapId);
