@@ -12,6 +12,7 @@ import { chooseAICommand, chooseHeroCommand, heroOpportunities, armyPower } from
 import { chooseCombatAction } from './combatAI';
 import {
   chooseBuildCommand,
+  chooseDwellingRecruitCommand,
   chooseHireCommand,
   chooseRecruitCommand,
   maxAffordable,
@@ -230,20 +231,16 @@ describe('adventure AI', () => {
       }
     }
     const before = state.heroes.edric?.pos;
-    const result = dispatch(
-      state,
-      { type: 'moveHero', player: 'red', hero: 'edric', path },
-      data,
-    );
+    const result = dispatch(state, { type: 'moveHero', player: 'red', hero: 'edric', path }, data);
     state = result.state;
     expect(state.combat?.reason).toBe('field');
     expect(state.combat?.defenderHero).toBe('mortus');
     // the attacker never enters the defender's tile
     expect(state.heroes.edric?.pos).not.toEqual(before);
     expect(state.heroes.edric?.pos).toEqual([7, 9]);
-    expect(
-      result.events.some((e) => e.type === 'combatStarted' && e.reason === 'field'),
-    ).toBe(true);
+    expect(result.events.some((e) => e.type === 'combatStarted' && e.reason === 'field')).toBe(
+      true,
+    );
 
     // play the battle out with the combat AI, acting as the active side's
     // owner each step; exactly one hero survives
@@ -263,7 +260,7 @@ describe('adventure AI', () => {
       ).state;
     }
     expect(state.combat).toBeNull();
-    expect(('edric' in state.heroes) !== ('mortus' in state.heroes)).toBe(true);
+    expect('edric' in state.heroes !== 'mortus' in state.heroes).toBe(true);
   });
 
   it('lets a choice owner resolve it off-turn, but nobody else', () => {
@@ -337,8 +334,11 @@ describe('economy AI', () => {
     let state = newGame(tinyMap, { startingResources: richResources }, 3, data);
     // hand-build the tier-1 dwelling so the pool is non-empty
     for (const building of ['fort', 'castle_dwelling_1']) {
-      state = dispatch(state, { type: 'build', player: 'red', town: 'town-2-2', building }, data)
-        .state;
+      state = dispatch(
+        state,
+        { type: 'build', player: 'red', town: 'town-2-2', building },
+        data,
+      ).state;
       const town = state.towns['town-2-2'];
       if (!town) throw new Error('red town missing');
       town.builtToday = false;
@@ -408,9 +408,7 @@ describe('full AI games', () => {
     while (state.status === 'running' && state.day <= 28) {
       if (commands++ > 20000) throw new Error('AI game did not progress');
       const idleRedTurn =
-        state.currentPlayer === 'red' &&
-        state.combat === null &&
-        state.pendingChoices.length === 0;
+        state.currentPlayer === 'red' && state.combat === null && state.pendingChoices.length === 0;
       const command: Command = idleRedTurn
         ? { type: 'endTurn', player: 'red' }
         : nextAiDrivenCommand(state);
@@ -434,5 +432,65 @@ describe('full AI games', () => {
     expect(typeof state.status === 'object' && 'winner' in state.status).toBe(true);
     expect(state.day).toBeLessThan(84);
     expect(events.some((e) => e.type === 'gameOver')).toBe(true);
+  });
+});
+
+describe('dwelling recruit AI', () => {
+  it('recruits the max affordable stack from an owned dwelling under a hero', () => {
+    const state = newGame(tinyMap, {}, 3, data);
+    const edric = state.heroes.edric;
+    if (!edric) throw new Error('edric missing');
+    state.map.objects.push({
+      id: 'dwell-test',
+      type: 'dwelling',
+      at: [edric.pos[0], edric.pos[1]],
+      owner: 'red',
+      guard: null,
+      creature: 'peasant',
+      count: 25,
+      removed: false,
+      visitedBy: [],
+      lastResetDay: 0,
+    });
+    const command = chooseDwellingRecruitCommand(state, 'red', data);
+    expect(command).toEqual({
+      type: 'recruitDwelling',
+      player: 'red',
+      object: 'dwell-test',
+      hero: 'edric',
+      count: 25,
+    });
+    if (!command) throw new Error('expected a recruitDwelling command');
+    const next = dispatch(state, command, data).state;
+    expect(next.map.objects.find((o) => o.id === 'dwell-test')?.count).toBe(0);
+    expect(next.heroes.edric?.army.some((s) => s?.creature === 'peasant' && s.count === 25)).toBe(
+      true,
+    );
+    // a drained dwelling is ignored
+    expect(chooseDwellingRecruitCommand(next, 'red', data)).toBeNull();
+  });
+
+  it('ignores foreign dwellings and dwellings the hero is not standing on', () => {
+    const state = newGame(tinyMap, {}, 3, data);
+    const edric = state.heroes.edric;
+    if (!edric) throw new Error('edric missing');
+    state.map.objects.push({
+      id: 'dwell-test',
+      type: 'dwelling',
+      at: [edric.pos[0], edric.pos[1]],
+      owner: 'blue',
+      guard: null,
+      creature: 'peasant',
+      count: 25,
+      removed: false,
+      visitedBy: [],
+      lastResetDay: 0,
+    });
+    expect(chooseDwellingRecruitCommand(state, 'red', data)).toBeNull();
+    const dwelling = state.map.objects.find((o) => o.id === 'dwell-test');
+    if (!dwelling) throw new Error('dwelling missing');
+    dwelling.owner = 'red';
+    dwelling.at = [edric.pos[0] + 1, edric.pos[1]];
+    expect(chooseDwellingRecruitCommand(state, 'red', data)).toBeNull();
   });
 });

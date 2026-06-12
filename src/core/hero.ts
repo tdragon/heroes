@@ -6,6 +6,7 @@ import { nextFloat, rollRange } from './rng';
 import {
   ARMY_SLOTS,
   artifactBonus,
+  getPlayer,
   skillValue,
   type ArmySlots,
   type CreatureStack,
@@ -178,9 +179,7 @@ function levelUp(state: GameState, hero: Hero, data: GameData, events: GameEvent
   // from the current skills would go stale once the earlier choice resolves
   // (duplicate picks, unresolvable 8-skill offers), so further level-ups are
   // queued on the pending choice and rolled lazily in applyLevelUpChoice
-  const existing = state.pendingChoices.find(
-    (c) => c.kind === 'levelUp' && c.hero === hero.id,
-  );
+  const existing = state.pendingChoices.find((c) => c.kind === 'levelUp' && c.hero === hero.id);
   if (existing) {
     existing.remaining = (existing.remaining ?? 0) + 1;
     return;
@@ -345,6 +344,39 @@ export function transferStack(
   } else {
     source.count -= moved;
   }
+}
+
+// --- hero removal ---
+
+// takes a hero out of play: off the map, out of the owner's roster, vacating
+// any town's visiting slot; the template returns to the tavern pool for
+// rehire. Queued choices of the hero (e.g. deferred level-ups) could never be
+// resolved yet would block every other command, so they die with the hero.
+export function releaseHeroToTavern(state: GameState, hero: Hero): void {
+  const player = getPlayer(state, hero.owner);
+  player.heroes = player.heroes.filter((id) => id !== hero.id);
+  for (const town of Object.values(state.towns)) {
+    if (town.visitingHero === hero.id) {
+      town.visitingHero = null;
+    }
+  }
+  state.heroes = Object.fromEntries(Object.entries(state.heroes).filter(([id]) => id !== hero.id));
+  state.pendingChoices = state.pendingChoices.filter((choice) => choice.hero !== hero.id);
+  state.tavernPool.push(hero.template);
+}
+
+// dismiss = voluntary removal, like fleeing a battle but without one (spec
+// §10.4). Dismissing the last hero while holding no towns is allowed and
+// self-eliminates the player via the victory evaluation after the command —
+// the same rule as fleeing the last battle townless.
+export function dismissHeroCommand(
+  state: GameState,
+  command: Extract<Command, { type: 'dismissHero' }>,
+  events: GameEvent[],
+): void {
+  const hero = requireOwnHero(state, command.hero, command.player);
+  releaseHeroToTavern(state, hero);
+  events.push({ type: 'heroDismissed', hero: hero.id, player: hero.owner });
 }
 
 // --- army / artifact commands (dispatch-level wrappers) ---

@@ -88,3 +88,24 @@ test('right-click shows an info popup for the hovered entity', async ({ page }) 
   await expect(page.getByTestId('info-popup')).toBeVisible();
   await expect(page.getByTestId('info-popup')).toContainText('Edric');
 });
+
+test('spellbook button reports a hero without a spellbook', async ({ page }) => {
+  await page.getByTestId('hero-item-edric').click();
+  await page.getByTestId('spellbook-button').click();
+  await expect(page.getByTestId('status-line')).toHaveText('Edric has no spellbook');
+});
+
+test('adventure spellbook opens for a caster and lists only adventure spells', async ({
+  page,
+}) => {
+  await page.goto('/?map=combat-arena&seed=5');
+  await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+  await page.getByTestId('hero-item-beatrice').click();
+  await page.getByTestId('spellbook-button').click();
+  await expect(page.getByTestId('spellbook-overlay')).toBeVisible();
+  // Beatrice only knows combat spells, so the adventure book is empty;
+  // Town Portal / Dimension Door appear here once learned from a guild
+  await expect(page.getByTestId('spellbook-empty')).toHaveText('No spells match');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('spellbook-overlay')).toHaveCount(0);
+});

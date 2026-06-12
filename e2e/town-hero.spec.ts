@@ -131,3 +131,55 @@ test('learning stone triggers the level-up dialog and the choice persists', asyn
     `${skillName} (${(rank ?? '').toLowerCase()})`,
   );
 });
+
+test('upgrade a recruited stack for the cost difference', async ({ page }) => {
+  // wood pile + sawmill keep the dwellings affordable after the fort
+  await page.getByTestId('hero-item-edric').click();
+  await moveHeroTo(page, 6, 8);
+  await expect(page.getByTestId('resource-wood')).toContainText('26');
+  await moveHeroTo(page, 8, 3);
+
+  await page.getByTestId(`town-item-${RED_TOWN}`).click();
+  await page.getByTestId('building-fort').click();
+  await expect(page.getByTestId('building-fort')).toContainText('Built');
+  await page.getByTestId('town-close').click();
+  await page.getByTestId('end-turn-button').click();
+  await expect(page.getByTestId('date-indicator')).toHaveText('Day 2, Week 1, Month 1');
+
+  await page.getByTestId(`town-item-${RED_TOWN}`).click();
+  await page.getByTestId('building-castle_dwelling_1').click();
+  await page.getByTestId('recruit-pikeman').click();
+  await page.getByTestId('count-max').click();
+  await page.getByTestId('count-confirm').click();
+  await expect(page.getByTestId('garrison-slot-0')).toHaveText('14 Pikeman');
+  // the upgraded dwelling is not built yet: no upgrade affordance
+  await expect(page.getByTestId('upgrade-garrison-0')).toHaveCount(0);
+  await page.getByTestId('town-close').click();
+  await page.getByTestId('end-turn-button').click();
+  await expect(page.getByTestId('date-indicator')).toHaveText('Day 3, Week 1, Month 1');
+
+  await page.getByTestId(`town-item-${RED_TOWN}`).click();
+  await page.getByTestId('building-castle_dwelling_1u').click();
+  const upgrade = page.getByTestId('upgrade-garrison-0');
+  await expect(upgrade).toContainText('Halberdier');
+  await expect(upgrade).toContainText('210 gold');
+  await upgrade.click();
+  await expect(page.getByTestId('garrison-slot-0')).toHaveText('14 Halberdier');
+  await expect(page.getByTestId('upgrade-garrison-0')).toHaveCount(0);
+});
+
+test('dismiss hero needs a confirming second click and removes the hero', async ({ page }) => {
+  await page.getByTestId('hero-item-edric').click();
+  await page.getByTestId('open-hero-screen').click();
+  await expect(page.getByTestId('hero-screen')).toBeVisible();
+
+  const dismiss = page.getByTestId('dismiss-hero-edric');
+  await expect(dismiss).toHaveText('Dismiss hero');
+  await dismiss.click();
+  await expect(dismiss).toContainText('Confirm dismiss');
+  await dismiss.click();
+
+  await expect(page.getByTestId('hero-screen')).toHaveCount(0);
+  await expect(page.getByTestId('hero-item-edric')).toHaveCount(0);
+  await expect(page.getByTestId('hero-panel')).toContainText('No hero selected');
+});

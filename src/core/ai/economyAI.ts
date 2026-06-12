@@ -28,7 +28,12 @@ const HALL_TRACK: readonly string[] = [
   'mage_guild_1',
 ];
 const CASTLE_TRACK: readonly string[] = ['castle', 'citadel', 'fort'];
-const GUILD_TRACK: readonly string[] = ['mage_guild_2', 'mage_guild_3', 'mage_guild_4', 'mage_guild_5'];
+const GUILD_TRACK: readonly string[] = [
+  'mage_guild_2',
+  'mage_guild_3',
+  'mage_guild_4',
+  'mage_guild_5',
+];
 
 function dwellingTier(building: Building, data: GameData): number {
   if (building.creature === undefined) return 0;
@@ -156,6 +161,32 @@ export function chooseRecruitCommand(
           creature: creatureId,
           count,
         };
+      }
+    }
+  }
+  return null;
+}
+
+// recruit from an owned external dwelling a hero is standing on (spec §8.3):
+// max affordable in one command, so the weekly growth never piles up unused
+export function chooseDwellingRecruitCommand(
+  state: GameState,
+  playerId: PlayerId,
+  data: GameData,
+): Command | null {
+  const player = getPlayer(state, playerId);
+  for (const heroId of player.heroes) {
+    const hero = state.heroes[heroId];
+    if (!hero) continue;
+    for (const obj of state.map.objects) {
+      if (obj.removed || obj.type !== 'dwelling' || obj.owner !== playerId) continue;
+      if (obj.at[0] !== hero.pos[0] || obj.at[1] !== hero.pos[1]) continue;
+      if (obj.creature === undefined) continue;
+      const creature = data.creatures[obj.creature];
+      if (!creature || !canPlace(hero.army, obj.creature)) continue;
+      const count = maxAffordable(player.resources, creature.cost, obj.count ?? 0);
+      if (count >= 1) {
+        return { type: 'recruitDwelling', player: playerId, object: obj.id, hero: hero.id, count };
       }
     }
   }

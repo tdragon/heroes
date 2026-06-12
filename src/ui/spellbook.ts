@@ -1,11 +1,20 @@
-// Combat spellbook overlay: lists the hero's combat spells with mana costs and
-// school-tier descriptions, filterable by school and level. Picking a castable
-// spell hands it back to the combat screen, which runs the targeting.
+// Spellbook overlay: lists a hero's spells with mana costs and school-tier
+// descriptions, filterable by school and level. Picking a castable spell
+// hands it back to the caller, which runs the targeting. Used by the combat
+// screen (combat spells) and the adventure screen (Town Portal / Dimension
+// Door).
 
 import type { GameData } from '../data';
 import type { Spell, SpellSchool } from '../data/schema';
-import { schoolTier, spellCost } from '../core/magic';
+import {
+  ADVENTURE_SPELL_MP_COST,
+  adventureSchoolTier,
+  DIMENSION_DOOR_DAILY_LIMIT,
+  schoolTier,
+  spellCost,
+} from '../core/magic';
 import { heroInfoFor, type CombatSideId, type CombatState } from '../core/combat/state';
+import { getPlayer, type GameState, type Hero } from '../core/state';
 import { el } from './components';
 
 export type TargetNeed = 'none' | 'stack' | 'hex';
@@ -51,6 +60,46 @@ export function spellbookEntries(
       tier,
       description: tierData?.description ?? '',
       need: targetNeed(spell, tierData?.mass ?? false),
+      castable: reason === null,
+      reason,
+    });
+  }
+  entries.sort((a, b) => a.spell.level - b.spell.level || a.spell.name.localeCompare(b.spell.name));
+  return entries;
+}
+
+// entries for the adventure-map spellbook: flat mana costs (no combat
+// discounts), gated by mana, movement points and the Dimension Door daily cap
+export function adventureSpellbookEntries(
+  state: GameState,
+  hero: Hero,
+  data: GameData,
+): SpellbookEntry[] {
+  const entries: SpellbookEntry[] = [];
+  for (const id of hero.spells) {
+    const spell = data.spells[id];
+    if (spell?.kind !== 'adventure') continue;
+    const tier = adventureSchoolTier(hero, spell, data);
+    let reason: string | null = null;
+    if (hero.mana < spell.manaCost) {
+      reason = 'not enough mana';
+    } else if (hero.movementPoints < ADVENTURE_SPELL_MP_COST) {
+      reason = `requires ${String(ADVENTURE_SPELL_MP_COST)} movement points`;
+    } else if (
+      spell.id === 'dimension_door' &&
+      hero.dimensionDoorCasts >= DIMENSION_DOOR_DAILY_LIMIT
+    ) {
+      reason = 'daily limit reached';
+    } else if (spell.id === 'town_portal' && getPlayer(state, hero.owner).towns.length === 0) {
+      reason = 'requires an own town';
+    }
+    entries.push({
+      spell,
+      cost: spell.manaCost,
+      tier,
+      description: spell.tiers[tier]?.description ?? '',
+      // the adventure screen runs its own targeting (town pick / tile pick)
+      need: 'none',
       castable: reason === null,
       reason,
     });

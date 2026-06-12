@@ -5,7 +5,7 @@ import { CombatRuleError } from '../core/combat/state';
 import { visibleTiles } from '../core/fog';
 import { maxMovementPoints } from '../core/hero';
 import { buildMoveContext, findPath, stepCost } from '../core/movement';
-import type { GameState, Hero, Player, PlayerId } from '../core/state';
+import type { GameState, Hero, MapObjectState, Player, PlayerId } from '../core/state';
 import { centerCameraOn, panCamera, tileAtScreen, TILE_PX, type Camera } from '../render/camera';
 import {
   AdventureRenderer,
@@ -16,10 +16,12 @@ import {
 import { TokenPainter } from '../render/painter';
 import { splitPathByDays, type PathStepPreview } from '../render/pathPreview';
 import { CombatScreen } from '../ui/combatScreen';
-import type { UiContext } from '../ui/components';
+import { el, openCountDialog, type UiContext } from '../ui/components';
 import { DialogQueue } from '../ui/dialogs';
+import { costText, recruitMax, scaledCost } from '../ui/helpers';
 import { HeroScreen } from '../ui/heroScreen';
 import { Hud, InfoPopup, MINIMAP_PX } from '../ui/hud';
+import { adventureSpellbookEntries, SpellbookOverlay, type SpellbookEntry } from '../ui/spellbook';
 import { SystemPanel } from '../ui/systemPanel';
 import { TownScreen } from '../ui/townScreen';
 import { AiDriver } from './aiDriver';
@@ -74,6 +76,11 @@ export class AdventureScreen implements Screen {
   private readonly passOverlay: HTMLElement;
   private readonly gameOverOverlay: HTMLElement;
   private systemPanel: SystemPanel | null = null;
+  // adventure spellbook (Town Portal / Dimension Door, spec §10.2)
+  private advSpellbook: SpellbookOverlay | null = null;
+  private townPortalPick: HTMLElement | null = null;
+  // when set, the next canvas click casts this spell at the clicked tile
+  private tileTargetSpell: string | null = null;
 
   constructor(
     private readonly data: GameData,
@@ -130,6 +137,9 @@ export class AdventureScreen implements Screen {
       },
       onOpenHeroScreen: () => {
         if (this.selectedHero !== null) this.openHeroScreen(this.selectedHero, null);
+      },
+      onOpenSpellbook: () => {
+        this.openAdventureSpellbook();
       },
       onMinimapClick: (px, py) => {
         this.jumpToMinimap(px, py);
@@ -309,6 +319,7 @@ export class AdventureScreen implements Screen {
           break;
       }
     }
+    this.maybeOfferDwellingRecruit(events);
     this.syncCombatPanel();
     if (this.combatPanel) {
       this.combatPanel.consume(events);
@@ -351,6 +362,9 @@ export class AdventureScreen implements Screen {
     this.selectedHero = null;
     this.pendingPath = null;
     this.closePanel();
+    this.closeAdventureSpellbook();
+    this.closeTownPortalPick();
+    this.cancelTileTargeting();
     const firstHero = this.viewPlayer().heroes[0];
     if (firstHero !== undefined) this.selectHero(firstHero, true);
     this.syncCombatPanel();
@@ -416,9 +430,7 @@ export class AdventureScreen implements Screen {
     if (!combat) return false;
     const attacker = combat.combat.attackerHero.player;
     const defender = combat.combat.defenderHero.player;
-    return this.state.players.some(
-      (p) => p.isHuman && (p.id === attacker || p.id === defender),
-    );
+    return this.state.players.some((p) => p.isHuman && (p.id === attacker || p.id === defender));
   }
 
   private combatResultText(
@@ -490,6 +502,154 @@ export class AdventureScreen implements Screen {
     this.runCommand({ type: 'endTurn', player: this.state.currentPlayer });
   }
 
+  // --- adventure spellbook (Town Portal / Dimension Door, spec §10.2) ---
+
+  private closeAdventureSpellbook(): void {
+    this.advSpellbook?.root.remove();
+    this.advSpellbook = null;
+  }
+
+  private closeTownPortalPick(): void {
+    this.townPortalPick?.remove();
+    this.townPortalPick = null;
+  }
+
+  private cancelTileTargeting(): void {
+    if (this.tileTargetSpell === null) return;
+    this.tileTargetSpell = null;
+    this.hud.setStatus('');
+    this.markDirty();
+  }
+
+  private openAdventureSpellbook(): void {
+    const hero = this.selectedHero !== null ? this.state.heroes[this.selectedHero] : null;
+    if (hero?.owner !== this.viewPlayer().id) {
+      this.hud.setStatus('Select a hero to open the spellbook');
+      return;
+    }
+    if (!hero.hasSpellbook) {
+      this.hud.setStatus(`${hero.name} has no spellbook`);
+      return;
+    }
+    this.closeAdventureSpellbook();
+    this.cancelTileTargeting();
+    this.advSpellbook = new SpellbookOverlay(
+      adventureSpellbookEntries(this.state, hero, this.data),
+      (entry) => {
+        this.closeAdventureSpellbook();
+        this.pickAdventureSpell(hero.id, entry);
+      },
+      () => {
+        this.closeAdventureSpellbook();
+      },
+    );
+    this.root.appendChild(this.advSpellbook.root);
+  }
+
+  private pickAdventureSpell(heroId: string, entry: SpellbookEntry): void {
+    const hero = this.state.heroes[heroId];
+    if (!hero) return;
+    if (entry.spell.id === 'dimension_door') {
+      this.tileTargetSpell = entry.spell.id;
+      this.hud.setStatus(`Click a target tile for ${entry.spell.name} (Esc cancels)`);
+      return;
+    }
+    if (entry.spell.id === 'town_portal' && entry.tier >= 2) {
+      // advanced+ earth magic: the destination town is the caster's choice
+      this.openTownPortalPick(hero);
+      return;
+    }
+    // basic town portal teleports to the nearest own town automatically
+    this.runCommand({
+      type: 'castAdventureSpell',
+      player: hero.owner,
+      hero: hero.id,
+      spell: entry.spell.id,
+    });
+  }
+
+  private openTownPortalPick(hero: Hero): void {
+    this.closeTownPortalPick();
+    const overlay = el('div', 'modal-overlay', 'town-portal-pick');
+    const box = el('div', 'modal-box');
+    const title = el('div', 'modal-message', 'town-portal-title');
+    title.textContent = 'Town Portal: choose the destination town';
+    box.appendChild(title);
+    for (const townId of this.viewPlayer().towns) {
+      const town = this.state.towns[townId];
+      if (!town) continue;
+      const occupied = town.visitingHero !== null && town.visitingHero !== hero.id;
+      const pick = el('button', 'modal-button', `tp-town-${town.id}`);
+      pick.textContent = occupied ? `${town.name} (occupied)` : town.name;
+      pick.disabled = occupied;
+      pick.addEventListener('click', () => {
+        this.closeTownPortalPick();
+        this.runCommand({
+          type: 'castAdventureSpell',
+          player: hero.owner,
+          hero: hero.id,
+          spell: 'town_portal',
+          town: town.id,
+        });
+      });
+      box.appendChild(pick);
+    }
+    const cancel = el('button', 'modal-button', 'tp-cancel');
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', () => {
+      this.closeTownPortalPick();
+    });
+    box.appendChild(cancel);
+    overlay.appendChild(box);
+    overlay.style.display = 'flex';
+    this.root.appendChild(overlay);
+    this.townPortalPick = overlay;
+  }
+
+  // --- external dwelling recruiting (spec §8.3) ---
+
+  // flagging or revisiting an own external dwelling offers recruitment
+  private maybeOfferDwellingRecruit(events: GameEvent[]): void {
+    if (this.state.combat !== null) return;
+    for (const event of events) {
+      if (event.type !== 'objectFlagged' && event.type !== 'objectVisited') continue;
+      const obj = this.state.map.objects.find((o) => o.id === event.object);
+      if (!obj || obj.removed || obj.type !== 'dwelling' || obj.creature === undefined) continue;
+      if (obj.owner !== this.viewPlayer().id || (obj.count ?? 0) < 1) continue;
+      const hero = this.heroAt(obj.at);
+      if (!hero) continue;
+      this.openDwellingRecruit(obj, hero);
+      return;
+    }
+  }
+
+  private openDwellingRecruit(obj: MapObjectState, hero: Hero): void {
+    const creature = obj.creature === undefined ? undefined : this.data.creatures[obj.creature];
+    if (!creature) return;
+    const available = obj.count ?? 0;
+    const max = recruitMax(available, creature.cost, this.viewPlayer().resources);
+    if (max < 1) {
+      this.hud.setStatus(`Cannot afford any ${creature.name}`);
+      return;
+    }
+    openCountDialog(this.root, {
+      title: `Recruit ${creature.name} (${String(available)} available)`,
+      min: 1,
+      max,
+      initial: max,
+      describe: (count) => `Cost: ${costText(scaledCost(creature.cost, count))}`,
+      onConfirm: (count) => {
+        this.runCommand({
+          type: 'recruitDwelling',
+          player: hero.owner,
+          object: obj.id,
+          hero: hero.id,
+          count,
+        });
+      },
+    });
+  }
+
   // --- selection and movement ---
 
   private selectHero(id: string, center: boolean): void {
@@ -533,6 +693,23 @@ export class AdventureScreen implements Screen {
   }
 
   private handleTileClick(tile: Pos): void {
+    if (this.tileTargetSpell !== null) {
+      const spell = this.tileTargetSpell;
+      const hero = this.selectedHero !== null ? this.state.heroes[this.selectedHero] : null;
+      this.tileTargetSpell = null;
+      this.hud.setStatus('');
+      if (hero?.owner === this.viewPlayer().id) {
+        this.runCommand({
+          type: 'castAdventureSpell',
+          player: hero.owner,
+          hero: hero.id,
+          spell,
+          dest: [...tile],
+        });
+      }
+      this.markDirty();
+      return;
+    }
     const ownHero = this.heroAt(tile);
     if (ownHero) {
       const selected = this.selectedHero !== null ? this.state.heroes[this.selectedHero] : null;
@@ -748,6 +925,18 @@ export class AdventureScreen implements Screen {
       (e) => {
         if (!this.running || isTypingTarget(e.target)) return;
         if (e.key === 'Escape' && this.dialogs.root.style.display === 'none') {
+          if (this.advSpellbook) {
+            this.closeAdventureSpellbook();
+            return;
+          }
+          if (this.townPortalPick) {
+            this.closeTownPortalPick();
+            return;
+          }
+          if (this.tileTargetSpell !== null) {
+            this.cancelTileTargeting();
+            return;
+          }
           if (this.systemPanel) {
             this.closeSystemPanel();
             return;
@@ -773,6 +962,9 @@ export class AdventureScreen implements Screen {
       this.activePanel !== null ||
       this.systemPanel !== null ||
       this.combatPanel !== null ||
+      this.advSpellbook !== null ||
+      this.townPortalPick !== null ||
+      this.tileTargetSpell !== null ||
       this.dialogs.root.style.display !== 'none' ||
       this.passOverlay.style.display !== 'none' ||
       this.gameOverOverlay.style.display !== 'none'

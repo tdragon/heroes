@@ -10,6 +10,7 @@ export interface HudCallbacks {
   onSelectHero: (id: string) => void;
   onSelectTown: (id: string) => void;
   onOpenHeroScreen: () => void;
+  onOpenSpellbook: () => void;
   onMinimapClick: (px: number, py: number) => void;
   onOpenSystem: () => void;
 }
@@ -63,6 +64,11 @@ export class Hud {
     nextHero.addEventListener('click', () => {
       this.callbacks.onNextHero();
     });
+    const spellbook = el('button', 'hud-button', 'spellbook-button');
+    spellbook.textContent = 'Spellbook';
+    spellbook.addEventListener('click', () => {
+      this.callbacks.onOpenSpellbook();
+    });
     const endTurn = el('button', 'hud-button', 'end-turn-button');
     endTurn.textContent = 'End Turn';
     endTurn.addEventListener('click', () => {
@@ -73,7 +79,7 @@ export class Hud {
     system.addEventListener('click', () => {
       this.callbacks.onOpenSystem();
     });
-    buttons.append(nextHero, endTurn, system);
+    buttons.append(nextHero, spellbook, endTurn, system);
     this.sidebar.appendChild(buttons);
 
     this.statusLine = el('div', 'status-line', 'status-line');

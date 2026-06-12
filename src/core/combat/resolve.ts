@@ -5,7 +5,7 @@
 import type { GameData } from '../../data';
 import type { Guard } from '../../maps/schema';
 import type { GameEvent } from '../commands';
-import { countStacks, giveExperience } from '../hero';
+import { countStacks, giveExperience, releaseHeroToTavern } from '../hero';
 import { learnGuildSpells } from '../magic';
 import {
   defenderLuckBonus,
@@ -352,19 +352,7 @@ function removeHero(
   outcome: 'defeated' | 'fled',
   events: GameEvent[],
 ): void {
-  const player = getPlayer(state, hero.owner);
-  player.heroes = player.heroes.filter((id) => id !== hero.id);
-  for (const town of Object.values(state.towns)) {
-    if (town.visitingHero === hero.id) {
-      town.visitingHero = null;
-    }
-  }
-  state.heroes = Object.fromEntries(Object.entries(state.heroes).filter(([id]) => id !== hero.id));
-  // a dead hero's queued choices (e.g. deferred level-ups) can never be
-  // resolved (applyLevelUpChoice would throw) yet block every other command,
-  // soft-locking the game — they die with the hero
-  state.pendingChoices = state.pendingChoices.filter((choice) => choice.hero !== hero.id);
-  state.tavernPool.push(hero.template);
+  releaseHeroToTavern(state, hero);
   events.push({
     type: outcome === 'fled' ? 'heroFled' : 'heroDefeated',
     hero: hero.id,

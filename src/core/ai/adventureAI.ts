@@ -22,6 +22,7 @@ import {
 import { chooseCombatAction } from './combatAI';
 import {
   chooseBuildCommand,
+  chooseDwellingRecruitCommand,
   chooseHireCommand,
   chooseRecruitCommand,
   chooseTradeCommand,
@@ -118,17 +119,11 @@ export function heroOpportunities(state: GameState, hero: Hero, data: GameData):
     consider(obj.at, value);
   }
 
-  return out.sort(
-    (a, b) => b.score - a.score || a.at[1] - b.at[1] || a.at[0] - b.at[0],
-  );
+  return out.sort((a, b) => b.score - a.score || a.at[1] - b.at[1] || a.at[0] - b.at[0]);
 }
 
 // the best move command for this hero, or null when it has nothing to do
-export function chooseHeroCommand(
-  state: GameState,
-  hero: Hero,
-  data: GameData,
-): Command | null {
+export function chooseHeroCommand(state: GameState, hero: Hero, data: GameData): Command | null {
   if (hero.movementPoints <= 0) return null;
   const ctx = buildMoveContext(state, data, hero);
   for (const opportunity of heroOpportunities(state, hero, data)) {
@@ -152,8 +147,7 @@ export function chooseAICommand(state: GameState, data: GameData): Command {
     // current player
     const side = activeCombatStack(combat)?.side;
     const sideOwner = side === undefined ? null : heroInfoFor(combat, side).player;
-    const actor: PlayerId =
-      state.players.find((p) => p.id === sideOwner)?.id ?? playerId;
+    const actor: PlayerId = state.players.find((p) => p.id === sideOwner)?.id ?? playerId;
     return {
       type: 'combatAction',
       player: actor,
@@ -176,6 +170,9 @@ export function chooseAICommand(state: GameState, data: GameData): Command {
 
   const recruit = chooseRecruitCommand(state, playerId, data);
   if (recruit) return recruit;
+
+  const dwellingRecruit = chooseDwellingRecruitCommand(state, playerId, data);
+  if (dwellingRecruit) return dwellingRecruit;
 
   const trade = chooseTradeCommand(state, playerId, data);
   if (trade) return trade;

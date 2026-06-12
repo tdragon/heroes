@@ -12,6 +12,8 @@ import {
   costText,
   maxTrades,
   recruitMax,
+  scaledCost,
+  stackUpgradeOffer,
   tradeModel,
   xpProgressText,
 } from './helpers';
@@ -168,5 +170,33 @@ describe('misc helpers', () => {
     const hero = state.heroes.edric;
     if (!hero) throw new Error('missing edric');
     expect(xpProgressText(hero, data)).toBe('0 / 1000 XP');
+  });
+});
+
+describe('stackUpgradeOffer', () => {
+  it('offers the upgrade when its dwelling is built, priced by the cost difference', () => {
+    const state = makeGame();
+    const town = redTown(state);
+    town.buildings.push('fort', 'castle_dwelling_1', 'castle_dwelling_1u');
+    const offer = stackUpgradeOffer(town, { creature: 'pikeman', count: 10 }, data);
+    expect(offer?.to.id).toBe('halberdier');
+    // halberdier 75 gold vs pikeman 60 gold: 15 gold per head
+    expect(offer?.cost).toEqual({ gold: 150 });
+  });
+
+  it('returns null without the upgraded dwelling or for upgrade-less creatures', () => {
+    const state = makeGame();
+    const town = redTown(state);
+    town.buildings.push('fort', 'castle_dwelling_1');
+    expect(stackUpgradeOffer(town, { creature: 'pikeman', count: 10 }, data)).toBeNull();
+    town.buildings.push('castle_dwelling_1u');
+    expect(stackUpgradeOffer(town, { creature: 'peasant', count: 5 }, data)).toBeNull();
+  });
+});
+
+describe('scaledCost', () => {
+  it('multiplies each non-zero resource by the count', () => {
+    expect(scaledCost({ gold: 60, wood: 2 }, 3)).toEqual({ gold: 180, wood: 6 });
+    expect(scaledCost({ gold: 10 }, 1)).toEqual({ gold: 10 });
   });
 });
