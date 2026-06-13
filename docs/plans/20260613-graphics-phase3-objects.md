@@ -240,18 +240,18 @@ Key decisions:
 - Modify: `src/ui/hud.ts` (resource bar cells)
 - Modify: CSS for icon sizing
 
-- [ ] add a pure `resourceIconMarkup(id: string): string` returning the
+- [x] add a pure `resourceIconMarkup(id: string): string` returning the
       `resource/<id>` raw SVG from `woodcutSprites` (with size/aria attributes
       added), so it is unit-testable as a string in the node env
-- [ ] inject that markup into each HUD `resource-cell` (replacing the text label
+- [x] inject that markup into each HUD `resource-cell` (replacing the text label
       with the icon), keeping the numeric value and the existing `resource-<id>`
       `data-testid`s; size via CSS
-- [ ] marketplace icons are OUT OF SCOPE (its `<select>/<option>` cannot host
+- [x] marketplace icons are OUT OF SCOPE (its `<select>/<option>` cannot host
       SVG — see Overview); leave the marketplace text as-is
-- [ ] tests: `resourceIcon.test.ts` asserts `resourceIconMarkup(id)` returns an
+- [x] tests: `resourceIcon.test.ts` asserts `resourceIconMarkup(id)` returns an
       `<svg>…</svg>` for each `RESOURCE_ID` (string assertions, node-env safe).
       Actual DOM injection is verified in the Task 6 e2e
-- [ ] run `npm test` + `npm run test:e2e` — must pass before task 6
+- [x] run `npm test` + `npm run test:e2e` — must pass before task 6
 
 ### Task 6: e2e — objects on the map, icons in the HUD
 

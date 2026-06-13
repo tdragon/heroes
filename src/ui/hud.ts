@@ -4,6 +4,7 @@ import { maxMana, monthOf, weekOf, type GameState, type Hero, type Player } from
 import { maxMovementPoints } from '../core/hero';
 import { el } from './components';
 import { clampPopupPosition } from './helpers';
+import { resourceIconMarkup } from './resourceIcon';
 
 export interface HudCallbacks {
   onEndTurn: () => void;
@@ -119,7 +120,8 @@ export class Hud {
     for (const id of RESOURCE_IDS) {
       const cell = el('span', 'resource-cell', `resource-${id}`);
       const label = el('span', 'resource-label');
-      label.textContent = `${id}: `;
+      label.title = id;
+      label.innerHTML = resourceIconMarkup(id);
       const value = el('span', 'resource-value');
       cell.append(label, value);
       this.resourceCells.set(id, value);
