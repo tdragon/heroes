@@ -189,11 +189,29 @@ export class AdventureRenderer {
       cy,
       rect.size * 0.4,
       this.objectColor(obj.type),
+      obj.type,
+      this.objectPip(obj),
       this.objectLabel(obj),
     );
     if (obj.type === 'mine' || obj.type === 'dwelling') {
       this.painter.flag(this.ctx, rect.x, rect.y, rect.size, ownerColor);
     }
+  }
+
+  // Mines and resource piles share one base sprite each; the pip is the resource
+  // they yield: a mine's income resource (the single key of its subtype income),
+  // a resource pile's contents (its subtype IS the ResourceId). Everything else
+  // has a dedicated sprite and no pip.
+  private objectPip(obj: DrawableObject | SeenObject): string | null {
+    if (obj.type === 'mine') {
+      const income = this.data.objectTypes.mine?.subtypes?.find((s) => s.id === obj.subtype)?.income;
+      const key = income !== undefined ? Object.keys(income)[0] : undefined;
+      return key ?? null;
+    }
+    if (obj.type === 'resource') {
+      return obj.subtype ?? null;
+    }
+    return null;
   }
 
   private objectColor(type: string): string {

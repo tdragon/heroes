@@ -430,7 +430,9 @@ export class CombatRenderer {
       ctx.fillText(segment.hp > 0 ? label : 'Rubble', center.x, center.y);
     }
     siege.towers.forEach((tower, i) => {
-      this.painter.objectToken(ctx, hexCenter(tower.pos).x, hexCenter(tower.pos).y, HEX_R * 0.55, '#718096', `T${String(i + 1)}`);
+      // no map-object sprite for a siege tower: pass a type with no atlas key so
+      // the painter renders the label token (the prior look)
+      this.painter.objectToken(ctx, hexCenter(tower.pos).x, hexCenter(tower.pos).y, HEX_R * 0.55, '#718096', 'tower', null, `T${String(i + 1)}`);
     });
   }
 

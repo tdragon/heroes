@@ -213,24 +213,24 @@ Key decisions:
   `src/render/spritePainter.test.ts` (incl. the existing delegation arg-array
   assertion ~lines 385/393), `src/render/adventureRenderer.test.ts`
 
-- [ ] extend `Painter.objectToken` with `type` + `pip`; update `TokenPainter`
+- [x] extend `Painter.objectToken` with `type` + `pip`; update `TokenPainter`
       (ignores them — current look), the `RecordingPainter` stub in
       `testSupport.ts`, and the call site. NOTE keep `objectColor` + the object
       palette constants — they still tint the `TokenPainter` fallback
-- [ ] `SpritePainter.objectToken`: draw `object/${type}`; overlay `resource/${pip}`
+- [x] `SpritePainter.objectToken`: draw `object/${type}`; overlay `resource/${pip}`
       pip (named geometry, a few constants — no general "badge" subsystem) when
       `pip` non-null; fall back to label when the object bitmap is missing
-- [ ] `SpritePainter.townToken`: draw `object/town` + a procedural owner-color
+- [x] `SpritePainter.townToken`: draw `object/town` + a procedural owner-color
       flag (neutral grey if unowned) — reuse the swallow-tail geometry from the
       existing `drawHeroBanner` (`spritePainter.ts` ~355) as the template; fall
       back to the `TokenPainter` castle
-- [ ] `adventureRenderer`: resolve the pip resource (per Technical Details) and
+- [x] `adventureRenderer`: resolve the pip resource (per Technical Details) and
       pass type+pip to `objectToken`
-- [ ] tests: object sprite path + label fallback + pip overlay + town owner flag
+- [x] tests: object sprite path + label fallback + pip overlay + town owner flag
       (SpritePainter); pip resolution per type (adventureRenderer, recording
       painter stub) **including the `SeenObject`/explored path** for a mine and a
       resource pickup; update the broken delegation arg-array assertion
-- [ ] run `npm test` — must pass before task 5
+- [x] run `npm test` — must pass before task 5
 
 ### Task 5: DOM resource icons in the HUD resource bar
 

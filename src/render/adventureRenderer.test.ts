@@ -287,6 +287,91 @@ describe('AdventureRenderer entity tokens', () => {
   });
 });
 
+describe('AdventureRenderer object pip resolution', () => {
+  // args: [cx, cy, r, color, type, pip, label]
+  function objectTokenFor(painter: RecordingPainter, type: string): unknown[] | undefined {
+    return painter.calls.find((c) => c.method === 'objectToken' && c.args[4] === type)?.args;
+  }
+
+  it('resolves a mine subtype to its income resource as the pip', () => {
+    // tiny map: a sawmill (income { wood: 2 }) at [6,2], all tiles visible
+    const painter = renderWith(makeView(newGame(tinyMap, {}, 7, data)));
+    const mine = objectTokenFor(painter, 'mine');
+    expect(mine).toBeDefined();
+    expect(mine?.[5]).toBe('wood');
+  });
+
+  it('resolves a resource pickup to its subtype as the pip', () => {
+    // tiny map: a wood pile at [4,4] and a gold pile at [8,7]
+    const painter = renderWith(makeView(newGame(tinyMap, {}, 7, data)));
+    const resourcePips = painter.calls
+      .filter((c) => c.method === 'objectToken' && c.args[4] === 'resource')
+      .map((c) => c.args[5]);
+    expect(resourcePips.sort()).toEqual(['gold', 'wood']);
+  });
+
+  it('yields a null pip for a non-mine/resource object', () => {
+    // tiny map: a treasure chest at [5,7]
+    const painter = renderWith(makeView(newGame(tinyMap, {}, 7, data)));
+    const chest = objectTokenFor(painter, 'treasure_chest');
+    expect(chest).toBeDefined();
+    expect(chest?.[5]).toBeNull();
+  });
+
+  it('forwards owner color + neutral type/pip to townToken for an owned town', () => {
+    // tiny map: red owns the town at [2,2]
+    const painter = renderWith(makeView(newGame(tinyMap, {}, 7, data)));
+    // args: [cx, cy, r, color]
+    const town = painter.calls.find((c) => c.method === 'townToken' && c.args[3] === '#c53030');
+    expect(town).toBeDefined();
+  });
+});
+
+describe('AdventureRenderer seen-object (explored, out of sight) path', () => {
+  // Renders the last-seen snapshots for explored-but-not-visible objects, so the
+  // pip/type must still resolve from the SeenObject (which carries subtype).
+  function viewWithSeen(state: GameState): AdventureView {
+    const view = makeView(state, {
+      visible: Array.from({ length: SIZE * SIZE }, () => false),
+    });
+    // snapshot every live object as last-seen at its tile (id-keyed)
+    for (const obj of state.map.objects) {
+      view.player.seenObjects[obj.id] = {
+        type: obj.type,
+        at: obj.at,
+        owner: obj.owner,
+        removed: false,
+        ...(obj.subtype !== undefined ? { subtype: obj.subtype } : {}),
+      };
+    }
+    return view;
+  }
+
+  it('resolves the mine income pip and resource subtype pip from snapshots', () => {
+    const state = newGame(tinyMap, {}, 7, data);
+    const painter = renderWith(viewWithSeen(state));
+    // no tile is visible, so all object tokens come from the seenObjects path
+    const mine = painter.calls.find((c) => c.method === 'objectToken' && c.args[4] === 'mine');
+    expect(mine?.args[5]).toBe('wood'); // sawmill income
+    const resourcePips = painter.calls
+      .filter((c) => c.method === 'objectToken' && c.args[4] === 'resource')
+      .map((c) => c.args[5]);
+    expect(resourcePips.sort()).toEqual(['gold', 'wood']);
+    const chest = painter.calls.find(
+      (c) => c.method === 'objectToken' && c.args[4] === 'treasure_chest',
+    );
+    expect(chest?.args[5]).toBeNull();
+  });
+
+  it('forwards the snapshot owner color to townToken for an explored town', () => {
+    const state = newGame(tinyMap, {}, 7, data);
+    const painter = renderWith(viewWithSeen(state));
+    // blue town at [9,9] snapshot, drawn out of sight via seenObjects
+    const town = painter.calls.find((c) => c.method === 'townToken' && c.args[3] === '#2b6cb0');
+    expect(town).toBeDefined();
+  });
+});
+
 // the minimap bypasses the Painter entirely: flat terrain colors only
 describe('renderMinimap', () => {
   it('fills explored tiles with flat terrain colors and skips unexplored ones', () => {
