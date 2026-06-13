@@ -180,13 +180,13 @@ Key decisions:
 - Modify: `src/assets/themes/woodcut/index.ts` (`objects`→`object`)
 - Modify: `src/assets/themes/woodcut/index.test.ts`
 
-- [ ] author the 6 core object sprites (town keep/castle; a mine entrance;
+- [x] author the 6 core object sprites (town keep/castle; a mine entrance;
       a dwelling hut; a resource pile/sack; a treasure chest; an artifact
       pedestal/relic) — 64×64, woodcut style, no `class=`
-- [ ] extend the loader folder map with `objects`→`object`
-- [ ] coverage test scaffolding: assert these 6 `object/<type>` keys exist (full
+- [x] extend the loader folder map with `objects`→`object`
+- [x] coverage test scaffolding: assert these 6 `object/<type>` keys exist (full
       18-type coverage asserted in Task 3 once visitables/specials land)
-- [ ] run `npm test` — must pass before task 3
+- [x] run `npm test` — must pass before task 3
 
 ### Task 3: Visitable & special object SVGs (the remaining 12)
 
