@@ -80,9 +80,35 @@ describe('woodcut theme coverage', () => {
     }
   });
 
+  it('has a sprite for each of the 16 shared building ids', () => {
+    const sharedBuildingIds = [
+      'village_hall',
+      'town_hall',
+      'city_hall',
+      'capitol',
+      'fort',
+      'citadel',
+      'castle',
+      'tavern',
+      'marketplace',
+      'resource_silo',
+      'blacksmith',
+      'mage_guild_1',
+      'mage_guild_2',
+      'mage_guild_3',
+      'mage_guild_4',
+      'mage_guild_5',
+    ];
+    for (const id of sharedBuildingIds) {
+      expect(woodcutSprites, `missing sprite building/${id}`).toHaveProperty(`building/${id}`);
+    }
+  });
+
   it('contains only valid sprite keys', () => {
     for (const key of Object.keys(woodcutSprites)) {
-      expect(key).toMatch(/^(terrain|road|roadend|roadbend|creature|hero|resource|object)\/[a-z][a-z0-9_]*$/);
+      expect(key).toMatch(
+        /^(terrain|road|roadend|roadbend|creature|hero|resource|object|building)\/[a-z][a-z0-9_]*$/,
+      );
     }
   });
 });
@@ -92,7 +118,7 @@ describe('woodcut sprite key-format spot checks', () => {
     '%s matches the key-format regex',
     (key) => {
       expect(key).toMatch(
-        /^(terrain|road|roadend|roadbend|creature|hero|resource|object)\/[a-z][a-z0-9_]*$/,
+        /^(terrain|road|roadend|roadbend|creature|hero|resource|object|building)\/[a-z][a-z0-9_]*$/,
       );
     },
   );

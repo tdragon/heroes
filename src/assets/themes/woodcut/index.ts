@@ -8,6 +8,7 @@
 //   heroes/<id>.svg -> "hero/<id>"
 //   resources/<id>.svg -> "resource/<id>"
 //   objects/<type>.svg -> "object/<type>"
+//   buildings/<id>.svg -> "building/<id>"
 const files: Record<string, string> = import.meta.glob('./*/*.svg', {
   query: '?raw',
   import: 'default',
@@ -20,6 +21,7 @@ const folderCategory: Record<string, string> = {
   heroes: 'hero',
   resources: 'resource',
   objects: 'object',
+  buildings: 'building',
 };
 
 function spriteKey(path: string): string {

@@ -132,19 +132,19 @@ Key decisions:
 - Modify: `src/assets/themes/woodcut/index.ts` (folder map `buildings`→`building`)
 - Modify: `src/assets/themes/woodcut/index.test.ts`
 
-- [ ] author the 16 shared building sprites, woodcut style, no `class=`
+- [x] author the 16 shared building sprites, woodcut style, no `class=`
       (hall tiers escalate; fort/citadel/castle escalate; mage_guild_1..5
       a mage tower escalating; tavern/marketplace/resource_silo/blacksmith
       distinct structures)
-- [ ] add `buildings: 'building'` to the loader folder map AND, in the SAME
+- [x] add `buildings: 'building'` to the loader folder map AND, in the SAME
       commit, extend the key-format regex to include `building` at BOTH sites in
       `index.test.ts` (the "contains only valid sprite keys" test ~line 84 and
       the spot-check ~line 94) — the all-keys test runs against every loaded
       sprite, so a missed regex site reds the suite the moment a `building/*`
       sprite loads
-- [ ] coverage scaffold test: the 16 shared `building/<id>` keys exist; SVG
+- [x] coverage scaffold test: the 16 shared `building/<id>` keys exist; SVG
       sanity + well-formedness covers the new files
-- [ ] run `npm test` — must pass before task 2
+- [x] run `npm test` — must pass before task 2
 
 ### Task 2: Faction dwelling sprites (42)
 
