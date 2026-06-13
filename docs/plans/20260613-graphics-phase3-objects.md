@@ -258,11 +258,11 @@ Key decisions:
 **Files:**
 - Modify: `e2e/adventure.spec.ts`
 
-- [ ] adventure smoke: a town + a mine (+ resource pip) + a resource pile render
+- [x] adventure smoke: a town + a mine (+ resource pip) + a resource pile render
       as sprites (`data-sprites-ready`, no console errors)
-- [ ] HUD smoke: each `resource-<id>` cell contains an `<svg>` icon
-- [ ] existing e2e unchanged and green
-- [ ] run `npm run test:e2e` — must pass before task 7
+- [x] HUD smoke: each `resource-<id>` cell contains an `<svg>` icon
+- [x] existing e2e unchanged and green
+- [x] run `npm run test:e2e` — must pass before task 7
 
 ### Task 7: Verify acceptance criteria
 
