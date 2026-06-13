@@ -6,6 +6,7 @@ import { tinyMapSource } from '../maps/fixtures/tiny.dsl';
 import { newGame } from '../core/setup';
 import type { GameState } from '../core/state';
 import { AdventureScreen, type ShellCallbacks } from './adventureScreen';
+import { disableBrowserZoom } from './disableBrowserZoom';
 import { MainMenu } from './mainMenu';
 import { NewGameSetup } from './newGameSetup';
 import { ScreenRouter } from './screens';
@@ -14,6 +15,8 @@ const app = document.getElementById('app');
 if (!app) {
   throw new Error('missing #app root element');
 }
+
+disableBrowserZoom();
 
 const data = loadGameData();
 const fixtureSources: readonly MapSource[] = [tinyMapSource, combatArenaSource];
