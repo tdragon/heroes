@@ -2,10 +2,16 @@
 // No DOM access here — everything is unit-testable.
 
 import type { GameData } from '../data';
-import type { Building, Cost, Creature, ResourceId } from '../data/schema';
+import type { Building, Cost, Creature, FactionId, ResourceId } from '../data/schema';
 import { RESOURCE_IDS } from '../data/schema';
 import { parseSkillOption, xpForLevel } from '../core/hero';
-import { builtBuildings, GOLD_PER_RESOURCE, townBuildingCatalog, tradeRate } from '../core/town';
+import {
+  builtBuildings,
+  GOLD_PER_RESOURCE,
+  growthMultiplier,
+  townBuildingCatalog,
+  tradeRate,
+} from '../core/town';
 import type { CreatureStack, GameState, Hero, PendingChoice, Resources, Town } from '../core/state';
 
 export function capitalize(text: string): string {
@@ -39,6 +45,107 @@ export function costText(cost: Cost): string {
     if (amount > 0) parts.push(`${String(amount)} ${id}`);
   }
   return parts.length > 0 ? parts.join(', ') : 'free';
+}
+
+// --- building cards: cost icons, help text, production status ---
+
+export interface CostPart {
+  id: ResourceId;
+  amount: number;
+}
+
+// non-zero resource entries of a cost, in canonical resource order
+export function costParts(cost: Cost): CostPart[] {
+  const parts: CostPart[] = [];
+  for (const id of RESOURCE_IDS) {
+    const amount = cost[id] ?? 0;
+    if (amount > 0) parts.push({ id, amount });
+  }
+  return parts;
+}
+
+// one-line explanation of what a building does, for the card help tooltip
+export function buildingHelp(building: Building, faction: FactionId, data: GameData): string {
+  if (building.special !== undefined) return building.special;
+  switch (building.kind) {
+    case 'hall':
+      return `Town hall — produces ${String(building.income?.gold ?? 0)} gold per day; higher halls replace it.`;
+    case 'fort':
+      if (building.growthMultiplier !== undefined) {
+        const pct = Math.round((building.growthMultiplier - 1) * 100);
+        return `Fortification — stronger town defences and +${String(pct)}% creature growth.`;
+      }
+      return 'Fort — raises town walls for sieges and unlocks creature dwellings.';
+    case 'tavern':
+      return 'Tavern — hire heroes and grant the garrison a morale bonus.';
+    case 'marketplace':
+      return 'Marketplace — trade resources; each extra marketplace improves the rate.';
+    case 'silo': {
+      const resource = data.factions[faction]?.siloResource ?? 'a rare resource';
+      return `Resource Silo — produces +1 ${resource} every day.`;
+    }
+    case 'blacksmith':
+      return 'Blacksmith — town forge; a prerequisite for the City Hall.';
+    case 'mageGuild':
+      return `Mage Guild — learn spells up to level ${String(building.guildLevel ?? 1)}.`;
+    case 'dwelling': {
+      const creature =
+        building.creature === undefined ? undefined : data.creatures[building.creature];
+      if (creature) {
+        return `Dwelling — recruit ${creature.name} (tier ${String(creature.tier)}); ${String(creature.growth)} join per week.`;
+      }
+      return 'Creature dwelling.';
+    }
+    default:
+      return building.name;
+  }
+}
+
+export interface DwellingProduction {
+  creatureName: string;
+  perWeek: number;
+}
+
+// weekly creature growth a built dwelling currently contributes, or null when it
+// is not a producing dwelling or its built upgrade supersedes it (mirrors the
+// dawn growth in turn.ts)
+export function dwellingProduction(
+  town: Town,
+  building: Building,
+  data: GameData,
+): DwellingProduction | null {
+  if (building.kind !== 'dwelling' || building.creature === undefined) return null;
+  if (!town.buildings.includes(building.id)) return null;
+  const catalog = townBuildingCatalog(town.faction, data);
+  const superseded = town.buildings.some((id) => catalog.get(id)?.upgradeOf === building.id);
+  if (superseded) return null;
+  const creature = data.creatures[building.creature];
+  if (!creature) return null;
+  return {
+    creatureName: creature.name,
+    perWeek: Math.floor(creature.growth * growthMultiplier(town, data)),
+  };
+}
+
+// status line for a built building: weekly creature output, daily income, or
+// just "Built" when the structure has no ongoing production
+export function builtStatusText(town: Town, building: Building, data: GameData): string {
+  const prod = dwellingProduction(town, building, data);
+  if (prod) return `${String(prod.perWeek)} ${prod.creatureName} per week`;
+  if (building.kind === 'dwelling') return 'Upgraded';
+  if (building.growthBonus) {
+    const creature = data.creatures[building.growthBonus.creature];
+    return `+${String(building.growthBonus.amount)} ${creature?.name ?? building.growthBonus.creature} per week`;
+  }
+  if (building.kind === 'silo') {
+    const resource = data.factions[town.faction]?.siloResource;
+    if (resource) return `+1 ${resource} per day`;
+  }
+  if (building.income) {
+    const parts = costParts(building.income).map((p) => `+${String(p.amount)} ${p.id}`);
+    if (parts.length > 0) return `${parts.join(', ')} per day`;
+  }
+  return 'Built';
 }
 
 // --- build availability ---

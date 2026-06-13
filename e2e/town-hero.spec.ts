@@ -38,6 +38,37 @@ test('build tavern then town hall; income reflects next day', async ({ page }) =
   await expect(page.getByTestId('resource-gold')).toContainText('18500');
 });
 
+test('building cards show resource icons and help tooltips', async ({ page }) => {
+  await page.getByTestId(`town-item-${RED_TOWN}`).click();
+  await expect(page.getByTestId('town-screen')).toBeVisible();
+
+  // an affordable building advertises its cost as resource icons with amounts
+  const tavern = page.getByTestId('building-tavern');
+  const tavernCost = tavern.locator('.building-cost');
+  await expect(tavernCost.locator('svg.res-icon-gold')).toBeVisible();
+  await expect(tavernCost.locator('svg.res-icon-wood')).toBeVisible();
+  await expect(tavernCost.getByTestId('cost-gold')).toContainText('500');
+  await expect(tavernCost.getByTestId('cost-wood')).toContainText('5');
+
+  // hovering the info icon reveals a help tooltip describing the building
+  const tooltip = page.getByTestId('building-tooltip');
+  await tavern.getByTestId('building-help-tavern').hover();
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText('hire heroes');
+
+  // the tooltip must also work over a built card (these are not disabled buttons)
+  await page.getByTestId('building-help-village_hall').hover();
+  await expect(tooltip).toContainText('Town hall');
+
+  // a locked building keeps its cost icons alongside the lock reason
+  const townHall = page.getByTestId('building-town_hall');
+  await expect(townHall.locator('.building-cost')).toContainText('2500');
+  await expect(townHall).toContainText('requires Tavern');
+
+  // the prebuilt village hall reports its daily income instead of "Built"
+  await expect(page.getByTestId('building-village_hall')).toContainText('+500 gold per day');
+});
+
 test('recruit max pikemen into the garrison', async ({ page }) => {
   // grab the wood pile so the dwelling stays affordable after the fort
   await page.getByTestId('hero-item-edric').click();
@@ -53,6 +84,8 @@ test('recruit max pikemen into the garrison', async ({ page }) => {
   await page.getByTestId(`town-item-${RED_TOWN}`).click();
   await page.getByTestId('building-castle_dwelling_1').click();
   await expect(page.getByTestId('recruit-pool-pikeman')).toContainText('14 available');
+  // a built dwelling shows its weekly production
+  await expect(page.getByTestId('building-castle_dwelling_1')).toContainText('14 Pikeman per week');
 
   await page.getByTestId('recruit-pikeman').click();
   await expect(page.getByTestId('count-dialog')).toBeVisible();

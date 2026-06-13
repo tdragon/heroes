@@ -296,6 +296,54 @@
         opacity: 0.65;
         cursor: not-allowed;
       }
+      .building-card .building-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 4px;
+      }
+      .building-card .building-help {
+        font-size: 12px;
+        line-height: 1;
+        color: #90a4bd;
+        flex: none;
+        cursor: help;
+        user-select: none;
+      }
+      .building-card .building-help:hover {
+        color: #ecc94b;
+      }
+      .building-card.built .building-info {
+        color: #9ae6b4;
+      }
+      .building-card .building-reason {
+        color: #a0aec0;
+      }
+      .building-card.unaffordable .building-reason {
+        color: #fc8181;
+      }
+      .building-card .building-cost {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 3px 7px;
+      }
+      .building-card .res-cost {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        font-size: 11px;
+        color: #cbd5e0;
+      }
+      .res-svg {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        display: block;
+      }
+      .res-cost-value {
+        font-variant-numeric: tabular-nums;
+      }
       .army-row-wrap {
         display: flex;
         align-items: center;

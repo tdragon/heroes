@@ -1,10 +1,22 @@
-import { RESOURCE_IDS, type Building, type ResourceId } from '../data/schema';
+import { RESOURCE_IDS, type Building, type Cost, type ResourceId } from '../data/schema';
 import type { ArmyDest, ArmyLocation } from '../core/commands';
 import { getPlayer, type ArmySlots, type Hero, type Town, type TownId } from '../core/state';
 import { SPELLBOOK_COST } from '../core/magic';
 import { townBuildingCatalog, HERO_HIRE_COST, SKELETON_CREATURE } from '../core/town';
 import { button, el, type UiContext } from './components';
-import { buildAvailability, costText, maxTrades, stackUpgradeOffer, tradeModel } from './helpers';
+import { InfoPopup } from './hud';
+import {
+  buildAvailability,
+  buildingHelp,
+  builtStatusText,
+  capitalize,
+  costParts,
+  costText,
+  maxTrades,
+  stackUpgradeOffer,
+  tradeModel,
+} from './helpers';
+import { resourceIcon } from './icons';
 import { openRecruitDialog } from './recruitDialog';
 
 type ArmyRow = 'garrison' | 'visiting';
@@ -21,6 +33,8 @@ export class TownScreen {
   readonly root: HTMLElement;
   private readonly panel: HTMLElement;
   private readonly status: HTMLElement;
+  private readonly help: InfoPopup;
+  private helpPinnedFor: HTMLElement | null = null;
   private selected: SlotPick | null = null;
   private tradeGive: ResourceId = 'wood';
   private tradeReceive: ResourceId = 'gold';
@@ -34,10 +48,43 @@ export class TownScreen {
     this.panel = el('div', 'panel town-panel');
     this.status = el('div', 'panel-status', 'town-status');
     this.root.appendChild(this.panel);
+    // the building help popup reuses the shared InfoPopup (clamped to this overlay)
+    this.help = new InfoPopup(this.root, 'building-tooltip');
     this.root.addEventListener('click', (e) => {
       if (e.target === this.root) this.onClose();
+      else this.hideHelp();
     });
     this.update();
+  }
+
+  private showHelp(anchor: HTMLElement, text: string): void {
+    const a = anchor.getBoundingClientRect();
+    const c = this.root.getBoundingClientRect();
+    this.help.show(text, a.left - c.left, a.bottom - c.top + 4);
+  }
+
+  private hideHelp(): void {
+    this.help.hide();
+    this.helpPinnedFor = null;
+  }
+
+  // hover shows the help; a click pins it so touch users can read it too
+  private wireHelp(anchor: HTMLElement, text: string): void {
+    anchor.addEventListener('mouseenter', () => {
+      if (this.helpPinnedFor === null) this.showHelp(anchor, text);
+    });
+    anchor.addEventListener('mouseleave', () => {
+      if (this.helpPinnedFor === null) this.hideHelp();
+    });
+    anchor.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (this.helpPinnedFor === anchor) {
+        this.hideHelp();
+      } else {
+        this.showHelp(anchor, text);
+        this.helpPinnedFor = anchor;
+      }
+    });
   }
 
   update(): void {
@@ -46,6 +93,7 @@ export class TownScreen {
       this.onClose();
       return;
     }
+    this.hideHelp();
     this.panel.replaceChildren();
     const sections = [
       this.header(town),
@@ -86,18 +134,34 @@ export class TownScreen {
     const state = this.ctx.getState();
     const availability = buildAvailability(state, town, building, this.ctx.data);
     const card = el('button', `building-card ${availability.status}`, `building-${building.id}`);
+    card.type = 'button';
+
+    const head = el('div', 'building-head');
     const name = el('div', 'building-name');
     name.textContent = building.name;
-    const info = el('div', 'building-info');
+    const help = el('span', 'building-help', `building-help-${building.id}`);
+    help.textContent = 'ⓘ';
+    help.setAttribute('aria-label', 'Building info');
+    this.wireHelp(help, buildingHelp(building, town.faction, this.ctx.data));
+    head.append(name, help);
+    card.appendChild(head);
+
     if (availability.status === 'built') {
-      info.textContent = 'Built';
-    } else if (availability.status === 'available') {
-      info.textContent = costText(building.cost);
+      const info = el('div', 'building-info');
+      info.textContent = builtStatusText(town, building, this.ctx.data);
+      card.appendChild(info);
     } else {
-      info.textContent = availability.reason;
-      card.title = availability.reason;
+      const cost = this.costRow(building.cost);
+      if (cost) card.appendChild(cost);
+      if (availability.status !== 'available') {
+        const reason = el('div', 'building-info building-reason');
+        reason.textContent = availability.reason;
+        card.appendChild(reason);
+      }
     }
-    card.append(name, info);
+
+    // the card is never `disabled` (that would also swallow help-icon hover and
+    // click events); non-buildable cards simply carry no build handler
     if (availability.status === 'available') {
       card.addEventListener('click', () => {
         this.run(
@@ -110,9 +174,26 @@ export class TownScreen {
         );
       });
     } else {
-      card.disabled = availability.status !== 'unaffordable';
+      card.setAttribute('aria-disabled', 'true');
+      card.tabIndex = -1;
     }
     return card;
+  }
+
+  // resource icons with amounts, e.g. [🪙] 400 [🪵] 5
+  private costRow(cost: Cost): HTMLElement | null {
+    const parts = costParts(cost);
+    if (parts.length === 0) return null;
+    const row = el('div', 'building-cost');
+    for (const part of parts) {
+      const item = el('span', 'res-cost', `cost-${part.id}`);
+      item.title = capitalize(part.id);
+      const value = el('span', 'res-cost-value');
+      value.textContent = String(part.amount);
+      item.append(resourceIcon(part.id), value);
+      row.appendChild(item);
+    }
+    return row;
   }
 
   private recruitSection(town: Town): HTMLElement {
