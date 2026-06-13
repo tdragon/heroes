@@ -104,6 +104,20 @@ describe('woodcut theme coverage', () => {
     }
   });
 
+  it('has a sprite for every faction dwelling building id (base + upgrade)', () => {
+    const factions = Object.values(data.factions);
+    expect(factions.length).toBeGreaterThan(0);
+    for (const faction of factions) {
+      expect(faction.dwellings.length).toBeGreaterThan(0);
+      for (const dwelling of faction.dwellings) {
+        expect(
+          woodcutSprites,
+          `missing sprite building/${dwelling.id}`,
+        ).toHaveProperty(`building/${dwelling.id}`);
+      }
+    }
+  });
+
   it('contains only valid sprite keys', () => {
     for (const key of Object.keys(woodcutSprites)) {
       expect(key).toMatch(

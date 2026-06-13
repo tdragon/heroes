@@ -153,12 +153,12 @@ Key decisions:
   (14 each × 3 factions = 42)
 - Modify: `src/assets/themes/woodcut/index.test.ts`
 
-- [ ] author 42 dwelling sprites (parallel faction batches at exec); each `…u`
+- [x] author 42 dwelling sprites (parallel faction batches at exec); each `…u`
       upgrade derives from its base but MUST carry a visible embellishment (added
       structure/banner/gilding — not just a recolor) so base vs upgrade reads at
       the ~28px card size, faction-flavored
-- [ ] extend the coverage test to assert all dwelling keys exist
-- [ ] run `npm test` — must pass before task 3
+- [x] extend the coverage test to assert all dwelling keys exist
+- [x] run `npm test` — must pass before task 3
 
 ### Task 3: Faction special building sprites (8)
 
