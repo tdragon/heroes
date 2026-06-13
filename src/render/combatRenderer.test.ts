@@ -10,6 +10,7 @@ import {
   COMBAT_CANVAS_W,
   COMBAT_FIT_MIN,
   combatFitScale,
+  CombatRenderer,
   createReachableCache,
   damageRangeText,
   estimateAttack,
@@ -18,6 +19,7 @@ import {
   hexCenter,
   sideColor,
 } from './combatRenderer';
+import { asCtx, RecordingContext, RecordingPainter } from './testSupport';
 
 const data = loadGameData();
 
@@ -231,6 +233,54 @@ describe('combatEventText', () => {
         data,
       ),
     ).toBeNull();
+  });
+});
+
+describe('drawStacks painter wiring', () => {
+  it('draws each living stack through the injected painter with the creature id', () => {
+    const combat = makeCombat({ creature: 'pikeman', count: 7 }, { creature: 'wolf', count: 3 });
+    const painter = new RecordingPainter();
+    const renderer = new CombatRenderer(asCtx(new RecordingContext()), painter, data);
+    renderer.render({ combat, reachable: [], hover: null, activeStack: null }, 0);
+
+    const tokenCalls = painter.calls.filter((c) => c.method === 'creatureToken');
+    expect(tokenCalls).toHaveLength(2);
+    // args: [cx, cy, r, color, id, initials, tier]
+    const ids = tokenCalls.map((c) => c.args[4]);
+    expect(ids).toContain('pikeman');
+    expect(ids).toContain('wolf');
+  });
+
+  it('keeps the count badge clear of the seal pips/notch (upper-right quadrant)', () => {
+    const combat = makeCombat({ creature: 'pikeman', count: 7 }, { creature: 'wolf', count: 3 });
+    const ctx = new RecordingContext();
+    const painter = new RecordingPainter();
+    const renderer = new CombatRenderer(asCtx(ctx), painter, data);
+    renderer.render({ combat, reachable: [], hover: null, activeStack: null }, 0);
+
+    // the badge is the only roundRect drawn; the seal furniture (pips/notch)
+    // lives in the painter, so any roundRect here is a count badge. Pair each
+    // badge to its stack by token radius: bx = cx + 0.55r, by = cy - 0.55r, so
+    // the badge sits above the center -> clear of the pip row (cy + 0.55r) and
+    // the bottom banner notch.
+    const badges = ctx.ops.filter((o) => o.op === 'roundRect');
+    expect(badges.length).toBe(2);
+    const tokenCalls = painter.calls.filter((c) => c.method === 'creatureToken');
+    for (const badge of badges) {
+      const bx = badge.args[0] ?? NaN;
+      const by = badge.args[1] ?? NaN;
+      const owner = tokenCalls.find((c) => {
+        const r = c.args[2] as number;
+        return Math.abs(bx - ((c.args[0] as number) + r * 0.55)) < 0.001;
+      });
+      expect(owner).toBeDefined();
+      if (!owner) continue;
+      const cy = owner.args[1] as number;
+      const r = owner.args[2] as number;
+      expect(by).toBeCloseTo(cy - r * 0.55);
+      // above the pip row at cy + r*0.55 and the notch below it
+      expect(by).toBeLessThan(cy + r * 0.55);
+    }
   });
 });
 

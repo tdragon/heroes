@@ -23,6 +23,7 @@ export interface CtxOp {
     | 'moveTo'
     | 'lineTo'
     | 'arc'
+    | 'roundRect'
     | 'fill'
     | 'stroke'
     | 'fillText';
@@ -43,8 +44,17 @@ export class RecordingContext {
   font = '';
   textAlign = '';
   textBaseline = '';
+  globalAlpha = 1;
   readonly canvas = { width: 0, height: 0 };
   readonly ops: CtxOp[] = [];
+
+  measureText(text: string): { width: number } {
+    return { width: text.length * 7 };
+  }
+
+  roundRect(x: number, y: number, w: number, h: number, radius: number): void {
+    this.ops.push({ op: 'roundRect', fillStyle: this.fillStyle, args: [x, y, w, h, radius] });
+  }
 
   setTransform(a: number, b: number, c: number, d: number, e: number, f: number): void {
     this.ops.push({ op: 'setTransform', fillStyle: this.fillStyle, args: [a, b, c, d, e, f] });

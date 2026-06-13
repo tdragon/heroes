@@ -237,24 +237,24 @@ Key decisions:
 - Modify: `src/render/combatRenderer.ts` (badge/ring/wide-stack reconciliation)
 - Modify: `src/render/combatRenderer.test.ts` (painter-injection assertion)
 
-- [ ] build the combat renderer with `woodcutSpritePainter(new TokenPainter())`
+- [x] build the combat renderer with `woodcutSpritePainter(new TokenPainter())`
       (shared atlas) instead of a bare `TokenPainter`
-- [ ] reconcile the renderer-drawn furniture with the seal token: the count
+- [x] reconcile the renderer-drawn furniture with the seal token: the count
       badge anchored at `center.x + r*0.4, center.y + r*0.55`
       (`combatRenderer.ts:461-477`) and the `selectionRing` at `r+4` (`:459`)
       were tuned for the round token — adjust so they don't collide with the
       seal's bottom banner notch / lower-arc pips; verify wide creatures
       (`r = HEX_R*0.85`, tween-aware center at `:439-447`) center correctly
-- [ ] set `data-sprites-ready` on the `combat-canvas` when the atlas resolves,
+- [x] set `data-sprites-ready` on the `combat-canvas` when the atlas resolves,
       guarding the `load().then` callback with the screen's teardown signal
       (`this.running` / `dprAborter`, per `destroy()` at `combatScreen.ts:176`);
       the combat frame loop already repaints continuously, so no explicit
       markDirty is needed
-- [ ] confirm the DOM stack strip (`combat-stacks`) is untouched (canvas-only
+- [x] confirm the DOM stack strip (`combat-stacks`) is untouched (canvas-only
       change)
-- [ ] test in `combatRenderer.test.ts`: stacks draw via the injected painter
+- [x] test in `combatRenderer.test.ts`: stacks draw via the injected painter
       (recording-painter stub receives `creatureToken` with the creature id)
-- [ ] run `npm test` — must pass before task 6
+- [x] run `npm test` — must pass before task 6
 
 ### Task 6: e2e — emblems on the adventure map and the combat grid
 

@@ -41,6 +41,7 @@ import {
   sideColor,
 } from '../render/combatRenderer';
 import { TokenPainter } from '../render/painter';
+import { woodcutAtlas, woodcutSpritePainter } from '../render/woodcutTheme';
 import { combatShortcut, isTypingTarget } from '../app/shortcuts';
 import { canvasBackingSize, watchDevicePixelRatio } from '../app/viewport';
 import { el, type UiContext } from './components';
@@ -116,7 +117,15 @@ export class CombatScreen {
 
     const context = this.canvas.getContext('2d');
     if (!context) throw new Error('combat canvas 2d context unavailable');
-    this.renderer = new CombatRenderer(context, new TokenPainter(), ctx.data);
+    this.renderer = new CombatRenderer(context, woodcutSpritePainter(new TokenPainter()), ctx.data);
+    // mark the canvas once the shared atlas resolves so e2e can wait for
+    // emblems (the frame loop repaints continuously, so no markDirty needed);
+    // guard against teardown via the dpr aborter that destroy() triggers
+    const atlas = woodcutAtlas();
+    void atlas.load().then(() => {
+      if (this.dprAborter.signal.aborted) return;
+      this.canvas.dataset.spritesReady = atlas.failureCount === 0 ? 'true' : 'failed';
+    });
 
     const bottom = el('div', 'combat-bottom');
     this.bottomEl = bottom;

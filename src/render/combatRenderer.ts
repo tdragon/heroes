@@ -459,12 +459,14 @@ export class CombatRenderer {
       if (view.activeStack === stack.id && isStackAlive(stack)) {
         this.painter.selectionRing(ctx, center.x, center.y, r + 4);
       }
-      // count badge bottom-right of the token
+      // count badge top-right of the token: the seal's lower arc carries the
+      // tier pips (cy + 0.55r) and the bottom banner notch, so the upper-right
+      // is the only clear quadrant for the count
       const text = String(stack.count);
       ctx.font = 'bold 12px system-ui, sans-serif';
       const w = ctx.measureText(text).width + 8;
-      const bx = center.x + r * 0.4;
-      const by = center.y + r * 0.55;
+      const bx = center.x + r * 0.55;
+      const by = center.y - r * 0.55;
       ctx.fillStyle = '#1a202c';
       ctx.beginPath();
       ctx.roundRect(bx, by, w, 16, 3);
