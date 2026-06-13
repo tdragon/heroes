@@ -168,14 +168,14 @@ Key decisions:
   skeleton_transformer}.svg`
 - Modify: `src/assets/themes/woodcut/index.test.ts`
 
-- [ ] author the 8 faction special sprites, woodcut style, no `class=`
-- [ ] tighten coverage: for each faction (enumerate from `data.factions`, don't
+- [x] author the 8 faction special sprites, woodcut style, no `class=`
+- [x] tighten coverage: for each faction (enumerate from `data.factions`, don't
       hard-code three) iterate `townBuildingCatalog(faction, data)` and assert
       every building id has a `building/<id>` sprite. For the REVERSE check,
       build a single `Set` of all building ids from the catalogs across ALL
       factions (their union covers all 66; no single faction does) and assert
       every `building/*` sprite key is in that set
-- [ ] run `npm test` — must pass before task 4
+- [x] run `npm test` — must pass before task 4
 
 ### Task 4: buildingIconMarkup helper + town-screen wiring
 

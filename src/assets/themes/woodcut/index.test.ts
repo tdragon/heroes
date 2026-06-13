@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadGameData } from '../../../data';
 import { RESOURCE_IDS } from '../../../data/schema';
+import { townBuildingCatalog } from '../../../core/town';
 import { woodcutSprites } from './index';
 
 const data = loadGameData();
@@ -80,41 +81,30 @@ describe('woodcut theme coverage', () => {
     }
   });
 
-  it('has a sprite for each of the 16 shared building ids', () => {
-    const sharedBuildingIds = [
-      'village_hall',
-      'town_hall',
-      'city_hall',
-      'capitol',
-      'fort',
-      'citadel',
-      'castle',
-      'tavern',
-      'marketplace',
-      'resource_silo',
-      'blacksmith',
-      'mage_guild_1',
-      'mage_guild_2',
-      'mage_guild_3',
-      'mage_guild_4',
-      'mage_guild_5',
-    ];
-    for (const id of sharedBuildingIds) {
-      expect(woodcutSprites, `missing sprite building/${id}`).toHaveProperty(`building/${id}`);
-    }
-  });
-
-  it('has a sprite for every faction dwelling building id (base + upgrade)', () => {
+  it('has a sprite for every building in every faction catalog (shared + dwellings + specials)', () => {
     const factions = Object.values(data.factions);
     expect(factions.length).toBeGreaterThan(0);
     for (const faction of factions) {
-      expect(faction.dwellings.length).toBeGreaterThan(0);
-      for (const dwelling of faction.dwellings) {
-        expect(
-          woodcutSprites,
-          `missing sprite building/${dwelling.id}`,
-        ).toHaveProperty(`building/${dwelling.id}`);
+      const catalog = townBuildingCatalog(faction.id, data);
+      expect(catalog.size, `empty building catalog for ${faction.id}`).toBeGreaterThan(0);
+      for (const id of catalog.keys()) {
+        expect(woodcutSprites, `missing sprite building/${id}`).toHaveProperty(`building/${id}`);
       }
+    }
+  });
+
+  it('maps every building/* key to a real building id in some faction catalog', () => {
+    const known = new Set<string>();
+    for (const faction of Object.values(data.factions)) {
+      for (const id of townBuildingCatalog(faction.id, data).keys()) {
+        known.add(id);
+      }
+    }
+    const buildingKeys = Object.keys(woodcutSprites).filter((k) => k.startsWith('building/'));
+    expect(buildingKeys.length).toBeGreaterThan(0);
+    for (const key of buildingKeys) {
+      const id = key.slice('building/'.length);
+      expect(known.has(id), `building sprite for unknown id ${id}`).toBe(true);
     }
   });
 
