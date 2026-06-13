@@ -161,16 +161,16 @@ Key decisions:
 - Modify: `src/assets/themes/woodcut/index.ts` (folder→category: `resources`→`resource`)
 - Modify: `src/assets/themes/woodcut/index.test.ts`
 
-- [ ] author 7 woodcut resource icons (gold coins, wood logs, ore chunk,
+- [x] author 7 woodcut resource icons (gold coins, wood logs, ore chunk,
       mercury vial, sulfur lump, crystal cluster, gems), 64×64, emblem style,
       no `class=` — each a clear icon readable small
-- [ ] extend the loader folder map with `resources`→`resource`
-- [ ] coverage test: every `RESOURCE_IDS` id has a `resource/<id>` sprite; update
+- [x] extend the loader folder map with `resources`→`resource`
+- [x] coverage test: every `RESOURCE_IDS` id has a `resource/<id>` sprite; update
       the key-format regex to allow `resource` and (for Task 2) `object` — it
       appears in **two** places in `index.test.ts` (the "valid sprite keys" test
       ~line 48 and the spot-check ~line 57); update both
-- [ ] string SVG sanity covers the new files
-- [ ] run `npm test` — must pass before task 2
+- [x] string SVG sanity covers the new files
+- [x] run `npm test` — must pass before task 2
 
 ### Task 2: Core map-object SVGs (town, mine, dwelling, resource, treasure, artifact)
 

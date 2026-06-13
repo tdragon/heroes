@@ -1,14 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <ellipse cx="32" cy="57" rx="22" ry="4" fill="rgba(20,14,10,0.26)"/>
-  <g stroke="#241b16" stroke-width="2.6" stroke-linejoin="round">
-    <rect x="9" y="24" width="18" height="30" rx="7" fill="#74542f"/>
-    <rect x="37" y="24" width="18" height="30" rx="7" fill="#8a6740"/>
-    <rect x="23" y="12" width="18" height="30" rx="7" fill="#9c7a4a"/>
-  </g>
-  <g fill="none" stroke="#b58e54" stroke-width="1.6">
-    <circle cx="18" cy="33" r="6"/><circle cx="46" cy="33" r="6"/><circle cx="32" cy="21" r="6"/>
-  </g>
-  <g fill="#5a3f24">
-    <circle cx="18" cy="33" r="2.2"/><circle cx="46" cy="33" r="2.2"/><circle cx="32" cy="21" r="2.2"/>
-  </g>
+  <ellipse fill="rgba(20,14,10,0.26)" cx="32" cy="54" rx="22" ry="4"/>
+  <path d="M9 47 a8 9 0 0 1 16 0 V31 a8 9 0 0 0 -16 0 Z" fill="#6d4f33" stroke="#241b16" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="17" cy="31" rx="8" ry="9" fill="#caa46d" stroke="#241b16" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="17" cy="31" rx="4" ry="4.6" fill="none" stroke="#8a6a45" stroke-width="1.5"/>
+  <path d="M39 47 a8 9 0 0 1 16 0 V31 a8 9 0 0 0 -16 0 Z" fill="#6d4f33" stroke="#241b16" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="47" cy="31" rx="8" ry="9" fill="#caa46d" stroke="#241b16" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="47" cy="31" rx="4" ry="4.6" fill="none" stroke="#8a6a45" stroke-width="1.5"/>
+  <path d="M24 33 a8 9 0 0 1 16 0 V17 a8 9 0 0 0 -16 0 Z" fill="#5c4129" stroke="#241b16" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="32" cy="17" rx="8" ry="9" fill="#caa46d" stroke="#241b16" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+  <ellipse cx="32" cy="17" rx="4" ry="4.6" fill="none" stroke="#8a6a45" stroke-width="1.5"/>
+  <path d="M32 15 Q34 17 32 19" fill="none" stroke="#8a6a45" stroke-width="1.3"/>
 </svg>
