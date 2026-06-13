@@ -17,11 +17,21 @@ export interface CtxOp {
     | 'restore'
     | 'translate'
     | 'rotate'
-    | 'setTransform';
+    | 'setTransform'
+    | 'beginPath'
+    | 'closePath'
+    | 'moveTo'
+    | 'lineTo'
+    | 'arc'
+    | 'fill'
+    | 'stroke'
+    | 'fillText';
   fillStyle: string;
   args: number[];
   image?: CanvasImageSource;
   strokeStyle?: string;
+  text?: string;
+  font?: string;
 }
 
 // node has no CanvasRenderingContext2D; record the only members the painters
@@ -30,6 +40,9 @@ export class RecordingContext {
   fillStyle = '';
   strokeStyle = '';
   lineWidth = 0;
+  font = '';
+  textAlign = '';
+  textBaseline = '';
   readonly canvas = { width: 0, height: 0 };
   readonly ops: CtxOp[] = [];
 
@@ -69,6 +82,38 @@ export class RecordingContext {
 
   rotate(angle: number): void {
     this.ops.push({ op: 'rotate', fillStyle: this.fillStyle, args: [angle] });
+  }
+
+  beginPath(): void {
+    this.ops.push({ op: 'beginPath', fillStyle: this.fillStyle, args: [] });
+  }
+
+  closePath(): void {
+    this.ops.push({ op: 'closePath', fillStyle: this.fillStyle, args: [] });
+  }
+
+  moveTo(x: number, y: number): void {
+    this.ops.push({ op: 'moveTo', fillStyle: this.fillStyle, args: [x, y] });
+  }
+
+  lineTo(x: number, y: number): void {
+    this.ops.push({ op: 'lineTo', fillStyle: this.fillStyle, args: [x, y] });
+  }
+
+  arc(cx: number, cy: number, r: number, start: number, end: number): void {
+    this.ops.push({ op: 'arc', fillStyle: this.fillStyle, args: [cx, cy, r, start, end] });
+  }
+
+  fill(): void {
+    this.ops.push({ op: 'fill', fillStyle: this.fillStyle, args: [] });
+  }
+
+  stroke(): void {
+    this.ops.push({ op: 'stroke', fillStyle: this.fillStyle, args: [], strokeStyle: this.strokeStyle });
+  }
+
+  fillText(text: string, x: number, y: number): void {
+    this.ops.push({ op: 'fillText', fillStyle: this.fillStyle, args: [x, y], text, font: this.font });
   }
 }
 
@@ -166,10 +211,11 @@ export class RecordingPainter implements Painter {
     cy: number,
     r: number,
     color: string,
+    id: string,
     initials: string,
     tier: number,
   ): void {
-    this.record('creatureToken', [cx, cy, r, color, initials, tier]);
+    this.record('creatureToken', [cx, cy, r, color, id, initials, tier]);
   }
 
   heroToken(

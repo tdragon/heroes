@@ -3,6 +3,8 @@ import type { RoadConnections } from './painter';
 import {
   FOG_DIMMED_COLOR,
   FOG_SHROUD_COLOR,
+  SEAL_GILT,
+  SEAL_PARCHMENT,
   SpritePainter,
   type SpriteLookup,
 } from './spritePainter';
@@ -204,10 +206,57 @@ describe('SpritePainter fog', () => {
   });
 });
 
+describe('SpritePainter.creatureToken', () => {
+  const RED = '#c53030';
+  const GREY = '#718096';
+
+  it('blits the emblem bitmap when creature/<id> exists, with seal furniture', () => {
+    const emblem = stubBitmap(64);
+    const { painter, atlas, fallback, stub, ctx } = setup({ 'creature/gold_dragon': emblem });
+    painter.creatureToken(ctx, 100, 80, 20, RED, 'gold_dragon', 'GD', 3);
+    expect(atlas.lookups).toContain('creature/gold_dragon');
+    // emblem drawn (and only the emblem bitmap — no other drawImage)
+    const draws = stub.ops.filter((o) => o.op === 'drawImage');
+    expect(draws).toHaveLength(1);
+    expect(draws[0]?.image).toBe(emblem);
+    // parchment disc filled
+    expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === SEAL_PARCHMENT)).toBe(true);
+    // no initials text on the emblem path
+    expect(stub.ops.some((o) => o.op === 'fillText')).toBe(false);
+    // 3 gilt diamond pips: 3 fills with the gilt color
+    expect(stub.ops.filter((o) => o.op === 'fill' && o.fillStyle === SEAL_GILT)).toHaveLength(3);
+    // banner notch filled with the owner color
+    expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === RED)).toBe(true);
+    // furniture is procedural, never delegated to the fallback
+    expect(fallback.calls).toEqual([]);
+  });
+
+  it('falls back to centered initials when the emblem bitmap is missing', () => {
+    const { painter, atlas, fallback, stub, ctx } = setup({});
+    painter.creatureToken(ctx, 50, 50, 16, GREY, 'imp', 'Im', 1);
+    expect(atlas.lookups).toEqual(['creature/imp']);
+    // no emblem blit, initials drawn instead
+    expect(stub.ops.some((o) => o.op === 'drawImage')).toBe(false);
+    const text = stub.ops.find((o) => o.op === 'fillText');
+    expect(text?.text).toBe('Im');
+    // furniture still drawn: parchment disc + a single tier pip + neutral notch
+    expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === SEAL_PARCHMENT)).toBe(true);
+    expect(stub.ops.filter((o) => o.op === 'fill' && o.fillStyle === SEAL_GILT)).toHaveLength(1);
+    expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === GREY)).toBe(true);
+    expect(fallback.calls).toEqual([]);
+  });
+
+  it('draws one gilt pip per tier and uses the passed owner color for the notch', () => {
+    const { painter, stub, ctx } = setup({});
+    painter.creatureToken(ctx, 0, 0, 24, '#2b6cb0', 'archangel', 'A', 7);
+    expect(stub.ops.filter((o) => o.op === 'fill' && o.fillStyle === SEAL_GILT)).toHaveLength(7);
+    expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === '#2b6cb0')).toBe(true);
+  });
+});
+
 describe('SpritePainter delegation', () => {
-  it('forwards every token/overlay method to the wrapped painter', () => {
+  it('forwards the remaining token/overlay methods to the wrapped painter', () => {
     const { painter, fallback, ctx } = setup({});
-    painter.creatureToken(ctx, 1, 2, 3, '#fff', 'Pi', 2);
     painter.heroToken(ctx, 4, 5, 6, '#abc', 'E');
     painter.townToken(ctx, 7, 8, 9, '#def');
     painter.objectToken(ctx, 1, 1, 2, '#123', 'SM');
@@ -216,7 +265,6 @@ describe('SpritePainter delegation', () => {
     painter.pathDot(ctx, 2, 2, 5);
     painter.dayMarker(ctx, 9, 9, 12, 3);
     expect(fallback.calls.map((c) => c.method)).toEqual([
-      'creatureToken',
       'heroToken',
       'townToken',
       'objectToken',
@@ -225,7 +273,7 @@ describe('SpritePainter delegation', () => {
       'pathDot',
       'dayMarker',
     ]);
-    expect(fallback.calls[0]?.args).toEqual([1, 2, 3, '#fff', 'Pi', 2]);
-    expect(fallback.calls[7]?.args).toEqual([9, 9, 12, 3]);
+    expect(fallback.calls[0]?.args).toEqual([4, 5, 6, '#abc', 'E']);
+    expect(fallback.calls[6]?.args).toEqual([9, 9, 12, 3]);
   });
 });

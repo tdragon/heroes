@@ -177,6 +177,7 @@ export class AdventureRenderer {
         cy,
         rect.size * 0.38,
         NEUTRAL_COLOR,
+        obj.creature,
         initialsOf(creature?.name ?? obj.creature),
         creature?.tier ?? 1,
       );

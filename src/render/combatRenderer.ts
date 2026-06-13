@@ -452,6 +452,7 @@ export class CombatRenderer {
         center.y,
         r,
         color,
+        creature.id,
         initialsOf(creature.name),
         creature.tier,
       );

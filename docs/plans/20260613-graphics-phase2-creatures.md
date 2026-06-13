@@ -201,16 +201,16 @@ Key decisions:
 - Modify: `src/render/combatRenderer.ts` (pass `creature.id`)
 - Modify: `src/render/spritePainter.test.ts`, `src/render/testSupport.ts`
 
-- [ ] add `id` to `Painter.creatureToken`; update `TokenPainter` (ignores id —
+- [x] add `id` to `Painter.creatureToken`; update `TokenPainter` (ignores id —
       current circle look unchanged) and both call sites
-- [ ] implement `SpritePainter.creatureToken`: draw parchment disc + double ink
+- [x] implement `SpritePainter.creatureToken`: draw parchment disc + double ink
       ring + `tier` gold pips + banner notch in `color`; blit `creature/${id}`
       centered; fall back to centered `initials` text when the bitmap is missing
-- [ ] name all furniture constants (disc/ring radii, pip size, notch size)
-- [ ] tests (recording-context stub): emblem-present path (drawImage of the
+- [x] name all furniture constants (disc/ring radii, pip size, notch size)
+- [x] tests (recording-context stub): emblem-present path (drawImage of the
       right key + furniture), fallback path (no bitmap → initials text + furniture),
       pip count == tier, banner notch uses the owner color, neutral color path
-- [ ] run `npm test` — must pass before task 4
+- [x] run `npm test` — must pass before task 4
 
 ### Task 4: Horseman hero marker — `heroToken`
 

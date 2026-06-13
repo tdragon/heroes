@@ -5,6 +5,29 @@ import { RASTER_PX } from './spriteAtlas';
 export const FOG_SHROUD_COLOR = '#16100c';
 export const FOG_DIMMED_COLOR = 'rgba(22, 16, 12, 0.5)';
 
+// Seal token palette (concept "Ink, Parchment & Gold")
+export const SEAL_PARCHMENT = '#ead9b5';
+export const SEAL_INK = '#241b16';
+export const SEAL_PARCHMENT_EDGE = '#c9b384';
+export const SEAL_GILT = '#d9ab3c';
+
+// Seal furniture geometry, expressed as fractions of the token radius `r`
+// (concept #seal: 64-box, disc r=28, ring strokes 2.6/0.9, pips on the lower
+// arc, banner notch chevron spanning x 22..42, y 52.5..61).
+const RING_OUTER_WIDTH = 0.093; // outer ink ring stroke (2.6/28)
+const RING_INNER_RADIUS = 0.843; // hairline inner ring radius (23.6/28)
+const RING_INNER_WIDTH = 0.032; // hairline inner ring stroke (0.9/28)
+const EMBLEM_SCALE = 1.5; // emblem square side relative to r (slightly overfills)
+const PIP_HALF = 0.13; // pip diamond half-diagonal
+const PIP_GAP = 0.36; // horizontal spacing between adjacent pips
+const PIP_ARC_Y = 0.55; // pip row offset below center (on the lower arc)
+const PIP_STROKE = 0.04; // pip outline width
+const NOTCH_HALF_WIDTH = 0.31; // banner chevron half-width (10/32)
+const NOTCH_TOP_Y = 0.66; // chevron top edge below center
+const NOTCH_TIP_Y = 0.94; // chevron lower tip below center
+const NOTCH_SHOULDER_Y = 0.84; // chevron shoulder below center
+const NOTCH_STROKE = 0.057; // banner chevron outline width
+
 // the slice of SpriteAtlas the painter needs (keeps tests cast-free)
 export interface SpriteLookup {
   get(key: string): CanvasImageSource | null;
@@ -135,16 +158,112 @@ export class SpritePainter implements Painter {
     return true;
   }
 
+  // The seal: a parchment disc + double ink ring + gilt tier pips + a banner
+  // notch in the owner color, carrying a creature emblem. Disc/ring/pips/notch
+  // are drawn procedurally per-instance; only the emblem is a shared bitmap
+  // (`creature/<id>`). When the emblem is missing the centered initials stand
+  // in, so un-arted creatures still get the seal look.
   creatureToken(
     ctx: CanvasRenderingContext2D,
     cx: number,
     cy: number,
     r: number,
     color: string,
+    id: string,
     initials: string,
     tier: number,
   ): void {
-    this.fallback.creatureToken(ctx, cx, cy, r, color, initials, tier);
+    // parchment disc
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = SEAL_PARCHMENT;
+    ctx.fill();
+
+    // double ink ring: thick outer stroke + a thin parchment-edge hairline
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.strokeStyle = SEAL_INK;
+    ctx.lineWidth = r * RING_OUTER_WIDTH;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * RING_INNER_RADIUS, 0, Math.PI * 2);
+    ctx.strokeStyle = SEAL_PARCHMENT_EDGE;
+    ctx.lineWidth = r * RING_INNER_WIDTH;
+    ctx.stroke();
+
+    // emblem (shared bitmap) or initials fallback, centered on the disc
+    const emblem = this.atlas.get(`creature/${id}`);
+    if (emblem) {
+      const side = r * EMBLEM_SCALE;
+      ctx.drawImage(emblem, cx - side / 2, cy - side / 2, side, side);
+    } else {
+      ctx.fillStyle = SEAL_INK;
+      ctx.font = `bold ${String(Math.round(r * 0.9))}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(initials, cx, cy);
+    }
+
+    this.drawTierPips(ctx, cx, cy, r, tier);
+    this.drawBannerNotch(ctx, cx, cy, r, color);
+  }
+
+  // `tier` gilt diamonds (1..7) along the lower arc, centered horizontally
+  private drawTierPips(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    r: number,
+    tier: number,
+  ): void {
+    const count = Math.max(1, Math.min(7, tier));
+    const half = r * PIP_HALF;
+    const gap = r * PIP_GAP;
+    const py = cy + r * PIP_ARC_Y;
+    const startX = cx - (gap * (count - 1)) / 2;
+    ctx.fillStyle = SEAL_GILT;
+    ctx.strokeStyle = SEAL_INK;
+    ctx.lineWidth = r * PIP_STROKE;
+    for (let i = 0; i < count; i++) {
+      const px = startX + gap * i;
+      ctx.beginPath();
+      ctx.moveTo(px, py - half);
+      ctx.lineTo(px + half, py);
+      ctx.lineTo(px, py + half);
+      ctx.lineTo(px - half, py);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  // chevron/banner at the bottom of the disc; the only place owner color shows
+  private drawBannerNotch(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    r: number,
+    color: string,
+  ): void {
+    const hw = r * NOTCH_HALF_WIDTH;
+    const top = cy + r * NOTCH_TOP_Y;
+    const shoulder = cy + r * NOTCH_SHOULDER_Y;
+    const tip = cy + r * NOTCH_TIP_Y;
+    ctx.beginPath();
+    ctx.moveTo(cx - hw, top);
+    ctx.lineTo(cx, top + (shoulder - top) * 0.6);
+    ctx.lineTo(cx + hw, top);
+    ctx.lineTo(cx + hw, tip);
+    ctx.lineTo(cx + hw * 0.5, shoulder);
+    ctx.lineTo(cx, tip + (shoulder - top) * 0.4);
+    ctx.lineTo(cx - hw * 0.5, shoulder);
+    ctx.lineTo(cx - hw, tip);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = SEAL_INK;
+    ctx.lineWidth = r * NOTCH_STROKE;
+    ctx.stroke();
   }
 
   heroToken(
