@@ -240,12 +240,12 @@ Key decisions:
 
 ### Task 7: [Final] Update documentation
 
-- [ ] README "Themes & sprites": document `buildings/<id>.svg`→`building/<id>`
+- [x] README "Themes & sprites": document `buildings/<id>.svg`→`building/<id>`
       and the town-screen `buildingIconMarkup` rendering; update the coverage-test
       sentence (~README line 244) to include buildings + the `building/*`→id
       reverse check
-- [ ] CLAUDE.md sprites note: add `buildings/`
-- [ ] move this plan to `docs/plans/completed/`
+- [x] CLAUDE.md sprites note: add `buildings/`
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 

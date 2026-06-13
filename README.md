@@ -73,7 +73,7 @@ src/
     objects.json    terrain.json  heroes.json  skills.json
   maps/        map zod schema, ASCII map DSL compiler, sample maps
   assets/      themed art — woodcut SVG sprites (terrain/, roads, creatures/, heroes/,
-               resources/, objects/)
+               resources/, objects/, buildings/)
   render/      Canvas 2D renderers (adventure, combat), sprite atlas + sprite
                painter for themed art, token painter as the flat-color fallback
   ui/          DOM overlay screens (town, hero, combat, dialogs, HUD)
@@ -211,6 +211,8 @@ Adventure-map art is theme-based: a theme is a directory of id-keyed SVG files u
   ore, mercury, sulfur, crystal, gems)
 - `objects/<type>.svg` → sprite key `object/<type>` (map-object art for every object
   type except `monster`, which uses the creature seal)
+- `buildings/<id>.svg` → sprite key `building/<id>` (woodcut icons for all 66 town
+  buildings: 16 shared + 42 faction dwellings + 8 faction specials)
 
 SVGs are 64×64 viewBox, loaded as raw text and rasterized once at startup into an
 in-memory atlas (`src/render/spriteAtlas.ts`). The fallback chain is theme sprite → `TokenPainter`
@@ -245,10 +247,16 @@ render text only and cannot host inline `<svg>`.)
 a procedural owner-color pennant on top (neutral grey when unowned), keeping ownership
 readable. `mine`/`dwelling` keep their existing separate `flag` call.
 
+**Town building icons.** The town screen renders a `building/<id>` woodcut on each building
+card via `buildingIconMarkup(id)` in `src/ui/iconMarkup.ts` — the same pure-string +
+`innerHTML` pattern as the HUD's `resourceIconMarkup()` (node-unit-testable, returns `''`
+for a missing id). The card keeps its name/cost/status, so no DOM-`<svg>` parse is needed.
+
 A coverage test in `src/assets/themes/woodcut/index.test.ts` asserts every terrain, road
-(plus its rounded end + curved bend tile), creature, resource, and (non-`monster`) object id
-has a sprite and every present `creature/*`/`object/*` key maps to a real id — adding content
-means adding matching art.
+(plus its rounded end + curved bend tile), creature, resource, (non-`monster`) object, and
+building id has a sprite and every present `creature/*`/`object/*`/`building/*` key maps to a
+real id — for buildings, the union of all factions' `townBuildingCatalog` covers the 66 ids,
+so a building without art fails the gate. Adding content means adding matching art.
 
 ## License
 
