@@ -5,6 +5,7 @@
 //   terrain/roadend.<id>.svg -> "roadend/<id>" (rounded dead-end tile)
 //   creatures/<id>.svg -> "creature/<id>"
 //   heroes/<id>.svg -> "hero/<id>"
+//   resources/<id>.svg -> "resource/<id>"
 const files: Record<string, string> = import.meta.glob('./*/*.svg', {
   query: '?raw',
   import: 'default',
@@ -15,6 +16,7 @@ const folderCategory: Record<string, string> = {
   terrain: 'terrain',
   creatures: 'creature',
   heroes: 'hero',
+  resources: 'resource',
 };
 
 function spriteKey(path: string): string {

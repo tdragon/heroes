@@ -258,8 +258,11 @@ export class InfoPopup {
   readonly root: HTMLElement;
 
   // the popup positions and clamps itself inside this (positioned) container
-  constructor(private readonly container: HTMLElement) {
-    this.root = el('div', 'info-popup', 'info-popup');
+  constructor(
+    private readonly container: HTMLElement,
+    testId = 'info-popup',
+  ) {
+    this.root = el('div', 'info-popup', testId);
     this.root.style.display = 'none';
     container.appendChild(this.root);
   }

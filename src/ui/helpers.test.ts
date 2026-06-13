@@ -3,14 +3,18 @@ import { loadGameData } from '../data';
 import { compileMap } from '../maps/dsl';
 import { tinyMapSource } from '../maps/fixtures/tiny.dsl';
 import { newGame, townIdAt } from '../core/setup';
-import { tradeReceived } from '../core/town';
+import { townBuildingCatalog, tradeReceived } from '../core/town';
 import type { GameState, PendingChoice, Town } from '../core/state';
 import {
   buildAvailability,
+  buildingHelp,
+  builtStatusText,
   choiceOptionLabel,
   choiceTitle,
   clampPopupPosition,
+  costParts,
   costText,
+  dwellingProduction,
   maxTrades,
   recruitMax,
   scaledCost,
@@ -34,6 +38,14 @@ function redTown(state: GameState): Town {
 
 function building(id: string) {
   const b = data.buildings[id];
+  if (!b) throw new Error(`missing building ${id}`);
+  return b;
+}
+
+// faction dwellings and special buildings live in the per-faction catalog
+const castleCatalog = townBuildingCatalog('castle', data);
+function townBuilding(id: string) {
+  const b = castleCatalog.get(id);
   if (!b) throw new Error(`missing building ${id}`);
   return b;
 }
@@ -221,5 +233,81 @@ describe('clampPopupPosition', () => {
 
   it('pins a popup larger than the bounds to the origin', () => {
     expect(clampPopupPosition(20, 20, 500, 400, 390, 300)).toEqual([0, 0]);
+  });
+});
+
+describe('costParts', () => {
+  it('lists non-zero resources in canonical order', () => {
+    expect(costParts({ wood: 5, gold: 2500 })).toEqual([
+      { id: 'gold', amount: 2500 },
+      { id: 'wood', amount: 5 },
+    ]);
+    expect(costParts({})).toEqual([]);
+  });
+});
+
+describe('buildingHelp', () => {
+  it('explains each building kind', () => {
+    expect(buildingHelp(building('town_hall'), 'castle', data)).toBe(
+      'Town hall — produces 1000 gold per day; higher halls replace it.',
+    );
+    expect(buildingHelp(building('castle'), 'castle', data)).toBe(
+      'Fortification — stronger town defences and +100% creature growth.',
+    );
+    expect(buildingHelp(building('mage_guild_3'), 'castle', data)).toBe(
+      'Mage Guild — learn spells up to level 3.',
+    );
+    expect(buildingHelp(building('resource_silo'), 'castle', data)).toBe(
+      'Resource Silo — produces +1 gems every day.',
+    );
+    expect(buildingHelp(townBuilding('castle_dwelling_2'), 'castle', data)).toBe(
+      'Dwelling — recruit Archer (tier 2); 9 join per week.',
+    );
+  });
+
+  it('uses the authored text for faction special buildings', () => {
+    expect(buildingHelp(townBuilding('griffin_bastion'), 'castle', data)).toBe(
+      '+3 griffin growth per week',
+    );
+  });
+});
+
+describe('production status', () => {
+  it('reports weekly creature growth scaled by the town multiplier', () => {
+    const state = makeGame();
+    const town = redTown(state);
+    town.buildings.push('fort', 'castle_dwelling_1', 'castle_dwelling_2');
+    // archer growth 9, no growth multiplier yet
+    expect(dwellingProduction(town, townBuilding('castle_dwelling_2'), data)).toEqual({
+      creatureName: 'Archer',
+      perWeek: 9,
+    });
+    expect(builtStatusText(town, townBuilding('castle_dwelling_2'), data)).toBe('9 Archer per week');
+
+    // castle doubles growth: floor(9 * 2) = 18
+    town.buildings.push('citadel', 'castle');
+    expect(builtStatusText(town, townBuilding('castle_dwelling_2'), data)).toBe(
+      '18 Archer per week',
+    );
+  });
+
+  it('credits the upgrade dwelling and marks the base as upgraded', () => {
+    const state = makeGame();
+    const town = redTown(state);
+    town.buildings.push('fort', 'castle_dwelling_1', 'castle_dwelling_1u');
+    expect(dwellingProduction(town, townBuilding('castle_dwelling_1'), data)).toBeNull();
+    expect(builtStatusText(town, townBuilding('castle_dwelling_1'), data)).toBe('Upgraded');
+    expect(builtStatusText(town, townBuilding('castle_dwelling_1u'), data)).toBe(
+      '14 Halberdier per week',
+    );
+  });
+
+  it('summarises income, silo, and growth-bonus buildings, else just Built', () => {
+    const state = makeGame();
+    const town = redTown(state);
+    expect(builtStatusText(town, building('village_hall'), data)).toBe('+500 gold per day');
+    expect(builtStatusText(town, building('tavern'), data)).toBe('Built');
+    expect(builtStatusText(town, building('resource_silo'), data)).toBe('+1 gems per day');
+    expect(builtStatusText(town, townBuilding('griffin_bastion'), data)).toBe('+3 Griffin per week');
   });
 });

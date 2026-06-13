@@ -43,9 +43,15 @@ describe('woodcut theme coverage', () => {
     }
   });
 
+  it('has a sprite for every resource id', () => {
+    for (const id of ['gold', 'wood', 'ore', 'mercury', 'sulfur', 'crystal', 'gems']) {
+      expect(woodcutSprites, `missing sprite resource/${id}`).toHaveProperty(`resource/${id}`);
+    }
+  });
+
   it('contains only valid sprite keys', () => {
     for (const key of Object.keys(woodcutSprites)) {
-      expect(key).toMatch(/^(terrain|road|roadend|creature|hero)\/[a-z][a-z0-9_]*$/);
+      expect(key).toMatch(/^(terrain|road|roadend|creature|hero|resource)\/[a-z][a-z0-9_]*$/);
     }
   });
 });
@@ -54,7 +60,7 @@ describe('woodcut sprite key-format spot checks', () => {
   it.each(['hero/horseman', 'creature/wood_elf', 'creature/gold_dragon', 'creature/bone_dragon'])(
     '%s matches the key-format regex',
     (key) => {
-      expect(key).toMatch(/^(terrain|road|roadend|creature|hero)\/[a-z][a-z0-9_]*$/);
+      expect(key).toMatch(/^(terrain|road|roadend|creature|hero|resource)\/[a-z][a-z0-9_]*$/);
     },
   );
 });
