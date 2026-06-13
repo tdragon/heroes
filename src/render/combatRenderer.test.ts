@@ -360,6 +360,56 @@ describe('wide-creature token placement', () => {
   });
 });
 
+describe('drawSiege tower wiring', () => {
+  // a castle siege deploys 3 arrow towers; each must reach the painter as a
+  // label token (type 'tower', no atlas key, no pip) at its hex center
+  function siegeCombat(level: 'fort' | 'citadel' | 'castle'): CombatState {
+    const { combat } = createCombat(
+      {
+        attacker: { hero: noHero(), stacks: [{ creature: 'pikeman', count: 5 }] },
+        defender: { hero: noHero(), stacks: [{ creature: 'archer', count: 5 }] },
+        rng: seedRng(1),
+        siege: level,
+      },
+      data,
+    );
+    return combat;
+  }
+
+  it('draws one tower token per siege tower with type "tower", null pip, and T<n> label', () => {
+    const combat = siegeCombat('castle');
+    expect(combat.siege?.towers.length).toBe(3);
+    const painter = new RecordingPainter();
+    const renderer = new CombatRenderer(asCtx(new RecordingContext()), painter, data);
+    renderer.render({ combat, reachable: [], hover: null, activeStack: null }, 0);
+
+    // args: [cx, cy, r, color, type, pip, label]
+    const towers = painter.calls.filter((c) => c.method === 'objectToken' && c.args[4] === 'tower');
+    expect(towers).toHaveLength(3);
+    for (const t of towers) {
+      expect(t.args[5]).toBeNull(); // pip
+      expect(t.args[3]).toBe('#718096'); // tower color
+      expect(t.args[2]).toBeCloseTo(HEX_R * 0.55); // radius
+    }
+    // labels are T1..T3 in tower order, positioned at each tower's hex center
+    expect(towers.map((t) => t.args[6])).toEqual(['T1', 'T2', 'T3']);
+    combat.siege?.towers.forEach((tower, i) => {
+      const c = hexCenter(tower.pos);
+      expect(towers[i]?.args[0] as number).toBeCloseTo(c.x);
+      expect(towers[i]?.args[1] as number).toBeCloseTo(c.y);
+    });
+  });
+
+  it('draws no tower tokens for a non-siege combat', () => {
+    const combat = makeCombat({ creature: 'pikeman', count: 5 }, { creature: 'wolf', count: 3 });
+    expect(combat.siege).toBeNull();
+    const painter = new RecordingPainter();
+    const renderer = new CombatRenderer(asCtx(new RecordingContext()), painter, data);
+    renderer.render({ combat, reachable: [], hover: null, activeStack: null }, 0);
+    expect(painter.calls.some((c) => c.method === 'objectToken')).toBe(false);
+  });
+});
+
 describe('sideColor', () => {
   it('maps player colors and falls back to neutral', () => {
     expect(sideColor('red')).toBe('#c53030');

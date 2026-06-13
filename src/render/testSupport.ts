@@ -260,9 +260,11 @@ export class RecordingPainter implements Painter {
     cy: number,
     r: number,
     color: string,
+    type: string,
+    pip: string | null,
     label: string,
   ): void {
-    this.record('objectToken', [cx, cy, r, color, label]);
+    this.record('objectToken', [cx, cy, r, color, type, pip, label]);
   }
 
   flag(_ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string): void {

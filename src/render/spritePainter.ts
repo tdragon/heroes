@@ -7,7 +7,7 @@ export const FOG_DIMMED_COLOR = 'rgba(22, 16, 12, 0.5)';
 
 // Seal token palette (concept "Ink, Parchment & Gold")
 export const SEAL_PARCHMENT = '#ead9b5';
-const SEAL_INK = '#241b16';
+export const SEAL_INK = '#241b16';
 const SEAL_PARCHMENT_EDGE = '#c9b384';
 export const SEAL_GILT = '#d9ab3c';
 
@@ -81,9 +81,60 @@ const BANNER_LETTER_SIZE = 0.34; // hero-letter font size
 // notch to center it on the cloth rather than the box
 const BANNER_LETTER_TAIL_BIAS = 0.5; // fraction of the tail notch, toward the pole
 
+// Map-object token geometry. Object emblems are small structures/icons in the
+// 64-box (not figures), so they fill the token box squarely, centered on the
+// tile — a touch wider than the diameter so the art reads at adventure zoom.
+const OBJECT_BLIT_SCALE = 2.1; // emblem square side relative to r
+// A small resource pip in the lower-right corner identifies a mine's income or
+// a resource pile's contents over the shared base sprite. A thin parchment disc
+// with an ink rim backs the pip so it reads over the object art.
+const PIP_OFFSET_X = 0.62; // pip center right of the object center, fraction of r
+const PIP_OFFSET_Y = 0.62; // pip center below the object center, fraction of r
+const PIP_SIZE = 0.5; // pip bitmap square side relative to r
+const PIP_BACK_RADIUS = 0.34; // backing disc radius relative to r
+const PIP_BACK_STROKE = 0.05; // backing disc ink-rim stroke relative to r
+
+// The town sprite is static, so ownership rides on a small procedural pennant in
+// the upper-right of the keep, in the owner color (neutral grey when unowned),
+// reusing the hero banner's swallow-tail shape at the town's scale.
+const TOWN_BLIT_SCALE = 2.1; // town sprite square side relative to r
+const TOWN_FLAG_POLE_X = 0.2; // pennant pole / left edge, right of center
+const TOWN_FLAG_RIGHT_X = 0.86; // pennant outer (right) edge
+const TOWN_FLAG_TOP_Y = 0.96; // pennant top edge above center
+const TOWN_FLAG_BOTTOM_Y = 0.58; // pennant bottom edge above center
+const TOWN_FLAG_TAIL_NOTCH = 0.14; // swallow-tail inset depth on the right edge
+const TOWN_FLAG_STROKE = 0.06; // pennant outline width
+
 // the slice of SpriteAtlas the painter needs (keeps tests cast-free)
 export interface SpriteLookup {
   get(key: string): CanvasImageSource | null;
+}
+
+// A horizontal swallow-tail pennant: a rectangle whose right edge dips inward to
+// a central notch (the tail). Shared by the hero banner and the town owner flag.
+function drawSwallowTail(
+  ctx: CanvasRenderingContext2D,
+  left: number,
+  right: number,
+  top: number,
+  bottom: number,
+  notch: number,
+  color: string,
+  strokeWidth: number,
+): void {
+  const midY = (top + bottom) / 2;
+  ctx.beginPath();
+  ctx.moveTo(left, top);
+  ctx.lineTo(right, top);
+  ctx.lineTo(right - notch, midY);
+  ctx.lineTo(right, bottom);
+  ctx.lineTo(left, bottom);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = SEAL_INK;
+  ctx.lineWidth = strokeWidth;
+  ctx.stroke();
 }
 
 // Theme-art painter: draws terrain/road sprites from the atlas and themed fog,
@@ -366,18 +417,7 @@ export class SpritePainter implements Painter {
     const bottom = cy - r * BANNER_BOTTOM_Y;
     const notch = r * BANNER_TAIL_NOTCH;
     const midY = (top + bottom) / 2;
-    ctx.beginPath();
-    ctx.moveTo(left, top);
-    ctx.lineTo(right, top);
-    ctx.lineTo(right - notch, midY);
-    ctx.lineTo(right, bottom);
-    ctx.lineTo(left, bottom);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.strokeStyle = SEAL_INK;
-    ctx.lineWidth = r * BANNER_STROKE;
-    ctx.stroke();
+    drawSwallowTail(ctx, left, right, top, bottom, notch, color, r * BANNER_STROKE);
 
     ctx.fillStyle = SEAL_PARCHMENT;
     ctx.font = `bold ${String(Math.round(r * BANNER_LETTER_SIZE))}px system-ui, sans-serif`;
@@ -386,19 +426,71 @@ export class SpritePainter implements Painter {
     ctx.fillText(initial, (left + right) / 2 - notch * BANNER_LETTER_TAIL_BIAS, midY);
   }
 
+  // The town keep is a shared static bitmap (`object/town`); ownership rides on
+  // a small procedural swallow-tail pennant in the owner color (already neutral
+  // grey when unowned) over the upper-right of the keep. Falls back to the
+  // wrapped painter's castle silhouette when the bitmap is missing.
   townToken(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, color: string): void {
-    this.fallback.townToken(ctx, cx, cy, r, color);
+    const town = this.atlas.get('object/town');
+    if (!town) {
+      this.fallback.townToken(ctx, cx, cy, r, color);
+      return;
+    }
+    const side = r * TOWN_BLIT_SCALE;
+    ctx.drawImage(town, cx - side / 2, cy - side / 2, side, side);
+    const left = cx + r * TOWN_FLAG_POLE_X;
+    const right = cx + r * TOWN_FLAG_RIGHT_X;
+    const top = cy - r * TOWN_FLAG_TOP_Y;
+    const bottom = cy - r * TOWN_FLAG_BOTTOM_Y;
+    drawSwallowTail(
+      ctx,
+      left,
+      right,
+      top,
+      bottom,
+      r * TOWN_FLAG_TAIL_NOTCH,
+      color,
+      r * TOWN_FLAG_STROKE,
+    );
   }
 
+  // Map objects are shared static bitmaps (`object/<type>`) blitted to fill the
+  // token box. Mines and resource piles share one base sprite each, so the
+  // renderer passes a `pip` resource id; when present (and the object was drawn)
+  // a small `resource/<pip>` bitmap is overlaid in the lower-right corner over a
+  // parchment backing so it reads against the art. Falls back to the wrapped
+  // painter's label token when the object bitmap is missing.
   objectToken(
     ctx: CanvasRenderingContext2D,
     cx: number,
     cy: number,
     r: number,
     color: string,
+    type: string,
+    pip: string | null,
     label: string,
   ): void {
-    this.fallback.objectToken(ctx, cx, cy, r, color, label);
+    const sprite = this.atlas.get(`object/${type}`);
+    if (!sprite) {
+      this.fallback.objectToken(ctx, cx, cy, r, color, type, pip, label);
+      return;
+    }
+    const side = r * OBJECT_BLIT_SCALE;
+    ctx.drawImage(sprite, cx - side / 2, cy - side / 2, side, side);
+    if (pip === null) return;
+    const pipSprite = this.atlas.get(`resource/${pip}`);
+    if (!pipSprite) return;
+    const px = cx + r * PIP_OFFSET_X;
+    const py = cy + r * PIP_OFFSET_Y;
+    ctx.beginPath();
+    ctx.arc(px, py, r * PIP_BACK_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = SEAL_PARCHMENT;
+    ctx.fill();
+    ctx.strokeStyle = SEAL_INK;
+    ctx.lineWidth = r * PIP_BACK_STROKE;
+    ctx.stroke();
+    const pipSide = r * PIP_SIZE;
+    ctx.drawImage(pipSprite, px - pipSide / 2, py - pipSide / 2, pipSide, pipSide);
   }
 
   flag(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string): void {

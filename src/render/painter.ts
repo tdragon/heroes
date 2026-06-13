@@ -57,6 +57,8 @@ export interface Painter {
     cy: number,
     r: number,
     color: string,
+    type: string,
+    pip: string | null,
     label: string,
   ): void;
   flag(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, color: string): void;
@@ -216,6 +218,8 @@ export class TokenPainter implements Painter {
     cy: number,
     r: number,
     color: string,
+    _type: string,
+    _pip: string | null,
     label: string,
   ): void {
     const x = cx - r;

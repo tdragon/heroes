@@ -72,7 +72,8 @@ src/
     creatures.json  spells.json  artifacts.json  buildings.json
     objects.json    terrain.json  heroes.json  skills.json
   maps/        map zod schema, ASCII map DSL compiler, sample maps
-  assets/      themed art — woodcut SVG sprites (terrain/, roads, creatures/, heroes/)
+  assets/      themed art — woodcut SVG sprites (terrain/, roads, creatures/, heroes/,
+               resources/, objects/)
   render/      Canvas 2D renderers (adventure, combat), sprite atlas + sprite
                painter for themed art, token painter as the flat-color fallback
   ui/          DOM overlay screens (town, hero, combat, dialogs, HUD)
@@ -202,6 +203,10 @@ Adventure-map art is theme-based: a theme is a directory of id-keyed SVG files u
 - `creatures/<creatureId>.svg` → sprite key `creature/<id>` (creature emblem art, e.g.
   `creatures/gold_dragon.svg`)
 - `heroes/horseman.svg` → sprite key `hero/horseman` (the mounted-hero marker art)
+- `resources/<id>.svg` → sprite key `resource/<id>` (the 7 resource icons: gold, wood,
+  ore, mercury, sulfur, crystal, gems)
+- `objects/<type>.svg` → sprite key `object/<type>` (map-object art for every object
+  type except `monster`, which uses the creature seal)
 
 SVGs are 64×64 viewBox, loaded as raw text and rasterized once at startup into an
 in-memory atlas (`src/render/spriteAtlas.ts`). The fallback chain is theme sprite → `TokenPainter`
@@ -220,9 +225,25 @@ for all 51 creatures; the **initials centered on the seal** fallback only stands
 the bitmap loads, when art is missing, or for a future theme lacking emblems — so every
 creature still gets the seal look regardless.
 
+**Shared base + resource pip.** Mines and resource pickups share one base sprite each —
+a single `object/mine` and one `object/resource` — distinguished by a small `resource/<id>`
+**pip** the renderer resolves and the painter overlays in a corner of the token (a mine →
+its subtype's `income` resource; a resource pickup → its resource). This keeps the painter
+generic and avoids bespoke per-subtype art.
+
+**Resource SVGs do double duty.** Each `resources/<id>.svg` is rasterized into the atlas as
+`resource/<id>` for the canvas pips above, *and* inlined raw into the DOM HUD resource bar
+(via the pure `resourceIconMarkup()` in `src/ui/resourceIcon.ts`) — one source, both paths.
+(The town marketplace is intentionally *not* iconified: its `<select>`/`<option>` pickers
+render text only and cannot host inline `<svg>`.)
+
+**Town owner flag.** The `object/town` sprite is static, so `SpritePainter.townToken` draws
+a procedural owner-color pennant on top (neutral grey when unowned), keeping ownership
+readable. `mine`/`dwelling` keep their existing separate `flag` call.
+
 A coverage test in `src/assets/themes/woodcut/index.test.ts` asserts every terrain, road,
-and creature id has a sprite and every present `creature/*` key maps to a real creature id
-— adding content means adding matching art.
+creature, resource, and (non-`monster`) object id has a sprite and every present
+`creature/*`/`object/*` key maps to a real id — adding content means adding matching art.
 
 ## License
 

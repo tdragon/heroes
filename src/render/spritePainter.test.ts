@@ -6,6 +6,7 @@ import {
   PIP_BRONZE,
   PIP_GOLD,
   PIP_SILVER,
+  SEAL_INK,
   SEAL_PARCHMENT,
   SpritePainter,
   tierPipSpec,
@@ -377,26 +378,152 @@ describe('SpritePainter.heroToken', () => {
   });
 });
 
+describe('SpritePainter.objectToken', () => {
+  const COLOR = '#4a5568';
+
+  it('blits object/<type> centered to fill the token box, no pip when null', () => {
+    const sprite = stubBitmap(64);
+    const cx = 100;
+    const cy = 80;
+    const r = 20;
+    const { painter, atlas, fallback, stub, ctx } = setup({ 'object/treasure_chest': sprite });
+    painter.objectToken(ctx, cx, cy, r, COLOR, 'treasure_chest', null, 'TC');
+    expect(atlas.lookups).toEqual(['object/treasure_chest']);
+    // only the object bitmap is drawn, centered, side 2.1r
+    const draws = stub.ops.filter((o) => o.op === 'drawImage');
+    expect(draws).toHaveLength(1);
+    expect(draws[0]?.image).toBe(sprite);
+    const side = r * 2.1;
+    expect(draws[0]?.args).toEqual([cx - side / 2, cy - side / 2, side, side]);
+    // no pip backing arc, no fillText label
+    expect(stub.ops.some((o) => o.op === 'arc')).toBe(false);
+    expect(stub.ops.some((o) => o.op === 'fillText')).toBe(false);
+    expect(fallback.calls).toEqual([]);
+  });
+
+  it('overlays the resource/<pip> bitmap with a parchment backing when pip is set', () => {
+    const sprite = stubBitmap(64);
+    const woodPip = stubBitmap(64);
+    const cx = 100;
+    const cy = 80;
+    const r = 20;
+    const { painter, atlas, fallback, stub, ctx } = setup({
+      'object/mine': sprite,
+      'resource/wood': woodPip,
+    });
+    painter.objectToken(ctx, cx, cy, r, COLOR, 'mine', 'wood', 'SM');
+    expect(atlas.lookups).toEqual(['object/mine', 'resource/wood']);
+    // two blits: the base object then the pip
+    const draws = stub.ops.filter((o) => o.op === 'drawImage');
+    expect(draws).toHaveLength(2);
+    expect(draws[0]?.image).toBe(sprite);
+    expect(draws[1]?.image).toBe(woodPip);
+    // the pip sits in the lower-right corner, side 0.5r
+    const px = cx + r * 0.62;
+    const py = cy + r * 0.62;
+    const pipSide = r * 0.5;
+    expect(draws[1]?.args).toEqual([px - pipSide / 2, py - pipSide / 2, pipSide, pipSide]);
+    // a parchment backing disc with an ink rim is drawn at the pip center,
+    // before the pip bitmap
+    const back = stub.ops.find((o) => o.op === 'arc');
+    expect(back?.args).toEqual([px, py, r * 0.34, 0, Math.PI * 2]);
+    expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === SEAL_PARCHMENT)).toBe(true);
+    // draw ORDER: the backing disc (arc -> parchment fill -> ink-rim stroke)
+    // must come before the pip bitmap blit, so the disc never paints over it
+    const backArcAt = stub.ops.findIndex((o) => o.op === 'arc');
+    const backFillAt = stub.ops.findIndex((o) => o.op === 'fill' && o.fillStyle === SEAL_PARCHMENT);
+    const rimStrokeAt = stub.ops.findIndex(
+      (o) => o.op === 'stroke' && o.strokeStyle === SEAL_INK,
+    );
+    const pipBlitAt = stub.ops.findIndex((o) => o.op === 'drawImage' && o.image === woodPip);
+    expect(backArcAt).toBeGreaterThanOrEqual(0);
+    expect(backFillAt).toBeGreaterThan(backArcAt);
+    // the ink-rim stroke uses SEAL_INK and lands between the fill and the pip
+    expect(rimStrokeAt).toBeGreaterThan(backFillAt);
+    expect(pipBlitAt).toBeGreaterThan(rimStrokeAt);
+    expect(fallback.calls).toEqual([]);
+  });
+
+  it('skips the pip when the resource bitmap is missing but still draws the object', () => {
+    const sprite = stubBitmap(64);
+    const { painter, atlas, stub, ctx } = setup({ 'object/mine': sprite });
+    painter.objectToken(ctx, 50, 50, 18, COLOR, 'mine', 'wood', 'SM');
+    expect(atlas.lookups).toEqual(['object/mine', 'resource/wood']);
+    const draws = stub.ops.filter((o) => o.op === 'drawImage');
+    expect(draws).toHaveLength(1); // only the object, no pip
+    expect(draws[0]?.image).toBe(sprite);
+    expect(stub.ops.some((o) => o.op === 'arc')).toBe(false); // no backing disc
+  });
+
+  it('falls back to the wrapped label token when the object bitmap is missing', () => {
+    const { painter, atlas, fallback, stub, ctx } = setup({});
+    painter.objectToken(ctx, 10, 20, 16, COLOR, 'windmill', null, 'Wm');
+    expect(atlas.lookups).toEqual(['object/windmill']);
+    expect(stub.ops.some((o) => o.op === 'drawImage')).toBe(false);
+    expect(fallback.calls).toEqual([
+      { method: 'objectToken', args: [10, 20, 16, COLOR, 'windmill', null, 'Wm'] },
+    ]);
+  });
+});
+
+describe('SpritePainter.townToken', () => {
+  const RED = '#c53030';
+  const NEUTRAL = '#718096';
+
+  it('blits object/town centered, then a swallow-tail flag in the owner color', () => {
+    const town = stubBitmap(64);
+    const cx = 120;
+    const cy = 90;
+    const r = 24;
+    const { painter, atlas, fallback, stub, ctx } = setup({ 'object/town': town });
+    painter.townToken(ctx, cx, cy, r, RED);
+    expect(atlas.lookups).toEqual(['object/town']);
+    // the keep is blitted (and only that bitmap), centered, side 2.1r
+    const draws = stub.ops.filter((o) => o.op === 'drawImage');
+    expect(draws).toHaveLength(1);
+    expect(draws[0]?.image).toBe(town);
+    const side = r * 2.1;
+    expect(draws[0]?.args).toEqual([cx - side / 2, cy - side / 2, side, side]);
+    // the owner flag is a procedural swallow-tail filled with the owner color
+    expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === RED)).toBe(true);
+    // swallow-tail: 5 vertices (right edge dips inward to a notch)
+    const verts = stub.ops.filter((o) => o.op === 'moveTo' || o.op === 'lineTo');
+    expect(verts).toHaveLength(5);
+    expect(fallback.calls).toEqual([]);
+  });
+
+  it('uses the neutral color for an unowned town flag', () => {
+    const town = stubBitmap(64);
+    const { painter, stub, ctx } = setup({ 'object/town': town });
+    painter.townToken(ctx, 50, 50, 20, NEUTRAL);
+    expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === NEUTRAL)).toBe(true);
+  });
+
+  it('falls back to the wrapped castle silhouette when object/town is missing', () => {
+    const { painter, atlas, fallback, stub, ctx } = setup({});
+    painter.townToken(ctx, 10, 20, 16, RED);
+    expect(atlas.lookups).toEqual(['object/town']);
+    expect(stub.ops.some((o) => o.op === 'drawImage')).toBe(false);
+    expect(fallback.calls).toEqual([{ method: 'townToken', args: [10, 20, 16, RED] }]);
+  });
+});
+
 describe('SpritePainter delegation', () => {
-  it('forwards the remaining token/overlay methods to the wrapped painter', () => {
+  // heroToken/townToken/objectToken have dedicated sprite-path tests; the
+  // remaining overlay primitives have no themed art and always delegate
+  it('forwards the remaining overlay methods to the wrapped painter', () => {
     const { painter, fallback, ctx } = setup({});
-    painter.heroToken(ctx, 4, 5, 6, '#abc', 'E');
-    painter.townToken(ctx, 7, 8, 9, '#def');
-    painter.objectToken(ctx, 1, 1, 2, '#123', 'SM');
     painter.flag(ctx, 0, 0, 48, '#c53030');
     painter.selectionRing(ctx, 3, 3, 20);
     painter.pathDot(ctx, 2, 2, 5);
     painter.dayMarker(ctx, 9, 9, 12, 3);
     expect(fallback.calls.map((c) => c.method)).toEqual([
-      'heroToken',
-      'townToken',
-      'objectToken',
       'flag',
       'selectionRing',
       'pathDot',
       'dayMarker',
     ]);
-    expect(fallback.calls[0]?.args).toEqual([4, 5, 6, '#abc', 'E']);
-    expect(fallback.calls[6]?.args).toEqual([9, 9, 12, 3]);
+    expect(fallback.calls[0]?.args).toEqual([0, 0, 48, '#c53030']);
+    expect(fallback.calls[3]?.args).toEqual([9, 9, 12, 3]);
   });
 });

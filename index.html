@@ -137,6 +137,31 @@
         gap: 16px;
         overflow-x: auto;
       }
+      .resource-cell {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .resource-label {
+        display: inline-flex;
+        align-items: center;
+      }
+      .resource-icon {
+        width: 20px;
+        height: 20px;
+        vertical-align: middle;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+        padding: 0;
+        margin: -1px;
+      }
       /* action buttons relocated into the bottom bar keep their natural size */
       .bottom-bar .hud-button {
         flex: 0 0 auto;

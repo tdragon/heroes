@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { RESOURCE_IDS } from '../src/data/schema';
 import { canvasPoint, moveHeroTo, TILE } from './helpers';
 
 // light-patch fill of src/assets/themes/woodcut/terrain/grass.svg (#538935)
@@ -107,6 +108,55 @@ test('creature and hero emblems render on the adventure map without console erro
   await expect(canvas).toHaveAttribute('data-camera-y', '48');
 
   expect(errors).toEqual([]);
+});
+
+test('map object sprites (town/mine/resource) render without console errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') errors.push(msg.text());
+    // sprite rasterization failures are warnings; treat them as failures here
+    if (msg.type() === 'warning' && msg.text().includes('sprite rasterization failed')) {
+      errors.push(msg.text());
+    }
+  });
+  page.on('pageerror', (err) => {
+    errors.push(err.message);
+  });
+
+  // reload with listeners attached so the initial render — which paints the
+  // map objects (the tutorial town, mines, resource piles) via objectToken/
+  // townToken — is covered too
+  await page.goto('/?map=tutorial-valley&seed=42');
+  const canvas = page.getByTestId('adventure-canvas');
+  await expect(canvas).toBeVisible();
+
+  // every object/resource/terrain bitmap rasterized: 'true' (any failure flags
+  // 'failed') — so the woodcut object sprites + resource pips all blit
+  await expect(canvas).toHaveAttribute('data-sprites-ready', 'true');
+
+  // the own town sits on the map at the hero's start (Space opens its screen),
+  // so the town sprite + owner flag are painted in the initial frame above; pan
+  // the camera so the off-origin object blit path repaints them as well
+  await expect(canvas).toHaveAttribute('data-camera-x', '0');
+  await page.keyboard.press('ArrowRight');
+  await expect(canvas).toHaveAttribute('data-camera-x', '48');
+  await page.keyboard.press('ArrowDown');
+  await expect(canvas).toHaveAttribute('data-camera-y', '48');
+
+  expect(errors).toEqual([]);
+});
+
+test('HUD resource bar shows a woodcut icon and value for every resource', async ({ page }) => {
+  for (const id of RESOURCE_IDS) {
+    const cell = page.getByTestId(`resource-${id}`);
+    // the inline resource/<id> woodcut SVG is injected into the cell's label
+    await expect(cell.locator('svg.resource-icon')).toBeVisible();
+    // the numeric value is still rendered alongside the icon
+    await expect(cell.locator('.resource-value')).not.toBeEmpty();
+    // the icon is aria-hidden, so the resource name lives in an sr-only span
+    // to give screen readers the resource identity (read as e.g. "gold 20000")
+    await expect(cell.locator('.sr-only')).toHaveText(id);
+  }
 });
 
 test('select hero and move with click-confirm-click', async ({ page }) => {
