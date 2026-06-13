@@ -17,6 +17,7 @@ import {
   tradeModel,
 } from './helpers';
 import { resourceIcon } from './icons';
+import { buildingIconMarkup } from './resourceIcon';
 import { openRecruitDialog } from './recruitDialog';
 
 type ArmyRow = 'garrison' | 'visiting';
@@ -137,13 +138,15 @@ export class TownScreen {
     card.type = 'button';
 
     const head = el('div', 'building-head');
+    const icon = el('span', 'building-icon-wrap');
+    icon.innerHTML = buildingIconMarkup(building.id);
     const name = el('div', 'building-name');
     name.textContent = building.name;
     const help = el('span', 'building-help', `building-help-${building.id}`);
     help.textContent = 'ⓘ';
     help.setAttribute('aria-label', 'Building info');
     this.wireHelp(help, buildingHelp(building, town.faction, this.ctx.data));
-    head.append(name, help);
+    head.append(icon, name, help);
     card.appendChild(head);
 
     if (availability.status === 'built') {

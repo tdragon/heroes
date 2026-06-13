@@ -13,3 +13,15 @@ export function resourceIconMarkup(id: string): string {
     '<svg class="resource-icon" aria-hidden="true" focusable="false"',
   );
 }
+
+// Same pure-string transform for `building/<id>` sprites, sized via the
+// `.building-icon` CSS rule. The building card keeps its name text, so the icon
+// is purely decorative (aria-hidden); injected via innerHTML on the card.
+export function buildingIconMarkup(id: string): string {
+  const svg = woodcutSprites[`building/${id}`];
+  if (svg === undefined) return '';
+  return svg.replace(
+    /^<svg\b/,
+    '<svg class="building-icon" aria-hidden="true" focusable="false"',
+  );
+}

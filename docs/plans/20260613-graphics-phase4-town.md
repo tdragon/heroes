@@ -186,22 +186,22 @@ Key decisions:
 - Modify: `index.html` (`.building-icon` CSS)
 - Modify: `src/ui/resourceIcon.test.ts` (extend for `buildingIconMarkup`)
 
-- [ ] add pure `buildingIconMarkup(id: string): string` returning the
+- [x] add pure `buildingIconMarkup(id: string): string` returning the
       `building/<id>` raw SVG from `woodcutSprites` with a `building-icon` class +
       `aria-hidden="true"` injected onto the root `<svg>`; `''` for a missing id.
       (Node-unit-testable as a string — do NOT use the `DOMParser`-based
       `icons.ts` helper.)
-- [ ] render the icon in `buildingCard`: an icon span with
+- [x] render the icon in `buildingCard`: an icon span with
       `innerHTML = buildingIconMarkup(building.id)` (keep the `building-<id>`
       testid, name, help, cost/status intact). For accessibility the name text
       stays on the card, so no sr-only span is needed (unlike the icon-only HUD)
-- [ ] add a `.building-icon` CSS rule that is the SINGLE source of truth for
+- [x] add a `.building-icon` CSS rule that is the SINGLE source of truth for
       size (the helper injects only the class, no inline width/height, so CSS
       sizing doesn't fight inline attrs)
-- [ ] unit-test `buildingIconMarkup` in `resourceIcon.test.ts`: returns
+- [x] unit-test `buildingIconMarkup` in `resourceIcon.test.ts`: returns
       `<svg>…</svg>` with the `building-icon` class for a known id; `''` for an
       unknown id (node-safe string assertions). DOM injection is e2e (Task 5)
-- [ ] run `npm test` — must pass before task 5
+- [x] run `npm test` — must pass before task 5
 
 ### Task 5: e2e — building icons on the town screen
 
