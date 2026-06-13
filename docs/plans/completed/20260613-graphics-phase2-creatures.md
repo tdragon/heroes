@@ -291,11 +291,11 @@ Key decisions:
 
 ### Task 8: [Final] Update documentation
 
-- [ ] README "Themes & sprites": document `creatures/<id>.svg`→`creature/<id>`
+- [x] README "Themes & sprites": document `creatures/<id>.svg`→`creature/<id>`
       and `heroes/horseman.svg`→`hero/horseman` keys, the procedural-furniture
       split, and the initials-on-seal fallback
-- [ ] note the remaining 42 emblems as phase 2b (faction batches)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] note the remaining 42 emblems as phase 2b (faction batches)
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 

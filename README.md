@@ -72,7 +72,7 @@ src/
     creatures.json  spells.json  artifacts.json  buildings.json
     objects.json    terrain.json  heroes.json  skills.json
   maps/        map zod schema, ASCII map DSL compiler, sample maps
-  assets/      themed art — woodcut SVG sprites for adventure terrain and roads
+  assets/      themed art — woodcut SVG sprites (terrain/, roads, creatures/, heroes/)
   render/      Canvas 2D renderers (adventure, combat), sprite atlas + sprite
                painter for themed art, token painter as the flat-color fallback
   ui/          DOM overlay screens (town, hero, combat, dialogs, HUD)
@@ -198,13 +198,29 @@ Adventure-map art is theme-based: a theme is a directory of id-keyed SVG files u
 
 - `terrain/<terrainId>.svg` → sprite key `terrain/<id>` (e.g. `terrain/grass.svg`)
 - `terrain/road.<roadId>.svg` → sprite key `road/<id>` (e.g. `terrain/road.dirt_road.svg`)
+- `creatures/<creatureId>.svg` → sprite key `creature/<id>` (creature emblem art, e.g.
+  `creatures/gold_dragon.svg`)
+- `heroes/horseman.svg` → sprite key `hero/horseman` (the mounted-hero marker art)
 
 SVGs are 64×64 viewBox, loaded as raw text and rasterized once at startup into an
 in-memory atlas (`src/render/spriteAtlas.ts`). The fallback chain is theme sprite → `TokenPainter`
 flat color, so a missing or still-loading sprite never breaks rendering (and the minimap
-always uses flat terrain colors). A coverage test in `src/assets/themes/woodcut/index.test.ts`
-asserts every terrain and road id in the game data has a sprite — adding content means
-adding matching art.
+always uses flat terrain colors).
+
+**Static art vs. procedural furniture.** A creature emblem and the horseman are *static*
+shared atlas bitmaps (one per id, identical for every owner/stack). The per-instance
+"furniture" around them is drawn *procedurally* by `SpritePainter`, not baked into the
+SVG: a creature emblem sits on a procedural **seal** (parchment disc, double ink ring,
+gold tier pips, and a player-color banner notch), and the horseman's swallow-tail banner
+gets its player-color fill + hero initial drawn on top. This keeps the atlas static while
+ownership, tier, and the hero letter stay dynamic. A creature with no emblem sprite falls
+back to its **initials centered on the seal**, so all 51 creatures get the seal look even
+though only 9 have bespoke emblems so far (the remaining 42 land in a later faction-batch
+pass — *phase 2b*).
+
+A coverage test in `src/assets/themes/woodcut/index.test.ts` asserts every terrain and
+road id has a sprite and every present `creature/*` key maps to a real creature id —
+adding content means adding matching art.
 
 ## License
 
