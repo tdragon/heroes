@@ -153,26 +153,26 @@ Key decisions:
 - Modify: `src/assets/themes/woodcut/index.ts` (glob `./*/*.svg`, folder→category)
 - Modify: `src/assets/themes/woodcut/index.test.ts`
 
-- [ ] port the 9 creature `<symbol>`s + `u-horseman` from
+- [x] port the 9 creature `<symbol>`s + `u-horseman` from
       `docs/design/graphics-concept.html` into standalone 64×64 SVGs — the
       emblem art only (no seal disc/ring/pips; those are procedural)
-- [ ] **CRITICAL: inline the `.s`/`.s2`/`.shdw` classes as presentation
+- [x] **CRITICAL: inline the `.s`/`.s2`/`.shdw` classes as presentation
       attributes** (the standalone files have no `<style>` block, and `.shdw`
       elements carry no inline fill — dropping the class would render the
       drop-shadow solid black and remove every ink outline). Map:
       `.s` → `stroke="#241b16" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"`,
       `.s2` → same with `stroke-width="2.2"`, `.shdw` → `fill="rgba(20,14,10,0.26)"`.
       The element's own `fill=` is kept; the result has no `class=`.
-- [ ] update the loader to glob `./*/*.svg` and key by folder
+- [x] update the loader to glob `./*/*.svg` and key by folder
       (`creatures/<id>`→`creature/<id>`, `heroes/<n>`→`hero/<n>`, terrain
       unchanged incl. `road.`/`roadend.`)
-- [ ] coverage test: the 9 `creature/<id>` keys + `hero/horseman` exist, and
+- [x] coverage test: the 9 `creature/<id>` keys + `hero/horseman` exist, and
       every `creature/*` key maps to a real `GameData.creatures` id
-- [ ] update key-format regex to
+- [x] update key-format regex to
       `^(terrain|road|roadend|creature|hero)\/[a-z][a-z0-9_]*$` (verify
       `horseman`, `wood_elf`, `gold_dragon`, `bone_dragon` all match); string
       SVG sanity (viewBox 64×64, `<svg>…</svg>`, no `class=`) covers new files
-- [ ] run `npm test` — must pass before task 2
+- [x] run `npm test` — must pass before task 2
 
 ### Task 2: Relocate the shared woodcut atlas to a neutral module
 

@@ -4,6 +4,18 @@ import { woodcutSprites } from './index';
 
 const data = loadGameData();
 
+const PORTED_CREATURES = [
+  'pikeman',
+  'griffin',
+  'archangel',
+  'centaur',
+  'wood_elf',
+  'gold_dragon',
+  'skeleton',
+  'vampire',
+  'bone_dragon',
+];
+
 describe('woodcut theme coverage', () => {
   it('has a sprite for every terrain id in GameData', () => {
     const terrainIds = Object.keys(data.terrains);
@@ -22,11 +34,36 @@ describe('woodcut theme coverage', () => {
     }
   });
 
-  it('contains no sprite keys outside terrain/, road/ and roadend/', () => {
-    for (const key of Object.keys(woodcutSprites)) {
-      expect(key).toMatch(/^(terrain|road|roadend)\/[a-z][a-z0-9_]*$/);
+  it('has the 9 ported creature emblems and the horseman hero marker', () => {
+    for (const id of PORTED_CREATURES) {
+      expect(woodcutSprites, `missing sprite creature/${id}`).toHaveProperty(`creature/${id}`);
+    }
+    expect(woodcutSprites).toHaveProperty('hero/horseman');
+  });
+
+  it('maps every creature/* key to a real GameData creature id', () => {
+    const creatureKeys = Object.keys(woodcutSprites).filter((k) => k.startsWith('creature/'));
+    expect(creatureKeys.length).toBeGreaterThan(0);
+    for (const key of creatureKeys) {
+      const id = key.slice('creature/'.length);
+      expect(data.creatures, `creature sprite for unknown id ${id}`).toHaveProperty(id);
     }
   });
+
+  it('contains only valid sprite keys', () => {
+    for (const key of Object.keys(woodcutSprites)) {
+      expect(key).toMatch(/^(terrain|road|roadend|creature|hero)\/[a-z][a-z0-9_]*$/);
+    }
+  });
+});
+
+describe('woodcut sprite key-format spot checks', () => {
+  it.each(['hero/horseman', 'creature/wood_elf', 'creature/gold_dragon', 'creature/bone_dragon'])(
+    '%s matches the key-format regex',
+    (key) => {
+      expect(key).toMatch(/^(terrain|road|roadend|creature|hero)\/[a-z][a-z0-9_]*$/);
+    },
+  );
 });
 
 describe('woodcut sprite sanity (string-based, node env)', () => {
