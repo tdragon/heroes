@@ -207,3 +207,23 @@ test('long-press near the right edge keeps the info popup on-screen', async ({ p
   await expectWithinViewport(page, '[data-testid="info-popup"]');
   await expectNoHorizontalOverflow(page);
 });
+
+test('browser page zoom is suppressed so the map never gets stuck behind it', async ({ page }) => {
+  await bootAdventure(page);
+
+  // the viewport meta locks scale for Android/desktop browsers
+  const viewport = await page.locator('meta[name="viewport"]').getAttribute('content');
+  expect(viewport).toContain('user-scalable=no');
+  expect(viewport).toContain('maximum-scale=1');
+
+  // iOS Safari ignores the meta and pinch-zooms the page via WebKit gesture
+  // events; the app-wide guard must cancel them (defaultPrevented === true)
+  const gesturesBlocked = await page.evaluate(() =>
+    ['gesturestart', 'gesturechange', 'gestureend'].every((type) => {
+      const ev = new Event(type, { cancelable: true, bubbles: true });
+      document.dispatchEvent(ev);
+      return ev.defaultPrevented;
+    }),
+  );
+  expect(gesturesBlocked).toBe(true);
+});

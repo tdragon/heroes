@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no"
+    />
     <title>Open Heroes</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <style>
@@ -15,6 +18,9 @@
         background: #1a202c;
         color: #e2e8f0;
         font-family: system-ui, sans-serif;
+        /* kill double-tap-to-zoom page-wide; taps and panel scrolling still work
+           (the map canvas overrides this with touch-action: none) */
+        touch-action: manipulation;
       }
       #app {
         display: flex;
