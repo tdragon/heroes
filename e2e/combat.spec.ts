@@ -16,6 +16,43 @@ async function stackHex(stack: Locator): Promise<[number, number]> {
   return [x, y];
 }
 
+test('combat stacks render seal emblems without console errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') errors.push(msg.text());
+    // sprite rasterization failures are warnings; treat them as failures here
+    if (msg.type() === 'warning' && msg.text().includes('sprite rasterization failed')) {
+      errors.push(msg.text());
+    }
+  });
+  page.on('pageerror', (err) => {
+    errors.push(err.message);
+  });
+
+  await page.goto('/?map=combat-arena&seed=5');
+  await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+  await page.getByTestId('hero-item-beatrice').click();
+
+  // moving onto the guarded tile triggers the attack prompt → start combat
+  await moveHeroTo(page, 5, 2);
+  await page.getByTestId('choice-option-0').click();
+  await expect(page.getByTestId('combat-screen')).toBeVisible();
+
+  // both armies have at least one stack on the field (pikemen vs the wolf);
+  // the stack-strip nodes carry the creature id the canvas paints as a seal
+  const canvas = page.getByTestId('combat-canvas');
+  await expect(canvas).toBeVisible();
+  await expect(page.getByTestId('combat-stack-a0')).toHaveAttribute('data-creature', 'pikeman');
+  await expect(page.getByTestId('combat-stack-d0')).toHaveAttribute('data-creature', /.+/);
+
+  // the shared woodcut atlas resolves and marks the combat canvas ready;
+  // 'true' only when every emblem rasterized (any failure flags 'failed')
+  await expect(canvas).toHaveAttribute('data-sprites-ready', 'true');
+
+  // the continuous combat frame loop has repainted the seal emblems by now
+  expect(errors).toEqual([]);
+});
+
 test('guard fight on the tutorial map: win via attacks, result shows XP', async ({ page }) => {
   await page.goto('/?map=tutorial-valley&seed=42');
   await expect(page.getByTestId('adventure-canvas')).toBeVisible();

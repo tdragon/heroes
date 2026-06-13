@@ -261,11 +261,11 @@ Key decisions:
 **Files:**
 - Modify: `e2e/adventure.spec.ts` (or the combat spec)
 
-- [ ] adventure smoke: a wandering-monster tile shows the emblem (sprites-ready,
+- [x] adventure smoke: a wandering-monster tile shows the emblem (sprites-ready,
       no console errors), existing flows unchanged
-- [ ] combat smoke on `/?map=combat-arena&seed=5`: canvas reaches
+- [x] combat smoke on `/?map=combat-arena&seed=5`: canvas reaches
       `data-sprites-ready`, stacks render without console errors
-- [ ] run `npm run test:e2e` — must pass before task 7
+- [x] run `npm run test:e2e` — must pass before task 7
 
 ### Task 7: Verify acceptance criteria
 
