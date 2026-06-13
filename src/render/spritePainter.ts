@@ -7,8 +7,8 @@ export const FOG_DIMMED_COLOR = 'rgba(22, 16, 12, 0.5)';
 
 // Seal token palette (concept "Ink, Parchment & Gold")
 export const SEAL_PARCHMENT = '#ead9b5';
-export const SEAL_INK = '#241b16';
-export const SEAL_PARCHMENT_EDGE = '#c9b384';
+const SEAL_INK = '#241b16';
+const SEAL_PARCHMENT_EDGE = '#c9b384';
 export const SEAL_GILT = '#d9ab3c';
 
 // Seal furniture geometry, expressed as fractions of the token radius `r`
@@ -17,7 +17,14 @@ export const SEAL_GILT = '#d9ab3c';
 const RING_OUTER_WIDTH = 0.093; // outer ink ring stroke (2.6/28)
 const RING_INNER_RADIUS = 0.843; // hairline inner ring radius (23.6/28)
 const RING_INNER_WIDTH = 0.032; // hairline inner ring stroke (0.9/28)
-const EMBLEM_SCALE = 1.5; // emblem square side relative to r (slightly overfills)
+// The creature emblems are full-figure art in a 64-box (head/spear near the top
+// edge, feet + ground shadow near the bottom). Framing it like a medallion: blit
+// a square a touch wider than r, nudged up so the figure's focal mass sits in
+// the disc's upper-middle and the feet clear the tier pips + banner notch, then
+// clip to a circle just inside the ink ring so nothing can poke past the frame.
+const EMBLEM_SCALE = 1.34; // emblem square side relative to r
+const EMBLEM_VERT_OFFSET = 0.2; // upward shift of the emblem center, fraction of r
+const EMBLEM_CLIP_RADIUS = 0.92; // circular clip radius, just inside the ink ring
 const PIP_HALF = 0.13; // pip diamond half-diagonal
 const PIP_GAP = 0.36; // horizontal spacing between adjacent pips
 const PIP_ARC_Y = 0.55; // pip row offset below center (on the lower arc)
@@ -27,25 +34,37 @@ const NOTCH_TOP_Y = 0.66; // chevron top edge below center
 const NOTCH_TIP_Y = 0.94; // chevron lower tip below center
 const NOTCH_SHOULDER_Y = 0.84; // chevron shoulder below center
 const NOTCH_STROKE = 0.057; // banner chevron outline width
+const NOTCH_TOP_DIP = 0.6; // top-edge dip, fraction of (shoulder-top)
+const NOTCH_TIP_DIP = 0.4; // center swallow-tail notch depth, fraction of (shoulder-top)
+const NOTCH_SHOULDER_INSET = 0.5; // shoulder horizontal inset, fraction of half-width
 
 // Horseman hero marker geometry, as fractions of the token radius `r`.
-// The horseman art is a full figure in the 64-box; blit it at `2*r` square so
-// horse+rider read at hero-token size. The adventure renderer draws the
-// selection ring at `rect.size*0.48` and this token at `rect.size*0.36`, i.e.
-// the ring radius is ~1.33*r — a `2*r` square extends only ~r from center, so
-// the figure and its upper-right banner sit inside the ring and are not clipped.
-const HORSEMAN_BLIT_SCALE = 2; // sprite square side relative to r
+// The horseman art is a full figure in the 64-box. The adventure renderer draws
+// the selection ring at `rect.size*0.48` and this token at `rect.size*0.36`, so
+// the ring radius is ~1.33*r. A naive `2*r` blit makes the full figure overshoot
+// the ring (the horse's hindquarters and hooves spill past the gold circle), so
+// the figure is blitted at `1.55*r` and nudged up a hair: at that size the whole
+// horse+rider+banner sits inside the ring with a small margin (max figure radius
+// ~0.85 of the ring radius).
+const HORSEMAN_BLIT_SCALE = 1.55; // sprite square side relative to r
+const HORSEMAN_VERT_OFFSET = 0.04; // upward shift of the figure center, fraction of r
 // Procedural player-color banner (swallow-tail) in the upper-right of the
-// figure. Drawn on top of the rasterized sprite, whose own `currentColor`
-// banner resolves to a fixed default in the static bitmap; these coordinates
-// cover that area and carry the dynamic owner color + hero letter instead.
-const BANNER_POLE_X = 0.2; // banner pole / left edge, right of center
-const BANNER_RIGHT_X = 0.86; // banner outer (right) edge
-const BANNER_TOP_Y = 0.86; // banner top edge above center
-const BANNER_BOTTOM_Y = 0.5; // banner bottom edge above center
+// figure. Drawn on top of the rasterized sprite, whose own pennant is a muted
+// parchment-neutral in the static bitmap; these coordinates cover that area and
+// carry the dynamic owner color + hero letter instead. Kept inside the selection
+// ring: the far top-right corner sits at radius ~1.1*r (~0.83 of the ring radius)
+// so the flag clears the gold circle with a margin.
+const BANNER_POLE_X = 0.18; // banner pole / left edge, right of center
+const BANNER_RIGHT_X = 0.74; // banner outer (right) edge
+const BANNER_TOP_Y = 0.82; // banner top edge above center (covers the sprite pennant)
+const BANNER_BOTTOM_Y = 0.46; // banner bottom edge above center
 const BANNER_TAIL_NOTCH = 0.12; // swallow-tail inset depth on the right edge
 const BANNER_STROKE = 0.06; // banner outline width
 const BANNER_LETTER_SIZE = 0.34; // hero-letter font size
+// the swallow-tail eats into the right edge, so the banner's visual mass sits
+// left of its bounding-box midpoint; bias the letter left by half the tail
+// notch to center it on the cloth rather than the box
+const BANNER_LETTER_TAIL_BIAS = 0.5; // fraction of the tail notch, toward the pole
 
 // the slice of SpriteAtlas the painter needs (keeps tests cast-free)
 export interface SpriteLookup {
@@ -210,11 +229,17 @@ export class SpritePainter implements Painter {
     ctx.lineWidth = r * RING_INNER_WIDTH;
     ctx.stroke();
 
-    // emblem (shared bitmap) or initials fallback, centered on the disc
+    // emblem (shared bitmap) or initials fallback, framed inside the disc
     const emblem = this.atlas.get(`creature/${id}`);
     if (emblem) {
       const side = r * EMBLEM_SCALE;
-      ctx.drawImage(emblem, cx - side / 2, cy - side / 2, side, side);
+      const ey = cy - r * EMBLEM_VERT_OFFSET;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * EMBLEM_CLIP_RADIUS, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(emblem, cx - side / 2, ey - side / 2, side, side);
+      ctx.restore();
     } else {
       ctx.fillStyle = SEAL_INK;
       ctx.font = `bold ${String(Math.round(r * 0.9))}px system-ui, sans-serif`;
@@ -268,14 +293,15 @@ export class SpritePainter implements Painter {
     const top = cy + r * NOTCH_TOP_Y;
     const shoulder = cy + r * NOTCH_SHOULDER_Y;
     const tip = cy + r * NOTCH_TIP_Y;
+    const span = shoulder - top;
     ctx.beginPath();
     ctx.moveTo(cx - hw, top);
-    ctx.lineTo(cx, top + (shoulder - top) * 0.6);
+    ctx.lineTo(cx, top + span * NOTCH_TOP_DIP);
     ctx.lineTo(cx + hw, top);
     ctx.lineTo(cx + hw, tip);
-    ctx.lineTo(cx + hw * 0.5, shoulder);
-    ctx.lineTo(cx, tip + (shoulder - top) * 0.4);
-    ctx.lineTo(cx - hw * 0.5, shoulder);
+    ctx.lineTo(cx + hw * NOTCH_SHOULDER_INSET, shoulder);
+    ctx.lineTo(cx, tip + span * NOTCH_TIP_DIP);
+    ctx.lineTo(cx - hw * NOTCH_SHOULDER_INSET, shoulder);
     ctx.lineTo(cx - hw, tip);
     ctx.closePath();
     ctx.fillStyle = color;
@@ -303,8 +329,9 @@ export class SpritePainter implements Painter {
       return;
     }
     const side = r * HORSEMAN_BLIT_SCALE;
-    ctx.drawImage(horseman, cx - side / 2, cy - side / 2, side, side);
-    this.drawHeroBanner(ctx, cx, cy, r, color, initial);
+    const fy = cy - r * HORSEMAN_VERT_OFFSET;
+    ctx.drawImage(horseman, cx - side / 2, fy - side / 2, side, side);
+    this.drawHeroBanner(ctx, cx, fy, r, color, initial);
   }
 
   // swallow-tail banner in the upper-right of the figure, in the owner color,
@@ -340,7 +367,7 @@ export class SpritePainter implements Painter {
     ctx.font = `bold ${String(Math.round(r * BANNER_LETTER_SIZE))}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(initial, (left + right) / 2 - notch / 2, midY);
+    ctx.fillText(initial, (left + right) / 2 - notch * BANNER_LETTER_TAIL_BIAS, midY);
   }
 
   townToken(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, color: string): void {

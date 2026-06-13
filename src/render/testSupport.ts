@@ -24,6 +24,7 @@ export interface CtxOp {
     | 'lineTo'
     | 'arc'
     | 'roundRect'
+    | 'clip'
     | 'fill'
     | 'stroke'
     | 'fillText';
@@ -112,6 +113,10 @@ export class RecordingContext {
 
   arc(cx: number, cy: number, r: number, start: number, end: number): void {
     this.ops.push({ op: 'arc', fillStyle: this.fillStyle, args: [cx, cy, r, start, end] });
+  }
+
+  clip(): void {
+    this.ops.push({ op: 'clip', fillStyle: this.fillStyle, args: [] });
   }
 
   fill(): void {

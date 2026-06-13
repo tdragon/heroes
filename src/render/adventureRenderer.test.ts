@@ -11,6 +11,7 @@ import {
   roadConnections,
   type AdventureView,
 } from './adventureRenderer';
+import { initialsOf } from './painter';
 import { asCtx, RecordingContext, RecordingPainter, type TileCall } from './testSupport';
 
 const data = loadGameData();
@@ -251,6 +252,38 @@ describe('AdventureRenderer fog branches', () => {
     expect(painter.terrainCalls).toHaveLength(SIZE * SIZE);
     expect(painter.dimmedCalls).toHaveLength(SIZE * SIZE - 1);
     expect(painter.dimmedCalls.some((c) => c.x === 0 && c.y === 0)).toBe(false);
+  });
+});
+
+describe('AdventureRenderer entity tokens', () => {
+  it('forwards the monster creature id, neutral color, initials, and tier to creatureToken', () => {
+    // tiny map: a wandering wolf (tier 2) at [6,6], all tiles visible
+    const wolfData = data.creatures.wolf;
+    expect(wolfData).toBeDefined();
+    const painter = renderWith(makeView(newGame(tinyMap, {}, 7, data)));
+    const monsters = painter.calls.filter((c) => c.method === 'creatureToken');
+    const wolf = monsters.find((c) => c.args[4] === 'wolf');
+    expect(wolf).toBeDefined();
+    // args: [cx, cy, r, color, id, initials, tier]
+    expect(wolf?.args[3]).toBe('#718096'); // NEUTRAL_COLOR (unowned guard)
+    expect(wolf?.args[4]).toBe('wolf');
+    expect(wolf?.args[5]).toBe(initialsOf(wolfData?.name ?? ''));
+    expect(wolf?.args[6]).toBe(wolfData?.tier);
+  });
+
+  it('forwards the starting hero color and single-letter initial to heroToken', () => {
+    // tiny map: red player starts with hero `edric` (knight)
+    const state = newGame(tinyMap, {}, 7, data);
+    const painter = renderWith(makeView(state));
+    const heroes = painter.calls.filter((c) => c.method === 'heroToken');
+    expect(heroes.length).toBeGreaterThanOrEqual(1);
+    const edric = Object.values(state.heroes).find((h) => h.owner === 'red');
+    expect(edric).toBeDefined();
+    const call = heroes.find((c) => c.args[3] === '#c53030'); // red player color
+    expect(call).toBeDefined();
+    // args: [cx, cy, r, color, initial] — initial is one char
+    expect(call?.args[4]).toBe(initialsOf(edric?.name ?? '', 1));
+    expect((call?.args[4] as string).length).toBe(1);
   });
 });
 

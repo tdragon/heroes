@@ -96,11 +96,12 @@ src/
    menus, town screen, and dialogs are plain DOM — easy for text-heavy UI and
    e2e-testable via selectors.
 5. **Painter interface + themed art.** All canvas drawing goes through the `Painter`
-   interface. Adventure terrain, roads, and fog are drawn from the woodcut SVG theme
-   (`src/assets/themes/woodcut/`, rasterized at startup into a sprite atlas); the
-   `TokenPainter` draws everything else as labeled flat-color tokens and serves as the
-   fallback — entities, the combat screen, the minimap, and any sprite that is missing
-   or still loading.
+   interface. Adventure terrain, roads, fog, creature seals, and the horseman hero
+   marker — plus the combat stacks — are drawn from the woodcut SVG theme
+   (`src/assets/themes/woodcut/`, rasterized at startup into a sprite atlas, shared by
+   both screens). `TokenPainter` is the flat-color *fallback*: un-arted creatures
+   (initials on the seal), any sprite still loading or missing, and the remaining
+   plain tokens. The minimap bypasses the painter entirely (flat terrain colors).
 
 ### Known limitations
 

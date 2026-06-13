@@ -2,7 +2,7 @@
   <ellipse fill="rgba(20,14,10,0.26)" cx="32" cy="56" rx="19" ry="3"/>
   <path d="M39 30 V3" stroke="#6d4f33" stroke-width="1.8"/>
   <circle cx="39" cy="2.4" r="1.5" fill="#d9ab3c" stroke="#241b16" stroke-width="1"/>
-  <path d="M40 4 H59 L53.5 9.5 L59 15 H40 Z" fill="currentColor" stroke="#241b16" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M40 4 H59 L53.5 9.5 L59 15 H40 Z" fill="#c9b384" stroke="#241b16" stroke-width="1.5" stroke-linejoin="round"/>
   <path d="M14.5 31 Q9 33 8.5 41 Q8.8 46 11 49" fill="none" stroke="#241b16" stroke-width="2.8" stroke-linecap="round"/>
   <path d="M23 41.5 L25 48.5 L24.2 55 H27.6 L27.8 48.5 L26.8 42 Z" fill="#4f3018" stroke="#241b16" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
   <path d="M34.5 41 L37.5 48 L37 55 H40.4 L40.6 47.5 L38.6 40.5 Z" fill="#4f3018" stroke="#241b16" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>

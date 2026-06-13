@@ -212,13 +212,45 @@ describe('SpritePainter.creatureToken', () => {
 
   it('blits the emblem bitmap when creature/<id> exists, with seal furniture', () => {
     const emblem = stubBitmap(64);
+    const cx = 100;
+    const cy = 80;
+    const r = 20;
     const { painter, atlas, fallback, stub, ctx } = setup({ 'creature/gold_dragon': emblem });
-    painter.creatureToken(ctx, 100, 80, 20, RED, 'gold_dragon', 'GD', 3);
+    painter.creatureToken(ctx, cx, cy, r, RED, 'gold_dragon', 'GD', 3);
     expect(atlas.lookups).toContain('creature/gold_dragon');
     // emblem drawn (and only the emblem bitmap — no other drawImage)
     const draws = stub.ops.filter((o) => o.op === 'drawImage');
     expect(draws).toHaveLength(1);
     expect(draws[0]?.image).toBe(emblem);
+    // the emblem is a square (side 1.34r), nudged up by 0.2r so the figure's
+    // mass sits in the disc's upper-middle and the feet clear pips + notch
+    const side = r * 1.34;
+    const ey = cy - r * 0.2;
+    const left = cx - side / 2;
+    const top = ey - side / 2;
+    expect(draws[0]?.args).toEqual([left, top, side, side]);
+    // the emblem destination box stays inside the disc bounds [cx±r, cy±r]
+    expect(left).toBeGreaterThanOrEqual(cx - r);
+    expect(left + side).toBeLessThanOrEqual(cx + r);
+    expect(top).toBeGreaterThanOrEqual(cy - r);
+    expect(top + side).toBeLessThanOrEqual(cy + r);
+    // the emblem blit is wrapped in a circular clip just inside the ink ring,
+    // so nothing can poke past the seal frame: save → arc(clip radius) → clip
+    // → drawImage → restore, in that order
+    const emblemAt = stub.ops.findIndex((o) => o.op === 'drawImage');
+    const clipAt = stub.ops.findIndex((o) => o.op === 'clip');
+    const saveBeforeClip = stub.ops
+      .slice(0, clipAt)
+      .map((o) => o.op)
+      .lastIndexOf('save');
+    expect(saveBeforeClip).toBeGreaterThanOrEqual(0);
+    expect(clipAt).toBeGreaterThan(0);
+    expect(clipAt).toBeLessThan(emblemAt);
+    // the op just before clip is the clip-circle arc, just inside the ink ring
+    expect(stub.ops[clipAt - 1]?.op).toBe('arc');
+    expect(stub.ops[clipAt - 1]?.args).toEqual([cx, cy, r * 0.92, 0, Math.PI * 2]);
+    // the clip is released after the emblem is drawn
+    expect(stub.ops.slice(emblemAt).some((o) => o.op === 'restore')).toBe(true);
     // parchment disc filled
     expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === SEAL_PARCHMENT)).toBe(true);
     // no initials text on the emblem path
@@ -257,6 +289,10 @@ describe('SpritePainter.creatureToken', () => {
 describe('SpritePainter.heroToken', () => {
   const BLUE = '#2b6cb0';
 
+  // the adventure renderer calls heroToken with r = tile*0.36 and draws the
+  // selection ring at tile*0.48, so for a given r the ring radius is r*0.48/0.36
+  const RING_RADIUS = (r: number): number => (r * 0.48) / 0.36;
+
   it('blits the horseman bitmap, then a banner in the owner color with the letter', () => {
     const horseman = stubBitmap(64);
     const { painter, atlas, fallback, stub, ctx } = setup({ 'hero/horseman': horseman });
@@ -274,6 +310,34 @@ describe('SpritePainter.heroToken', () => {
     expect(text?.fillStyle).toBe(SEAL_PARCHMENT);
     // banner is procedural, never delegated to the fallback
     expect(fallback.calls).toEqual([]);
+  });
+
+  it('keeps the horseman blit box and banner inside the selection ring with margin', () => {
+    const horseman = stubBitmap(64);
+    const cx = 120;
+    const cy = 90;
+    const r = 18;
+    const { painter, stub, ctx } = setup({ 'hero/horseman': horseman });
+    painter.heroToken(ctx, cx, cy, r, BLUE, 'E');
+    const ring = RING_RADIUS(r);
+
+    // the blit box [left, top, side, side]; its farthest corner from (cx,cy)
+    // must clear the ring, so the full figure sits inside the gold circle
+    const blit = stub.ops.find((o) => o.op === 'drawImage');
+    if (!blit) throw new Error('no horseman blit');
+    const [left, top, side] = blit.args as [number, number, number];
+    const cornerDx = Math.max(cx - left, left + side - cx);
+    const cornerDy = Math.max(cy - top, top + side - cy);
+    expect(Math.hypot(cornerDx, cornerDy)).toBeLessThan(ring);
+
+    // the procedural banner (every lineTo/moveTo vertex) also stays inside the
+    // ring — its swallow-tail flag reaches toward the upper-right but clears it
+    const verts = stub.ops.filter((o) => o.op === 'moveTo' || o.op === 'lineTo');
+    expect(verts.length).toBeGreaterThan(0);
+    for (const v of verts) {
+      const [x, y] = v.args as [number, number];
+      expect(Math.hypot(x - cx, y - cy)).toBeLessThan(ring);
+    }
   });
 
   it('falls back to the wrapped shield when the horseman bitmap is missing', () => {
