@@ -44,15 +44,20 @@ function emblemInner(id) {
   return svg.replace(/^[\s\S]*?<svg[^>]*>/, '').replace(/<\/svg>\s*$/, '').trim();
 }
 
+// tier as 1-3 pips in a rising metal (bronze 1-3, silver 4-6, gold 7), matching
+// SpritePainter.tierPipSpec — avoids seven pips crowding the rim
+const PIP_METAL = ['#a9743b', '#c2ccd6', '#d9ab3c'];
 function pips(tier) {
-  const n = Math.max(1, Math.min(7, tier));
+  const t = Math.max(1, Math.min(9, tier));
+  const color = PIP_METAL[Math.floor((t - 1) / 3)];
+  const n = ((t - 1) % 3) + 1;
   const cy = C + PIP_ARC_Y;
   const total = (n - 1) * PIP_GAP;
   const out = [];
   for (let i = 0; i < n; i++) {
     const cx = C - total / 2 + i * PIP_GAP;
     out.push(
-      `<path d="M${cx} ${cy - PIP_HALF} L${cx + PIP_HALF} ${cy} L${cx} ${cy + PIP_HALF} L${cx - PIP_HALF} ${cy} Z" fill="#d9ab3c" stroke="#241b16" stroke-width="${PIP_STROKE}" stroke-linejoin="round"/>`,
+      `<path d="M${cx} ${cy - PIP_HALF} L${cx + PIP_HALF} ${cy} L${cx} ${cy + PIP_HALF} L${cx - PIP_HALF} ${cy} Z" fill="${color}" stroke="#241b16" stroke-width="${PIP_STROKE}" stroke-linejoin="round"/>`,
     );
   }
   return out.join('');
@@ -188,7 +193,7 @@ const html = `<!DOCTYPE html>
     parchment disc, gilt pips counting its tier, the banner notch its allegiance.</p>
     <div class="legend">
       <span><b>Emblem</b> — the creature's woodcut mark</span>
-      <span><b>◆ Gilt pips</b> — tier (I–VII)</span>
+      <span><b>◆ Pips</b> — tier: bronze I–III · silver IV–VI · gold VII</span>
       <span><b>Banner notch</b> — faction color</span>
     </div>
     <div class="rule"><span>51 Pieces</span></div>

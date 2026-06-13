@@ -11,6 +11,21 @@ const SEAL_INK = '#241b16';
 const SEAL_PARCHMENT_EDGE = '#c9b384';
 export const SEAL_GILT = '#d9ab3c';
 
+// Tier is shown as 1-3 pips in a rising metal rather than 1-7 pips in a row
+// (seven in a row read as clutter): bronze for tiers 1-3, silver for 4-6, gold
+// for 7. metal = floor((tier-1)/3), pips = ((tier-1) mod 3) + 1.
+export const PIP_BRONZE = '#a9743b';
+export const PIP_SILVER = '#c2ccd6';
+export const PIP_GOLD = SEAL_GILT;
+
+export function tierPipSpec(tier: number): { color: string; count: number } {
+  const t = Math.max(1, Math.min(9, Math.trunc(tier)));
+  const metal = Math.floor((t - 1) / 3);
+  const count = ((t - 1) % 3) + 1;
+  const color = metal === 0 ? PIP_BRONZE : metal === 1 ? PIP_SILVER : PIP_GOLD;
+  return { color, count };
+}
+
 // Seal furniture geometry, expressed as fractions of the token radius `r`
 // (concept #seal: 64-box, disc r=28, ring strokes 2.6/0.9, pips on the lower
 // arc, banner notch chevron spanning x 22..42, y 52.5..61).
@@ -252,7 +267,8 @@ export class SpritePainter implements Painter {
     this.drawBannerNotch(ctx, cx, cy, r, color);
   }
 
-  // `tier` gilt diamonds (1..7) along the lower arc, centered horizontally
+  // 1-3 diamond pips along the lower arc, colored by metal (bronze/silver/gold)
+  // so tier reads at a glance without seven pips crowding the rim
   private drawTierPips(
     ctx: CanvasRenderingContext2D,
     cx: number,
@@ -260,12 +276,12 @@ export class SpritePainter implements Painter {
     r: number,
     tier: number,
   ): void {
-    const count = Math.max(1, Math.min(7, tier));
+    const { color, count } = tierPipSpec(tier);
     const half = r * PIP_HALF;
     const gap = r * PIP_GAP;
     const py = cy + r * PIP_ARC_Y;
     const startX = cx - (gap * (count - 1)) / 2;
-    ctx.fillStyle = SEAL_GILT;
+    ctx.fillStyle = color;
     ctx.strokeStyle = SEAL_INK;
     ctx.lineWidth = r * PIP_STROKE;
     for (let i = 0; i < count; i++) {

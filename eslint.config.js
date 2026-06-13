@@ -4,7 +4,16 @@ import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['dist/', 'coverage/', 'playwright-report/', 'test-results/', 'node_modules/'] },
+  {
+    ignores: [
+      'dist/',
+      'coverage/',
+      'playwright-report/',
+      'test-results/',
+      'node_modules/',
+      'docs/', // documentation + standalone build scripts (e.g. the bestiary generator)
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   ...tseslint.configs.stylisticTypeChecked,

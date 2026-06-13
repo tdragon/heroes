@@ -3,9 +3,12 @@ import type { RoadConnections } from './painter';
 import {
   FOG_DIMMED_COLOR,
   FOG_SHROUD_COLOR,
-  SEAL_GILT,
+  PIP_BRONZE,
+  PIP_GOLD,
+  PIP_SILVER,
   SEAL_PARCHMENT,
   SpritePainter,
+  tierPipSpec,
   type SpriteLookup,
 } from './spritePainter';
 import { asCtx, RecordingContext, RecordingPainter, stubBitmap } from './testSupport';
@@ -255,8 +258,8 @@ describe('SpritePainter.creatureToken', () => {
     expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === SEAL_PARCHMENT)).toBe(true);
     // no initials text on the emblem path
     expect(stub.ops.some((o) => o.op === 'fillText')).toBe(false);
-    // 3 gilt diamond pips: 3 fills with the gilt color
-    expect(stub.ops.filter((o) => o.op === 'fill' && o.fillStyle === SEAL_GILT)).toHaveLength(3);
+    // tier 3 -> bronze, 3 pips
+    expect(stub.ops.filter((o) => o.op === 'fill' && o.fillStyle === PIP_BRONZE)).toHaveLength(3);
     // banner notch filled with the owner color
     expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === RED)).toBe(true);
     // furniture is procedural, never delegated to the fallback
@@ -271,18 +274,42 @@ describe('SpritePainter.creatureToken', () => {
     expect(stub.ops.some((o) => o.op === 'drawImage')).toBe(false);
     const text = stub.ops.find((o) => o.op === 'fillText');
     expect(text?.text).toBe('Im');
-    // furniture still drawn: parchment disc + a single tier pip + neutral notch
+    // furniture still drawn: parchment disc + a single bronze tier pip (tier 1)
+    // + neutral notch
     expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === SEAL_PARCHMENT)).toBe(true);
-    expect(stub.ops.filter((o) => o.op === 'fill' && o.fillStyle === SEAL_GILT)).toHaveLength(1);
+    expect(stub.ops.filter((o) => o.op === 'fill' && o.fillStyle === PIP_BRONZE)).toHaveLength(1);
     expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === GREY)).toBe(true);
     expect(fallback.calls).toEqual([]);
   });
 
-  it('draws one gilt pip per tier and uses the passed owner color for the notch', () => {
+  it('draws metal-tiered pips (gold for tier 7) and the owner color for the notch', () => {
     const { painter, stub, ctx } = setup({});
     painter.creatureToken(ctx, 0, 0, 24, '#2b6cb0', 'archangel', 'A', 7);
-    expect(stub.ops.filter((o) => o.op === 'fill' && o.fillStyle === SEAL_GILT)).toHaveLength(7);
+    // tier 7 -> gold, a single pip (not seven in a row)
+    expect(stub.ops.filter((o) => o.op === 'fill' && o.fillStyle === PIP_GOLD)).toHaveLength(1);
     expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === '#2b6cb0')).toBe(true);
+  });
+
+  it('maps a mid-tier creature to silver with the right pip count', () => {
+    const { painter, stub, ctx } = setup({});
+    painter.creatureToken(ctx, 0, 0, 24, GREY, 'monk', 'Mo', 5);
+    // tier 5 -> silver, 2 pips
+    expect(stub.ops.filter((o) => o.op === 'fill' && o.fillStyle === PIP_SILVER)).toHaveLength(2);
+  });
+});
+
+describe('tierPipSpec', () => {
+  it('rises through bronze (1-3), silver (4-6), gold (7) with 1-3 pips', () => {
+    expect(tierPipSpec(1)).toEqual({ color: PIP_BRONZE, count: 1 });
+    expect(tierPipSpec(3)).toEqual({ color: PIP_BRONZE, count: 3 });
+    expect(tierPipSpec(4)).toEqual({ color: PIP_SILVER, count: 1 });
+    expect(tierPipSpec(6)).toEqual({ color: PIP_SILVER, count: 3 });
+    expect(tierPipSpec(7)).toEqual({ color: PIP_GOLD, count: 1 });
+  });
+
+  it('clamps out-of-range tiers', () => {
+    expect(tierPipSpec(0)).toEqual({ color: PIP_BRONZE, count: 1 });
+    expect(tierPipSpec(99)).toEqual({ color: PIP_GOLD, count: 3 });
   });
 });
 

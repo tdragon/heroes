@@ -212,7 +212,8 @@ always uses flat terrain colors).
 shared atlas bitmaps (one per id, identical for every owner/stack). The per-instance
 "furniture" around them is drawn *procedurally* by `SpritePainter`, not baked into the
 SVG: a creature emblem sits on a procedural **seal** (parchment disc, double ink ring,
-gold tier pips, and a player-color banner notch), and the horseman's swallow-tail banner
+metal-tiered pips — bronze for tiers 1–3, silver 4–6, gold 7, with 1–3 pips each — and a
+player-color banner notch), and the horseman's swallow-tail banner
 gets its player-color fill + hero initial drawn on top. This keeps the atlas static while
 ownership, tier, and the hero letter stay dynamic. The woodcut theme ships bespoke emblems
 for all 51 creatures; the **initials centered on the seal** fallback only stands in before
