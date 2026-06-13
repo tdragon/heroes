@@ -197,11 +197,11 @@ Key decisions:
   `sign.svg`, `monolith.svg`, `prison.svg`, `obelisk.svg` (13 — monster excluded)
 - Modify: `src/assets/themes/woodcut/index.test.ts`
 
-- [ ] author the 13 visitable/special sprites, woodcut style, no `class=`
-- [ ] tighten the object coverage test to require an `object/<type>` sprite for
+- [x] author the 13 visitable/special sprites, woodcut style, no `class=`
+- [x] tighten the object coverage test to require an `object/<type>` sprite for
       EVERY `objects.json` type except `monster`; assert every `object/*` key
       maps to a real object type id
-- [ ] run `npm test` — must pass before task 4
+- [x] run `npm test` — must pass before task 4
 
 ### Task 4: objectToken/townToken sprite path + pip + owner flag
 

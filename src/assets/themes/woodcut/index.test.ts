@@ -42,10 +42,21 @@ describe('woodcut theme coverage', () => {
     }
   });
 
-  it('has a sprite for the 6 core object types', () => {
-    const coreObjectTypes = ['town', 'mine', 'dwelling', 'resource', 'treasure_chest', 'artifact'];
-    for (const type of coreObjectTypes) {
+  it('has a sprite for every object type id except monster', () => {
+    const objectTypeIds = Object.keys(data.objectTypes);
+    expect(objectTypeIds.length).toBeGreaterThan(0);
+    for (const type of objectTypeIds) {
+      if (type === 'monster') continue;
       expect(woodcutSprites, `missing sprite object/${type}`).toHaveProperty(`object/${type}`);
+    }
+  });
+
+  it('maps every object/* key to a real GameData object type id', () => {
+    const objectKeys = Object.keys(woodcutSprites).filter((k) => k.startsWith('object/'));
+    expect(objectKeys.length).toBeGreaterThan(0);
+    for (const key of objectKeys) {
+      const id = key.slice('object/'.length);
+      expect(data.objectTypes, `object sprite for unknown id ${id}`).toHaveProperty(id);
     }
   });
 
