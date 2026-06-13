@@ -13,17 +13,18 @@ describe('woodcut theme coverage', () => {
     }
   });
 
-  it('has a sprite for every road id in GameData', () => {
+  it('has a road and a rounded end-tile sprite for every road id in GameData', () => {
     const roadIds = Object.keys(data.roads);
     expect(roadIds.length).toBeGreaterThan(0);
     for (const id of roadIds) {
       expect(woodcutSprites, `missing sprite road/${id}`).toHaveProperty(`road/${id}`);
+      expect(woodcutSprites, `missing sprite roadend/${id}`).toHaveProperty(`roadend/${id}`);
     }
   });
 
-  it('contains no sprite keys outside terrain/ and road/', () => {
+  it('contains no sprite keys outside terrain/, road/ and roadend/', () => {
     for (const key of Object.keys(woodcutSprites)) {
-      expect(key).toMatch(/^(terrain|road)\/[a-z][a-z0-9_]*$/);
+      expect(key).toMatch(/^(terrain|road|roadend)\/[a-z][a-z0-9_]*$/);
     }
   });
 });

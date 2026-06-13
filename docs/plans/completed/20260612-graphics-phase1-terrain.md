@@ -125,11 +125,18 @@ Key decisions:
   the same band for all directions — directional/corner road variants are a
   ➕ candidate for a later phase, matching today's non-directional road art.
 - ➕ Directional road rendering was pulled into phase 1 after user feedback
-  (vertical roads rendered as disconnected "ladder rungs"): the renderer now
+  (vertical roads rendered as disconnected "ladder rungs"): the renderer
   computes a 4-direction connectivity mask from the road grid and the painter
-  composes the single band bitmap per tile — full band for straights (rotated
-  90° for vertical), rotated east-half arms plus a center seam patch for
-  corners/junctions (`Painter.road(..., connections)`).
+  composes the band bitmap per tile (`Painter.road(..., connections)`) — full
+  band for straights (rotated 90° for vertical), one half-band arm per
+  connected direction for corners/junctions.
+- ➕ Road art reworked after further user feedback (misaligned segments +
+  awkward dead-ends): the band SVGs are now **centered, straight, symmetric**
+  so they tile seamlessly under both translation and 90° rotation (no more
+  per-tile centerline jog), which also lets arms meet cleanly at the center
+  with no seam patch. Dead-ends (single connection) use a dedicated rounded
+  end tile (`roadend.<id>.svg` → key `roadend/<id>`, rotated to its one
+  connection) so the road terminates smoothly instead of with a blunt cap.
 - `src/data/terrain.json` colors stay: minimap, fallback fill, and the
   concept's ramp bases derive from them.
 

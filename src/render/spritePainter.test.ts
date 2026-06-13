@@ -108,36 +108,72 @@ describe('SpritePainter.road', () => {
     expect(stub.ops[3]?.args).toEqual([0, 0, 64, 64, -24, -24, 48, 48]);
   });
 
-  it('composes a corner from rotated east-half arms plus a center seam patch', () => {
+  it('composes a corner from two rotated east-half arms with no seam patch', () => {
     const bitmap = stubBitmap(64);
     const { painter, stub, ctx } = setup({ 'road/dirt_road': bitmap });
     painter.road(ctx, 0, 0, 48, 'dirt_road', conn('es'));
     const draws = stub.ops.filter((o) => o.op === 'drawImage');
     const rotations = stub.ops.filter((o) => o.op === 'rotate').map((o) => o.args[0]);
-    // one arm per connected direction (E then S) plus the seam patch
-    expect(draws).toHaveLength(3);
+    // one arm per connected direction (E then S); the centered band makes them
+    // meet cleanly at the center, so there is no seam patch
+    expect(draws).toHaveLength(2);
     expect(rotations).toEqual([0, Math.PI / 2]);
     // arms crop the east half of the source band and extend center -> edge
     expect(draws[0]?.args).toEqual([32, 0, 32, 64, 0, -24, 24, 48]);
     expect(draws[1]?.args).toEqual([32, 0, 32, 64, 0, -24, 24, 48]);
-    // unrotated middle slice of the band covers the seam
-    expect(draws[2]?.args).toEqual([24, 0, 16, 64, 18, 0, 12, 48]);
     expect(stub.ops.filter((o) => o.op === 'save')).toHaveLength(2);
     expect(stub.ops.filter((o) => o.op === 'restore')).toHaveLength(2);
   });
 
-  it('draws four arms for a crossroads', () => {
+  it('draws four arms for a crossroads with no seam patch', () => {
     const bitmap = stubBitmap(64);
     const { painter, stub, ctx } = setup({ 'road/dirt_road': bitmap });
     painter.road(ctx, 0, 0, 48, 'dirt_road', conn('nesw'));
     const draws = stub.ops.filter((o) => o.op === 'drawImage');
-    expect(draws).toHaveLength(5); // 4 arms + seam patch
+    expect(draws).toHaveLength(4);
     expect(stub.ops.filter((o) => o.op === 'rotate').map((o) => o.args[0])).toEqual([
       0,
       Math.PI / 2,
       Math.PI,
       -Math.PI / 2,
     ]);
+  });
+
+  it('uses the dedicated rounded end tile for a dead-end, rotated to its one connection', () => {
+    const road = stubBitmap(64);
+    const end = stubBitmap(64);
+    const { painter, atlas, stub, ctx } = setup({
+      'road/dirt_road': road,
+      'roadend/dirt_road': end,
+    });
+    // only a southern neighbor: the end tile's open side faces south (rotate 90°)
+    painter.road(ctx, 0, 0, 48, 'dirt_road', conn('s'));
+    expect(atlas.lookups).toEqual(['road/dirt_road', 'roadend/dirt_road']);
+    expect(stub.ops.map((o) => o.op)).toEqual([
+      'save',
+      'translate',
+      'rotate',
+      'drawImage',
+      'restore',
+    ]);
+    expect(stub.ops[1]?.args).toEqual([24, 24]); // tile center
+    expect(stub.ops[2]?.args).toEqual([Math.PI / 2]);
+    // the whole end sprite is drawn (no crop), rotated and centered
+    expect(stub.ops[3]?.args).toEqual([0, 0, 64, 64, -24, -24, 48, 48]);
+    expect(stub.ops[3]?.image).toBe(end);
+  });
+
+  it('falls back to a single capped arm for a dead-end when no end tile exists', () => {
+    const road = stubBitmap(64);
+    const { painter, atlas, stub, ctx } = setup({ 'road/dirt_road': road });
+    painter.road(ctx, 0, 0, 48, 'dirt_road', conn('n'));
+    // it still looks for the end tile, then degrades to one north arm
+    expect(atlas.lookups).toEqual(['road/dirt_road', 'roadend/dirt_road']);
+    const draws = stub.ops.filter((o) => o.op === 'drawImage');
+    expect(draws).toHaveLength(1);
+    expect(stub.ops.filter((o) => o.op === 'rotate').map((o) => o.args[0])).toEqual([-Math.PI / 2]);
+    expect(draws[0]?.args).toEqual([32, 0, 32, 64, 0, -24, 24, 48]);
+    expect(draws[0]?.image).toBe(road);
   });
 
   it('delegates to the fallback for unknown road ids, connections included', () => {

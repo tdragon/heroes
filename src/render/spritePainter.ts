@@ -5,12 +5,6 @@ import { RASTER_PX } from './spriteAtlas';
 export const FOG_SHROUD_COLOR = '#16100c';
 export const FOG_DIMMED_COLOR = 'rgba(22, 16, 12, 0.5)';
 
-// road seam patch: the middle slice of the band (source columns 0.375..0.625),
-// where the road SVGs keep the band at full extent, redrawn unrotated to hide
-// the seam where the hand-drawn contours of rotated arms meet
-const SEAM_PATCH_START_FRAC = 0.375;
-const SEAM_PATCH_WIDTH_FRAC = 0.25;
-
 // the slice of SpriteAtlas the painter needs (keeps tests cast-free)
 export interface SpriteLookup {
   get(key: string): CanvasImageSource | null;
@@ -38,10 +32,11 @@ export class SpritePainter implements Painter {
     }
   }
 
-  // The road bitmap is a horizontal band. Straight roads draw it whole
-  // (rotated for vertical); other shapes compose one half-band arm per
-  // connected direction plus a center patch hiding the seam where the
-  // hand-drawn contours of rotated arms meet.
+  // The road bitmap is a centered horizontal band. Straight runs draw it whole
+  // (rotated 90° for vertical); a dead-end (single connection) uses the
+  // dedicated rounded end tile so the road terminates smoothly; corners and
+  // junctions compose one half-band arm per connected direction — the centered
+  // band makes the arms meet cleanly at the tile center with no seam.
   road(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -66,29 +61,25 @@ export class SpritePainter implements Painter {
       this.drawRotated(ctx, sprite, cx, cy, Math.PI / 2, 0, size);
       return;
     }
+    // each arm/end opens toward its connected edge (E=0, rotating clockwise)
     const arms: [boolean, number][] = [
       [e, 0],
       [s, Math.PI / 2],
       [w, Math.PI],
       [n, -Math.PI / 2],
     ];
-    for (const [connected, angle] of arms) {
-      if (connected) this.drawRotated(ctx, sprite, cx, cy, angle, RASTER_PX / 2, size);
+    const connected = arms.filter(([on]) => on);
+    if (connected.length === 1) {
+      const endSprite = this.atlas.get(`roadend/${roadId}`);
+      const dir = connected[0];
+      if (endSprite && dir) {
+        this.drawRotated(ctx, endSprite, cx, cy, dir[1], 0, size);
+        return;
+      }
     }
-    const patchX = RASTER_PX * SEAM_PATCH_START_FRAC;
-    const patchW = RASTER_PX * SEAM_PATCH_WIDTH_FRAC;
-    const scale = size / RASTER_PX;
-    ctx.drawImage(
-      sprite,
-      patchX,
-      0,
-      patchW,
-      RASTER_PX,
-      x + patchX * scale,
-      y,
-      patchW * scale,
-      size,
-    );
+    for (const [on, angle] of arms) {
+      if (on) this.drawRotated(ctx, sprite, cx, cy, angle, RASTER_PX / 2, size);
+    }
   }
 
   // draws the source columns [srcX..RASTER_PX] rotated around the tile center
