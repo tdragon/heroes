@@ -22,11 +22,41 @@ describe('woodcut theme coverage', () => {
     }
   });
 
-  it('contains no sprite keys outside terrain/, road/ and roadend/', () => {
-    for (const key of Object.keys(woodcutSprites)) {
-      expect(key).toMatch(/^(terrain|road|roadend)\/[a-z][a-z0-9_]*$/);
+  it('has a sprite for every creature id in GameData', () => {
+    const creatureIds = Object.keys(data.creatures);
+    expect(creatureIds.length).toBeGreaterThan(0);
+    for (const id of creatureIds) {
+      expect(woodcutSprites, `missing sprite creature/${id}`).toHaveProperty(`creature/${id}`);
     }
   });
+
+  it('has the horseman hero marker', () => {
+    expect(woodcutSprites).toHaveProperty('hero/horseman');
+  });
+
+  it('maps every creature/* key to a real GameData creature id', () => {
+    const creatureKeys = Object.keys(woodcutSprites).filter((k) => k.startsWith('creature/'));
+    expect(creatureKeys.length).toBeGreaterThan(0);
+    for (const key of creatureKeys) {
+      const id = key.slice('creature/'.length);
+      expect(data.creatures, `creature sprite for unknown id ${id}`).toHaveProperty(id);
+    }
+  });
+
+  it('contains only valid sprite keys', () => {
+    for (const key of Object.keys(woodcutSprites)) {
+      expect(key).toMatch(/^(terrain|road|roadend|creature|hero)\/[a-z][a-z0-9_]*$/);
+    }
+  });
+});
+
+describe('woodcut sprite key-format spot checks', () => {
+  it.each(['hero/horseman', 'creature/wood_elf', 'creature/gold_dragon', 'creature/bone_dragon'])(
+    '%s matches the key-format regex',
+    (key) => {
+      expect(key).toMatch(/^(terrain|road|roadend|creature|hero)\/[a-z][a-z0-9_]*$/);
+    },
+  );
 });
 
 describe('woodcut sprite sanity (string-based, node env)', () => {

@@ -10,14 +10,17 @@ import {
   COMBAT_CANVAS_W,
   COMBAT_FIT_MIN,
   combatFitScale,
+  CombatRenderer,
   createReachableCache,
   damageRangeText,
   estimateAttack,
   HEX_R,
+  HEX_W,
   hexAtPixel,
   hexCenter,
   sideColor,
 } from './combatRenderer';
+import { asCtx, RecordingContext, RecordingPainter } from './testSupport';
 
 const data = loadGameData();
 
@@ -231,6 +234,129 @@ describe('combatEventText', () => {
         data,
       ),
     ).toBeNull();
+  });
+});
+
+describe('drawStacks painter wiring', () => {
+  it('draws each living stack through the injected painter with the creature id', () => {
+    const combat = makeCombat({ creature: 'pikeman', count: 7 }, { creature: 'wolf', count: 3 });
+    const painter = new RecordingPainter();
+    const renderer = new CombatRenderer(asCtx(new RecordingContext()), painter, data);
+    renderer.render({ combat, reachable: [], hover: null, activeStack: null }, 0);
+
+    const tokenCalls = painter.calls.filter((c) => c.method === 'creatureToken');
+    expect(tokenCalls).toHaveLength(2);
+    // args: [cx, cy, r, color, id, initials, tier]
+    const ids = tokenCalls.map((c) => c.args[4]);
+    expect(ids).toContain('pikeman');
+    expect(ids).toContain('wolf');
+  });
+
+  it('keeps the count badge clear of the seal pips/notch (upper-right quadrant)', () => {
+    const combat = makeCombat({ creature: 'pikeman', count: 7 }, { creature: 'wolf', count: 3 });
+    const ctx = new RecordingContext();
+    const painter = new RecordingPainter();
+    const renderer = new CombatRenderer(asCtx(ctx), painter, data);
+    renderer.render({ combat, reachable: [], hover: null, activeStack: null }, 0);
+
+    // the badge is the only roundRect drawn; the seal furniture (pips/notch)
+    // lives in the painter, so any roundRect here is a count badge. Pair each
+    // badge to its stack by token radius: bx = cx + 0.55r, by = cy - 0.55r, so
+    // the badge sits above the center -> clear of the pip row (cy + 0.55r) and
+    // the bottom banner notch.
+    const badges = ctx.ops.filter((o) => o.op === 'roundRect');
+    expect(badges.length).toBe(2);
+    const tokenCalls = painter.calls.filter((c) => c.method === 'creatureToken');
+    for (const badge of badges) {
+      const bx = badge.args[0] ?? NaN;
+      const by = badge.args[1] ?? NaN;
+      const owner = tokenCalls.find((c) => {
+        const r = c.args[2] as number;
+        return Math.abs(bx - ((c.args[0] as number) + r * 0.55)) < 0.001;
+      });
+      expect(owner).toBeDefined();
+      if (!owner) continue;
+      const cy = owner.args[1] as number;
+      const r = owner.args[2] as number;
+      expect(by).toBeCloseTo(cy - r * 0.55);
+      // independent check: the badge sits above the disc center, so it clears
+      // the pip row (cy + 0.55r) and the bottom banner notch entirely
+      expect(by).toBeLessThan(cy);
+    }
+  });
+});
+
+describe('wide-creature token placement', () => {
+  // boar is wide (occupies two horizontally-adjacent hexes); pikeman is narrow
+  function widePair(): {
+    ctx: RecordingContext;
+    painter: RecordingPainter;
+    tokens: { args: unknown[] }[];
+  } {
+    const combat = makeCombat({ creature: 'pikeman', count: 7 }, { creature: 'boar', count: 10 });
+    const ctx = new RecordingContext();
+    const painter = new RecordingPainter();
+    const renderer = new CombatRenderer(asCtx(ctx), painter, data);
+    renderer.render({ combat, reachable: [], hover: null, activeStack: null }, 0);
+    const tokens = painter.calls.filter((c) => c.method === 'creatureToken');
+    return { ctx, painter, tokens };
+  }
+
+  it('centers the wide seal on the midpoint of its two hexes, narrow on its hex', () => {
+    const { tokens } = widePair();
+    const boar = tokens.find((c) => c.args[4] === 'boar');
+    const pikeman = tokens.find((c) => c.args[4] === 'pikeman');
+    expect(boar).toBeDefined();
+    expect(pikeman).toBeDefined();
+    if (!boar || !pikeman) return;
+
+    // a single stack deploys in slot 0 (row 0). boar (defender) deploys head at
+    // x=13, tail one hex to the right (x=14); its seal is centered half a
+    // hex-width toward the tail of the head hex
+    const head = hexCenter({ x: 13, y: 0 });
+    expect(boar.args[0] as number).toBeCloseTo(head.x + HEX_W / 2);
+    expect(boar.args[1] as number).toBeCloseTo(head.y);
+
+    // narrow pikeman (attacker) sits squarely on its single hex (x=0)
+    const pHead = hexCenter({ x: 0, y: 0 });
+    expect(pikeman.args[0] as number).toBeCloseTo(pHead.x);
+    expect(pikeman.args[1] as number).toBeCloseTo(pHead.y);
+  });
+
+  it('gives the wide seal a larger disc than a narrow one', () => {
+    const { tokens } = widePair();
+    const boarR = tokens.find((c) => c.args[4] === 'boar')?.args[2] as number;
+    const pikeR = tokens.find((c) => c.args[4] === 'pikeman')?.args[2] as number;
+    expect(boarR).toBeCloseTo(HEX_R * 0.85);
+    expect(pikeR).toBeCloseTo(HEX_R * 0.68);
+    expect(boarR).toBeGreaterThan(pikeR);
+  });
+
+  it('outlines both occupied hexes when hovering a wide stack, one for a narrow', () => {
+    const combat = makeCombat({ creature: 'pikeman', count: 7 }, { creature: 'boar', count: 10 });
+    // hovering the boar's tail hex (x=14, row 0) must still outline both cells
+    const wideCtx = new RecordingContext();
+    const wideRenderer = new CombatRenderer(asCtx(wideCtx), new RecordingPainter(), data);
+    wideRenderer.render(
+      { combat, reachable: [], hover: { x: 14, y: 0 }, activeStack: null },
+      0,
+    );
+    // the active-stack selection ring is the only circular furniture from the
+    // renderer here; the hover outline is the hex stroke. Count the gold hover
+    // strokes by the HOVER_STROKE color on a `stroke` following a hex path.
+    const wideStrokes = wideCtx.ops.filter((o) => o.op === 'stroke' && o.strokeStyle === '#ecc94b');
+    expect(wideStrokes.length).toBe(2);
+
+    const narrowCtx = new RecordingContext();
+    const narrowRenderer = new CombatRenderer(asCtx(narrowCtx), new RecordingPainter(), data);
+    narrowRenderer.render(
+      { combat, reachable: [], hover: { x: 0, y: 0 }, activeStack: null },
+      0,
+    );
+    const narrowStrokes = narrowCtx.ops.filter(
+      (o) => o.op === 'stroke' && o.strokeStyle === '#ecc94b',
+    );
+    expect(narrowStrokes.length).toBe(1);
   });
 });
 

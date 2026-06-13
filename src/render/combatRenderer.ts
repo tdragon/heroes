@@ -24,6 +24,7 @@ import {
   isStackAlive,
   livingStacks,
   occupiedHexes,
+  tailOffset,
   type CombatEvent,
   type CombatState,
 } from '../core/combat/state';
@@ -279,6 +280,14 @@ const OBSTACLE_FILL = '#565f6e';
 const MOAT_FILL = 'rgba(49, 130, 206, 0.35)';
 const REACHABLE_FILL = 'rgba(72, 187, 120, 0.25)';
 const HOVER_STROKE = '#ecc94b';
+
+// stack-token disc radius, as a fraction of HEX_R. A wide creature occupies two
+// horizontally-adjacent hexes and its seal is centered on their midpoint, so it
+// gets a larger disc to read across the pair; a single-hex creature sits inside
+// its one hex.
+const WIDE_TOKEN_RADIUS = HEX_R * 0.85;
+const NARROW_TOKEN_RADIUS = HEX_R * 0.68;
+const SELECTION_RING_PAD = 4; // gap between the token disc and the active ring
 const WALL_FILL = '#8b6d3f';
 const WALL_RUBBLE_FILL = '#4f4434';
 const STATIC_WALL_FILL = '#6b5430';
@@ -385,10 +394,15 @@ export class CombatRenderer {
     this.drawStacks(view, now);
 
     if (view.hover) {
-      hexPath(ctx, hexCenter(view.hover), HEX_R - 2);
+      // outline every hex the hovered stack occupies (both cells of a wide
+      // creature), so the gold outline matches the seal's two-hex footprint
+      // instead of marking a single hex while the disc sits at the midpoint
       ctx.strokeStyle = HOVER_STROKE;
       ctx.lineWidth = 2;
-      ctx.stroke();
+      for (const hex of this.hoverHexes(combat, view.hover)) {
+        hexPath(ctx, hexCenter(hex), HEX_R - 2);
+        ctx.stroke();
+      }
     }
 
     this.drawFloats(now);
@@ -420,6 +434,18 @@ export class CombatRenderer {
     });
   }
 
+  // the hex(es) the hover outline should mark: if the hovered hex belongs to a
+  // living stack, every hex that stack occupies (so a wide creature's gold
+  // outline spans both its cells), otherwise just the hovered hex itself
+  private hoverHexes(combat: CombatState, hover: Hex): Hex[] {
+    for (const stack of livingStacks(combat)) {
+      const creature = requireCreature(this.data, stack.creature);
+      const cells = occupiedHexes(stack, creature);
+      if (cells.some((h) => hexEquals(h, hover))) return cells;
+    }
+    return [hover];
+  }
+
   private stackCenter(stack: { id: string; pos: Hex }, now: number): Pixel {
     const tween = this.tweens.find((t) => t.stack === stack.id);
     if (!tween) return hexCenter(stack.pos);
@@ -436,34 +462,36 @@ export class CombatRenderer {
       const creature = requireCreature(this.data, stack.creature);
       const color = sideColor(heroInfoFor(combat, stack.side).player);
       const wide = creature.flags.includes('wide');
-      let center = this.stackCenter(stack, now);
+      const center = this.stackCenter(stack, now);
       if (wide) {
-        const cells = occupiedHexes(stack, creature);
-        const tail = cells[1];
-        if (tail && !this.tweens.some((t) => t.stack === stack.id)) {
-          const tailCenter = hexCenter(tail);
-          center = { x: (center.x + tailCenter.x) / 2, y: center.y };
-        }
+        // a wide creature's tail sits half a hex to the side of its head (same
+        // row), so its seal is centered half a hex-width toward the tail — of
+        // the *tweened* head position, so the disc tracks smoothly during a
+        // move instead of popping to the midpoint only when it stops
+        center.x += (tailOffset(stack.side) * HEX_W) / 2;
       }
-      const r = wide ? HEX_R * 0.85 : HEX_R * 0.68;
+      const r = wide ? WIDE_TOKEN_RADIUS : NARROW_TOKEN_RADIUS;
       this.painter.creatureToken(
         ctx,
         center.x,
         center.y,
         r,
         color,
+        creature.id,
         initialsOf(creature.name),
         creature.tier,
       );
       if (view.activeStack === stack.id && isStackAlive(stack)) {
-        this.painter.selectionRing(ctx, center.x, center.y, r + 4);
+        this.painter.selectionRing(ctx, center.x, center.y, r + SELECTION_RING_PAD);
       }
-      // count badge bottom-right of the token
+      // count badge top-right of the token: the seal's lower arc carries the
+      // tier pips (cy + 0.55r) and the bottom banner notch, so the upper-right
+      // is the only clear quadrant for the count
       const text = String(stack.count);
       ctx.font = 'bold 12px system-ui, sans-serif';
       const w = ctx.measureText(text).width + 8;
-      const bx = center.x + r * 0.4;
-      const by = center.y + r * 0.55;
+      const bx = center.x + r * 0.55;
+      const by = center.y - r * 0.55;
       ctx.fillStyle = '#1a202c';
       ctx.beginPath();
       ctx.roundRect(bx, by, w, 16, 3);

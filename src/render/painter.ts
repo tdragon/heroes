@@ -38,6 +38,7 @@ export interface Painter {
     cy: number,
     r: number,
     color: string,
+    id: string,
     initials: string,
     tier: number,
   ): void;
@@ -143,6 +144,7 @@ export class TokenPainter implements Painter {
     cy: number,
     r: number,
     color: string,
+    _id: string,
     initials: string,
     tier: number,
   ): void {

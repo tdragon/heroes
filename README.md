@@ -72,7 +72,7 @@ src/
     creatures.json  spells.json  artifacts.json  buildings.json
     objects.json    terrain.json  heroes.json  skills.json
   maps/        map zod schema, ASCII map DSL compiler, sample maps
-  assets/      themed art — woodcut SVG sprites for adventure terrain and roads
+  assets/      themed art — woodcut SVG sprites (terrain/, roads, creatures/, heroes/)
   render/      Canvas 2D renderers (adventure, combat), sprite atlas + sprite
                painter for themed art, token painter as the flat-color fallback
   ui/          DOM overlay screens (town, hero, combat, dialogs, HUD)
@@ -96,11 +96,12 @@ src/
    menus, town screen, and dialogs are plain DOM — easy for text-heavy UI and
    e2e-testable via selectors.
 5. **Painter interface + themed art.** All canvas drawing goes through the `Painter`
-   interface. Adventure terrain, roads, and fog are drawn from the woodcut SVG theme
-   (`src/assets/themes/woodcut/`, rasterized at startup into a sprite atlas); the
-   `TokenPainter` draws everything else as labeled flat-color tokens and serves as the
-   fallback — entities, the combat screen, the minimap, and any sprite that is missing
-   or still loading.
+   interface. Adventure terrain, roads, fog, creature seals, and the horseman hero
+   marker — plus the combat stacks — are drawn from the woodcut SVG theme
+   (`src/assets/themes/woodcut/`, rasterized at startup into a sprite atlas, shared by
+   both screens). `TokenPainter` is the flat-color *fallback*: un-arted creatures
+   (initials on the seal), any sprite still loading or missing, and the remaining
+   plain tokens. The minimap bypasses the painter entirely (flat terrain colors).
 
 ### Known limitations
 
@@ -198,13 +199,30 @@ Adventure-map art is theme-based: a theme is a directory of id-keyed SVG files u
 
 - `terrain/<terrainId>.svg` → sprite key `terrain/<id>` (e.g. `terrain/grass.svg`)
 - `terrain/road.<roadId>.svg` → sprite key `road/<id>` (e.g. `terrain/road.dirt_road.svg`)
+- `creatures/<creatureId>.svg` → sprite key `creature/<id>` (creature emblem art, e.g.
+  `creatures/gold_dragon.svg`)
+- `heroes/horseman.svg` → sprite key `hero/horseman` (the mounted-hero marker art)
 
 SVGs are 64×64 viewBox, loaded as raw text and rasterized once at startup into an
 in-memory atlas (`src/render/spriteAtlas.ts`). The fallback chain is theme sprite → `TokenPainter`
 flat color, so a missing or still-loading sprite never breaks rendering (and the minimap
-always uses flat terrain colors). A coverage test in `src/assets/themes/woodcut/index.test.ts`
-asserts every terrain and road id in the game data has a sprite — adding content means
-adding matching art.
+always uses flat terrain colors).
+
+**Static art vs. procedural furniture.** A creature emblem and the horseman are *static*
+shared atlas bitmaps (one per id, identical for every owner/stack). The per-instance
+"furniture" around them is drawn *procedurally* by `SpritePainter`, not baked into the
+SVG: a creature emblem sits on a procedural **seal** (parchment disc, double ink ring,
+metal-tiered pips — bronze for tiers 1–3, silver 4–6, gold 7, with 1–3 pips each — and a
+player-color banner notch), and the horseman's swallow-tail banner
+gets its player-color fill + hero initial drawn on top. This keeps the atlas static while
+ownership, tier, and the hero letter stay dynamic. The woodcut theme ships bespoke emblems
+for all 51 creatures; the **initials centered on the seal** fallback only stands in before
+the bitmap loads, when art is missing, or for a future theme lacking emblems — so every
+creature still gets the seal look regardless.
+
+A coverage test in `src/assets/themes/woodcut/index.test.ts` asserts every terrain, road,
+and creature id has a sprite and every present `creature/*` key maps to a real creature id
+— adding content means adding matching art.
 
 ## License
 

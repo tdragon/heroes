@@ -22,10 +22,9 @@ import {
   type AdventureView,
 } from '../render/adventureRenderer';
 import { TokenPainter } from '../render/painter';
-import { rasterizeSvg, SpriteAtlas } from '../render/spriteAtlas';
 import { SpritePainter } from '../render/spritePainter';
+import { woodcutAtlas } from '../render/woodcutTheme';
 import { splitPathByDays, type PathStepPreview } from '../render/pathPreview';
-import { woodcutSprites } from '../assets/themes/woodcut';
 import { CombatScreen } from '../ui/combatScreen';
 import { el, openCountDialog, type UiContext } from '../ui/components';
 import { DialogQueue } from '../ui/dialogs';
@@ -55,15 +54,6 @@ const WHEEL_ZOOM_STEP = 1.1;
 // info popup opens slightly off the press point so it doesn't sit under the
 // finger/cursor; InfoPopup.show clamps it back on-screen
 const POPUP_OFFSET_PX = 8;
-
-// one shared atlas: rasterized bitmaps survive screen re-creation (new game,
-// load game) instead of being redone and abandoned on every screen
-let sharedAtlas: SpriteAtlas | null = null;
-
-function woodcutAtlas(): SpriteAtlas {
-  sharedAtlas ??= new SpriteAtlas(woodcutSprites, rasterizeSvg);
-  return sharedAtlas;
-}
 
 interface PendingPath {
   dest: Pos;
