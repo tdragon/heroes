@@ -208,10 +208,10 @@ Key decisions:
 **Files:**
 - Modify: `e2e/town-hero.spec.ts` (or the town spec)
 
-- [ ] open the town screen and assert several `building-<id>` cards contain an
+- [x] open the town screen and assert several `building-<id>` cards contain an
       `<svg>` icon; no console errors
-- [ ] existing town/hero e2e unchanged and green
-- [ ] run `npm run test:e2e` — must pass before task 6
+- [x] existing town/hero e2e unchanged and green
+- [x] run `npm run test:e2e` — must pass before task 6
 
 ### Task 6: Verify acceptance criteria
 
