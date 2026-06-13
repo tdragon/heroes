@@ -291,11 +291,11 @@ Key decisions:
 
 ### Task 8: [Final] Update documentation
 
-- [ ] README "Themes & sprites": document `resources/<id>`→`resource/<id>` and
+- [x] README "Themes & sprites": document `resources/<id>`→`resource/<id>` and
       `objects/<type>`→`object/<type>` keys, the shared-base+pip mine/pile
       scheme, the resource-SVG dual use (canvas + DOM), and the town owner flag
-- [ ] regenerate the bestiary only if affected (it isn't — creatures only)
-- [ ] move this plan to `docs/plans/completed/`
+- [x] regenerate the bestiary only if affected (it isn't — creatures only)
+- [x] move this plan to `docs/plans/completed/`
 
 ## Post-Completion
 
