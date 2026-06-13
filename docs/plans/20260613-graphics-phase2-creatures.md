@@ -218,17 +218,17 @@ Key decisions:
 - Modify: `src/render/spritePainter.ts`
 - Modify: `src/render/spritePainter.test.ts`
 
-- [ ] implement `SpritePainter.heroToken`: blit `hero/horseman`; fill the
+- [x] implement `SpritePainter.heroToken`: blit `hero/horseman`; fill the
       banner region with `color` and draw `initial` (single char, passed
       verbatim) in parchment over it; fall back to `TokenPainter` shield when
       the bitmap is missing
-- [ ] note the layering: `adventureRenderer.ts:249` draws `selectionRing` at
+- [x] note the layering: `adventureRenderer.ts:249` draws `selectionRing` at
       `rect.size*0.48` before `heroToken` at `rect.size*0.36` — verify the
       horseman's banner fits within the ring radius (or accept the overlap
       explicitly) so the banner isn't clipped for the selected hero
-- [ ] tests: bitmap path (drawImage `hero/horseman` + banner fill `color` +
+- [x] tests: bitmap path (drawImage `hero/horseman` + banner fill `color` +
       letter), fallback path delegates to the wrapped painter
-- [ ] run `npm test` — must pass before task 5
+- [x] run `npm test` — must pass before task 5
 
 ### Task 5: Combat renders emblems via the shared SpritePainter
 

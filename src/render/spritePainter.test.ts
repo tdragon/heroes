@@ -254,6 +254,38 @@ describe('SpritePainter.creatureToken', () => {
   });
 });
 
+describe('SpritePainter.heroToken', () => {
+  const BLUE = '#2b6cb0';
+
+  it('blits the horseman bitmap, then a banner in the owner color with the letter', () => {
+    const horseman = stubBitmap(64);
+    const { painter, atlas, fallback, stub, ctx } = setup({ 'hero/horseman': horseman });
+    painter.heroToken(ctx, 120, 90, 18, BLUE, 'E');
+    expect(atlas.lookups).toEqual(['hero/horseman']);
+    // the horseman figure is blitted (and only that bitmap)
+    const draws = stub.ops.filter((o) => o.op === 'drawImage');
+    expect(draws).toHaveLength(1);
+    expect(draws[0]?.image).toBe(horseman);
+    // procedural banner filled with the owner color
+    expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === BLUE)).toBe(true);
+    // hero letter drawn in parchment over the banner
+    const text = stub.ops.find((o) => o.op === 'fillText');
+    expect(text?.text).toBe('E');
+    expect(text?.fillStyle).toBe(SEAL_PARCHMENT);
+    // banner is procedural, never delegated to the fallback
+    expect(fallback.calls).toEqual([]);
+  });
+
+  it('falls back to the wrapped shield when the horseman bitmap is missing', () => {
+    const { painter, atlas, fallback, stub, ctx } = setup({});
+    painter.heroToken(ctx, 10, 20, 16, BLUE, 'A');
+    expect(atlas.lookups).toEqual(['hero/horseman']);
+    // nothing drawn on the stub; the wrapped painter draws the shield instead
+    expect(stub.ops.some((o) => o.op === 'drawImage')).toBe(false);
+    expect(fallback.calls).toEqual([{ method: 'heroToken', args: [10, 20, 16, BLUE, 'A'] }]);
+  });
+});
+
 describe('SpritePainter delegation', () => {
   it('forwards the remaining token/overlay methods to the wrapped painter', () => {
     const { painter, fallback, ctx } = setup({});

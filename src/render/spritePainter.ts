@@ -28,6 +28,25 @@ const NOTCH_TIP_Y = 0.94; // chevron lower tip below center
 const NOTCH_SHOULDER_Y = 0.84; // chevron shoulder below center
 const NOTCH_STROKE = 0.057; // banner chevron outline width
 
+// Horseman hero marker geometry, as fractions of the token radius `r`.
+// The horseman art is a full figure in the 64-box; blit it at `2*r` square so
+// horse+rider read at hero-token size. The adventure renderer draws the
+// selection ring at `rect.size*0.48` and this token at `rect.size*0.36`, i.e.
+// the ring radius is ~1.33*r — a `2*r` square extends only ~r from center, so
+// the figure and its upper-right banner sit inside the ring and are not clipped.
+const HORSEMAN_BLIT_SCALE = 2; // sprite square side relative to r
+// Procedural player-color banner (swallow-tail) in the upper-right of the
+// figure. Drawn on top of the rasterized sprite, whose own `currentColor`
+// banner resolves to a fixed default in the static bitmap; these coordinates
+// cover that area and carry the dynamic owner color + hero letter instead.
+const BANNER_POLE_X = 0.2; // banner pole / left edge, right of center
+const BANNER_RIGHT_X = 0.86; // banner outer (right) edge
+const BANNER_TOP_Y = 0.86; // banner top edge above center
+const BANNER_BOTTOM_Y = 0.5; // banner bottom edge above center
+const BANNER_TAIL_NOTCH = 0.12; // swallow-tail inset depth on the right edge
+const BANNER_STROKE = 0.06; // banner outline width
+const BANNER_LETTER_SIZE = 0.34; // hero-letter font size
+
 // the slice of SpriteAtlas the painter needs (keeps tests cast-free)
 export interface SpriteLookup {
   get(key: string): CanvasImageSource | null;
@@ -266,6 +285,10 @@ export class SpritePainter implements Painter {
     ctx.stroke();
   }
 
+  // The mounted-horseman hero marker. The horse+rider is a shared static
+  // bitmap (`hero/horseman`); the player-color banner and the hero's letter are
+  // per-instance, so they are drawn procedurally on top of the blitted figure.
+  // Falls back to the wrapped painter's shield when the bitmap is missing.
   heroToken(
     ctx: CanvasRenderingContext2D,
     cx: number,
@@ -274,7 +297,50 @@ export class SpritePainter implements Painter {
     color: string,
     initial: string,
   ): void {
-    this.fallback.heroToken(ctx, cx, cy, r, color, initial);
+    const horseman = this.atlas.get('hero/horseman');
+    if (!horseman) {
+      this.fallback.heroToken(ctx, cx, cy, r, color, initial);
+      return;
+    }
+    const side = r * HORSEMAN_BLIT_SCALE;
+    ctx.drawImage(horseman, cx - side / 2, cy - side / 2, side, side);
+    this.drawHeroBanner(ctx, cx, cy, r, color, initial);
+  }
+
+  // swallow-tail banner in the upper-right of the figure, in the owner color,
+  // carrying the hero letter in parchment; covers the sprite's static banner
+  private drawHeroBanner(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    r: number,
+    color: string,
+    initial: string,
+  ): void {
+    const left = cx + r * BANNER_POLE_X;
+    const right = cx + r * BANNER_RIGHT_X;
+    const top = cy - r * BANNER_TOP_Y;
+    const bottom = cy - r * BANNER_BOTTOM_Y;
+    const notch = r * BANNER_TAIL_NOTCH;
+    const midY = (top + bottom) / 2;
+    ctx.beginPath();
+    ctx.moveTo(left, top);
+    ctx.lineTo(right, top);
+    ctx.lineTo(right - notch, midY);
+    ctx.lineTo(right, bottom);
+    ctx.lineTo(left, bottom);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = SEAL_INK;
+    ctx.lineWidth = r * BANNER_STROKE;
+    ctx.stroke();
+
+    ctx.fillStyle = SEAL_PARCHMENT;
+    ctx.font = `bold ${String(Math.round(r * BANNER_LETTER_SIZE))}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(initial, (left + right) / 2 - notch / 2, midY);
   }
 
   townToken(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, color: string): void {
