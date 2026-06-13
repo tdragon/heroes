@@ -215,13 +215,28 @@ Key decisions:
 
 ### Task 6: Verify acceptance criteria
 
-- [ ] all 66 buildings render an icon on the town-screen grid (manual
-      `npm run dev` + screenshot, plus e2e)
-- [ ] **hard check**: each dwelling base vs its `…u` upgrade is visually
-      distinguishable at rendered card size (~28px) — render a base/upgrade
-      contact sheet and confirm; if a pair is indistinguishable, add embellishment
-- [ ] golden replay tests pass untouched
-- [ ] full gate `npm run check`; core coverage still ≥ 80%
+- [x] all 66 buildings render an icon on the town-screen grid (manual
+      `npm run dev` + screenshot, plus e2e) — verified on dev server :5206,
+      Castle town screenshot (/tmp/p4-town.png): all 33 cards in the catalog
+      render `svg.building-icon` (33/33, 0 missing, 0 console errors); icons
+      render at exactly 30px on each card, name/cost/status read cleanly below.
+      All 66 sprite files present on disk + e2e green (Task 5); the per-faction
+      coverage unit test asserts every building id across all 3 factions has a
+      `building/<id>` sprite (union = 66)
+- [x] **hard check**: each dwelling base vs its `…u` upgrade is visually
+      distinguishable at rendered card size (~28px) — rendered base/upgrade
+      contact sheets at true 30px (/tmp/p4-dwelling-pairs.png + per-faction
+      /tmp/p4-pairs-{castle,rampart,necropolis}.png). All 21 pairs visibly
+      distinct at 30px (added banners/spires/gilding/structure, not just recolor).
+      Subtlest pair = necropolis_dwelling_2 (zombie graveyard): base has a
+      shovel + dark mound; upgrade swaps in a gold "+" marker + green sprout +
+      extra grave — confirmed distinguishable at 30px on a 6x zoom
+      (/tmp/p4-necro2.png). No indistinguishable pair found
+- [x] golden replay tests pass untouched — `npx vitest run
+      src/core/replay.test.ts` green: 16/16
+- [x] full gate `npm run check`; core coverage still ≥ 80% — `npm run check`
+      green (tsc + eslint + 1067 tests, 38 files); coverage core lines 94.14%
+      (all core subdirs ≥ 91%), no core changes
 
 ### Task 7: [Final] Update documentation
 
