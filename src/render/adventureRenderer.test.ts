@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadGameData } from '../data';
+import type { ObjectType } from '../data/schema';
 import { compileMap } from '../maps/dsl';
 import { tinyMapSource } from '../maps/fixtures/tiny.dsl';
 import { newGame } from '../core/setup';
@@ -13,6 +14,8 @@ import {
 } from './adventureRenderer';
 import { initialsOf } from './painter';
 import { asCtx, RecordingContext, RecordingPainter, type TileCall } from './testSupport';
+
+type MineSubtype = NonNullable<ObjectType['subtypes']>[number];
 
 const data = loadGameData();
 const tinyMap = compileMap(tinyMapSource, data);
@@ -324,6 +327,78 @@ describe('AdventureRenderer object pip resolution', () => {
     // args: [cx, cy, r, color]
     const town = painter.calls.find((c) => c.method === 'townToken' && c.args[3] === '#c53030');
     expect(town).toBeDefined();
+  });
+});
+
+describe('AdventureRenderer object pip guard branches', () => {
+  // Renders a single crafted object on the otherwise-empty tiny map (all tiles
+  // visible) and returns the pip arg the renderer forwarded to objectToken.
+  // subtype is only set when provided, so the "resource with no subtype" branch
+  // can be exercised by omitting it (exactOptionalPropertyTypes-safe).
+  function pipFor(type: string, subtype?: string, objData = data): string | null {
+    const base = newGame(tinyMap, {}, 7, data);
+    const state: GameState = {
+      ...base,
+      map: {
+        ...base.map,
+        objects: [
+          {
+            id: 'probe',
+            type,
+            at: [1, 1],
+            owner: null,
+            guard: null,
+            removed: false,
+            visitedBy: [],
+            lastResetDay: 0,
+            ...(subtype !== undefined ? { subtype } : {}),
+          },
+        ],
+      },
+    };
+    const painter = new RecordingPainter();
+    new AdventureRenderer(asCtx(new RecordingContext()), painter, objData).render(makeView(state));
+    const call = painter.calls.find((c) => c.method === 'objectToken' && c.args[4] === type);
+    expect(call, `no objectToken call for ${type}`).toBeDefined();
+    return (call?.args[5] ?? null) as string | null;
+  }
+
+  // a GameData clone whose mine subtypes include crafted income shapes
+  function dataWithMineSubtypes(extra: MineSubtype[]): typeof data {
+    const mine = data.objectTypes.mine;
+    if (!mine) throw new Error('no mine object type');
+    return {
+      ...data,
+      objectTypes: {
+        ...data.objectTypes,
+        mine: { ...mine, subtypes: [...(mine.subtypes ?? []), ...extra] },
+      },
+    };
+  }
+
+  it('yields a null pip for a mine with an UNKNOWN subtype (income undefined)', () => {
+    // find(...) misses -> ?.income is undefined -> key undefined -> null
+    expect(pipFor('mine', 'no_such_mine')).toBeNull();
+  });
+
+  it('yields a null pip for a mine whose subtype income is EMPTY {}', () => {
+    // income is {} -> Object.keys({})[0] is undefined -> key ?? null -> null
+    const objData = dataWithMineSubtypes([{ id: 'empty_mine', name: 'Empty Mine', income: {} }]);
+    expect(pipFor('mine', 'empty_mine', objData)).toBeNull();
+  });
+
+  it('yields a null pip for a resource pickup with no subtype', () => {
+    // obj.subtype === undefined -> obj.subtype ?? null -> null
+    expect(pipFor('resource')).toBeNull();
+  });
+
+  it('picks the first inserted income key for a multi-key mine subtype', () => {
+    // Object.keys preserves insertion order for string keys, so the pip is the
+    // first key the income object was authored with (here: ore, not gold)
+    const objData = dataWithMineSubtypes([
+      { id: 'twin_mine', name: 'Twin Mine', income: { ore: 2, gold: 500 } },
+    ]);
+    expect(pipFor('mine', 'twin_mine', objData)).toBe('ore');
   });
 });
 

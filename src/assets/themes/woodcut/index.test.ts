@@ -69,6 +69,16 @@ describe('woodcut theme coverage', () => {
     }
   });
 
+  it('maps every resource/* key to a real RESOURCE_ID', () => {
+    const resourceKeys = Object.keys(woodcutSprites).filter((k) => k.startsWith('resource/'));
+    expect(resourceKeys.length).toBeGreaterThan(0);
+    const ids = new Set<string>(RESOURCE_IDS);
+    for (const key of resourceKeys) {
+      const id = key.slice('resource/'.length);
+      expect(ids.has(id), `resource sprite for unknown id ${id}`).toBe(true);
+    }
+  });
+
   it('contains only valid sprite keys', () => {
     for (const key of Object.keys(woodcutSprites)) {
       expect(key).toMatch(/^(terrain|road|roadend|creature|hero|resource|object)\/[a-z][a-z0-9_]*$/);
@@ -101,4 +111,48 @@ describe('woodcut sprite sanity (string-based, node env)', () => {
     expect(trimmed).toContain('viewBox="0 0 64 64"');
     expect(trimmed).not.toContain('class=');
   });
+
+  // node env has no DOMParser, so this is a dependency-free, stack-based
+  // well-formedness scan: every opening tag must be matched by a close in the
+  // right order, every attribute value must be quote-balanced, and the stack
+  // must end empty. It is not a full XML validator (it assumes no comments /
+  // CDATA / processing instructions, which these authored sprites never use)
+  // but it catches the failures a surface string check misses: an unclosed
+  // <g>, a stray </rect>, mismatched nesting, or a dropped attribute quote.
+  // The e2e data-sprites-ready gate remains the real rasterization safety net.
+  it.each(entries)('%s parses as well-formed tag-balanced XML', (_key, svg) => {
+    expect(checkWellFormed(svg.trim())).toBeNull();
+  });
 });
+
+// Returns null when the markup is tag-balanced, otherwise a description of the
+// first defect. Tokenizes on `<...>` (attribute values here never contain `>`)
+// and walks a tag stack; self-closing tags are never pushed.
+function checkWellFormed(svg: string): string | null {
+  const tagRe = /<(\/?)([a-zA-Z][\w:.-]*)([^>]*?)(\/?)>/g;
+  const stack: string[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = tagRe.exec(svg)) !== null) {
+    // any text between the previous tag and this one must not contain a '<'
+    // (a '<' there means a malformed/unterminated tag)
+    if (svg.slice(lastIndex, match.index).includes('<')) {
+      return `stray '<' before ${match[0]}`;
+    }
+    lastIndex = tagRe.lastIndex;
+    const [whole, closing, name, attrs, selfClose] = match;
+    // every attribute value must have balanced double quotes
+    if (((attrs ?? '').match(/"/g)?.length ?? 0) % 2 !== 0) {
+      return `unbalanced quote in ${whole}`;
+    }
+    if (closing === '/') {
+      const top = stack.pop();
+      if (top !== name) return `</${name ?? ''}> closes <${top ?? '∅'}>`;
+    } else if (selfClose !== '/') {
+      stack.push(name ?? '');
+    }
+  }
+  if (svg.slice(lastIndex).includes('<')) return 'trailing unterminated tag';
+  if (stack.length > 0) return `unclosed <${stack.join('>, <')}>`;
+  return null;
+}

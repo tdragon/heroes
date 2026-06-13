@@ -7,7 +7,7 @@ export const FOG_DIMMED_COLOR = 'rgba(22, 16, 12, 0.5)';
 
 // Seal token palette (concept "Ink, Parchment & Gold")
 export const SEAL_PARCHMENT = '#ead9b5';
-const SEAL_INK = '#241b16';
+export const SEAL_INK = '#241b16';
 const SEAL_PARCHMENT_EDGE = '#c9b384';
 export const SEAL_GILT = '#d9ab3c';
 

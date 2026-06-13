@@ -6,6 +6,7 @@ import {
   PIP_BRONZE,
   PIP_GOLD,
   PIP_SILVER,
+  SEAL_INK,
   SEAL_PARCHMENT,
   SpritePainter,
   tierPipSpec,
@@ -427,6 +428,19 @@ describe('SpritePainter.objectToken', () => {
     const back = stub.ops.find((o) => o.op === 'arc');
     expect(back?.args).toEqual([px, py, r * 0.34, 0, Math.PI * 2]);
     expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === SEAL_PARCHMENT)).toBe(true);
+    // draw ORDER: the backing disc (arc -> parchment fill -> ink-rim stroke)
+    // must come before the pip bitmap blit, so the disc never paints over it
+    const backArcAt = stub.ops.findIndex((o) => o.op === 'arc');
+    const backFillAt = stub.ops.findIndex((o) => o.op === 'fill' && o.fillStyle === SEAL_PARCHMENT);
+    const rimStrokeAt = stub.ops.findIndex(
+      (o) => o.op === 'stroke' && o.strokeStyle === SEAL_INK,
+    );
+    const pipBlitAt = stub.ops.findIndex((o) => o.op === 'drawImage' && o.image === woodPip);
+    expect(backArcAt).toBeGreaterThanOrEqual(0);
+    expect(backFillAt).toBeGreaterThan(backArcAt);
+    // the ink-rim stroke uses SEAL_INK and lands between the fill and the pip
+    expect(rimStrokeAt).toBeGreaterThan(backFillAt);
+    expect(pipBlitAt).toBeGreaterThan(rimStrokeAt);
     expect(fallback.calls).toEqual([]);
   });
 

@@ -153,6 +153,9 @@ test('HUD resource bar shows a woodcut icon and value for every resource', async
     await expect(cell.locator('svg.resource-icon')).toBeVisible();
     // the numeric value is still rendered alongside the icon
     await expect(cell.locator('.resource-value')).not.toBeEmpty();
+    // the icon is aria-hidden, so the resource name lives in an sr-only span
+    // to give screen readers the resource identity (read as e.g. "gold 20000")
+    await expect(cell.locator('.sr-only')).toHaveText(id);
   }
 });
 
