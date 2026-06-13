@@ -266,12 +266,28 @@ Key decisions:
 
 ### Task 7: Verify acceptance criteria
 
-- [ ] all 18 object types render as sprites on the map (manual `npm run dev` +
+- [x] all 18 object types render as sprites on the map (manual `npm run dev` +
       screenshot, plus e2e); mines/piles show the correct resource pip; town
-      ownership reads via the owner flag
-- [ ] HUD + marketplace show resource icons; values unchanged
-- [ ] golden replay tests pass untouched; minimap unchanged
-- [ ] full gate `npm run check`; core coverage still ≥ 80%
+      ownership reads via the owner flag — verified on `tutorial-valley&seed=42`
+      (sprites-ready=true, 0 console errors): town renders as a woodcut keep with
+      a red owner pennant (start hero's red "E" banner on top), mine = cave-mouth
+      sprite + parchment-backed resource pip, resource pile = sack + pip, sign =
+      signpost, terrain/road intact. Isolated SpritePainter harness (atlas
+      `failureCount=0`) confirmed all object/resource sprites rasterize and the
+      owner flag tracks color (red/blue/grey-neutral); mine pips render wood/ore/
+      gold, pile pip renders gems. Full 18-type + 7-resource sprite coverage
+      asserted by `index.test.ts` (106 tests green)
+- [x] HUD + marketplace show resource icons; values unchanged — HUD `#resource-bar`
+      contains exactly 7 inline `<svg>` woodcut icons next to values (gold 20000,
+      wood/ore 20, mercury/sulfur/crystal/gems 5); `resource-<id>` testids intact.
+      Marketplace is out of scope (its `<select>/<option>` can't host SVG — see
+      Overview), text left as-is
+- [x] golden replay tests pass untouched; minimap unchanged — `vitest run
+      src/core/replay.test.ts` 16/16 green; `renderMinimap` still fills flat
+      `terrain.color` + plain owner-color dots, no sprite/object-token path
+- [x] full gate `npm run check`; core coverage still ≥ 80% — `npm run check`
+      green (tsc + eslint + 825 tests / 38 files); `--coverage` shows `src/core`
+      at 94.14% lines (ai 94.21%, combat 95.82%), well above 80% (no core changes)
 
 ### Task 8: [Final] Update documentation
 
