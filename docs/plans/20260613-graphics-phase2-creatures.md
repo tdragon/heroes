@@ -182,15 +182,15 @@ Key decisions:
 - Modify: `src/app/adventureScreen.ts` (import the shared atlas/painter)
 - Create: `src/render/woodcutTheme.test.ts`
 
-- [ ] move `sharedAtlas`/`woodcutAtlas()` from `adventureScreen.ts` into
+- [x] move `sharedAtlas`/`woodcutAtlas()` from `adventureScreen.ts` into
       `woodcutTheme.ts` (constructs `SpriteAtlas(woodcutSprites, rasterizeSvg)`
       once, memoized); export a helper that wraps it in a `SpritePainter`
-- [ ] update `adventureScreen.ts` to use the shared module (behavior identical:
+- [x] update `adventureScreen.ts` to use the shared module (behavior identical:
       same atlas, same `data-sprites-ready` + redraw on load)
-- [ ] test: `woodcutAtlas()` returns the same instance across calls (the new
+- [x] test: `woodcutAtlas()` returns the same instance across calls (the new
       singleton behavior; `SpriteAtlas.load()` is already memoized via
       `loadPromise ??=`, so just confirm one shared atlas, not new memoization)
-- [ ] run `npm test` — must pass before task 3
+- [x] run `npm test` — must pass before task 3
 
 ### Task 3: Seal token framework — `creatureToken`
 
