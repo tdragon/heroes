@@ -269,13 +269,25 @@ Key decisions:
 
 ### Task 7: Verify acceptance criteria
 
-- [ ] the 9 emblems render on adventure monsters and combat stacks; un-arted
+- [x] the 9 emblems render on adventure monsters and combat stacks; un-arted
       creatures show initials-on-seal; heroes show the banner horseman with the
-      right player color + letter (manual check via `npm run dev` + screenshot,
-      plus e2e green)
-- [ ] tier pips match creature tier; banner notch matches owner color
-- [ ] golden replay tests pass untouched; minimap unchanged
-- [ ] run full gate: `npm run check`; coverage for `src/core/` still ≥ 80%
+      right player color + letter (verified via screenshots: adventure
+      `/tmp/hero-zoom.png` shows Edric as the mounted horseman w/ red swallow-tail
+      banner bearing "E"; combat `/tmp/combat-attacker.png` shows the pikeman
+      emblem on a parchment seal, `/tmp/combat-defender.png` shows the wolf
+      initials-on-seal fallback "W"; e2e green, no console errors / no sprite
+      rasterization failures, `data-sprites-ready=true` on both canvases)
+- [x] tier pips match creature tier; banner notch matches owner color (verified:
+      pikeman tier 1 → 1 gold pip + red notch (red player); wolf tier 2 → 2 gold
+      pips + neutral slate notch #718096 (unowned guard) — `/tmp/combat-*.png`)
+- [x] golden replay tests pass untouched; minimap unchanged (replay 16/16 green
+      via `npx vitest run src/core/replay.test.ts`; `renderMinimap`
+      adventureRenderer.ts:282 fills flat `terrain.color` rects + plain owner/hero
+      dots — never calls creatureToken/heroToken, confirmed by code read)
+- [x] run full gate: `npm run check`; coverage for `src/core/` still ≥ 80%
+      (`npm run check` green: tsc + eslint + 724 unit tests across 37 files;
+      coverage `core` dir = 94.14% lines, all core subdirs ≥ 89% — unaffected,
+      no core changes)
 
 ### Task 8: [Final] Update documentation
 
