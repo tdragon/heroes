@@ -2,14 +2,14 @@ import type { GameData } from '../data';
 import type { Road, Terrain } from '../data/schema';
 import { NO_ROAD_CHAR, type Pos } from '../maps/schema';
 import type { GameState, Player, SeenObject } from '../core/state';
+import { TILE_PX, tileScreenRect, visibleTileRange, worldSizePx, type Camera } from './camera';
 import {
-  TILE_PX,
-  tileScreenRect,
-  visibleTileRange,
-  worldSizePx,
-  type Camera,
-} from './camera';
-import { initialsOf, NEUTRAL_COLOR, PLAYER_COLOR_HEX, type Painter } from './painter';
+  initialsOf,
+  NEUTRAL_COLOR,
+  PLAYER_COLOR_HEX,
+  type Painter,
+  type RoadConnections,
+} from './painter';
 import type { PathStepPreview } from './pathPreview';
 
 export interface AdventureView {
@@ -48,6 +48,27 @@ function terrainIndexFor(data: GameData): Map<string, Terrain> {
     terrainIndexCache.set(data, index);
   }
   return index;
+}
+
+// any road type connects to any other; current visibility is ignored so explored
+// road shapes never change as visibility shifts, but unexplored neighbors count
+// as absent (no fog-of-war layout leak) — explored is monotonic, so arms only
+// ever appear, never vanish
+export function roadConnections(
+  roads: string,
+  size: number,
+  x: number,
+  y: number,
+  explored: boolean[],
+): RoadConnections {
+  const has = (tx: number, ty: number): boolean =>
+    tx >= 0 &&
+    ty >= 0 &&
+    tx < size &&
+    ty < size &&
+    (explored[ty * size + tx] ?? false) &&
+    (roads[ty * size + tx] ?? NO_ROAD_CHAR) !== NO_ROAD_CHAR;
+  return { n: has(x, y - 1), e: has(x + 1, y), s: has(x, y + 1), w: has(x - 1, y) };
 }
 
 export class AdventureRenderer {
@@ -102,10 +123,19 @@ export class AdventureRenderer {
         }
         const i = y * size + x;
         const terrain = this.terrainByChar.get(state.map.terrain[i] ?? '');
-        this.painter.terrain(this.ctx, rect.x, rect.y, rect.size, terrain?.color ?? '#000000');
+        this.painter.terrain(
+          this.ctx,
+          rect.x,
+          rect.y,
+          rect.size,
+          terrain?.id ?? '',
+          terrain?.color ?? '#000000',
+        );
         const roadChar = state.map.roads[i] ?? NO_ROAD_CHAR;
         if (roadChar !== NO_ROAD_CHAR) {
-          this.painter.road(this.ctx, rect.x, rect.y, rect.size);
+          const roadId = this.roadByChar.get(roadChar)?.id ?? '';
+          const connections = roadConnections(state.map.roads, size, x, y, view.player.explored);
+          this.painter.road(this.ctx, rect.x, rect.y, rect.size, roadId, connections);
         }
       }
     }

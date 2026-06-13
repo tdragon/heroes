@@ -72,7 +72,9 @@ src/
     creatures.json  spells.json  artifacts.json  buildings.json
     objects.json    terrain.json  heroes.json  skills.json
   maps/        map zod schema, ASCII map DSL compiler, sample maps
-  render/      Canvas 2D renderers (adventure, combat) + placeholder token painter
+  assets/      themed art — woodcut SVG sprites for adventure terrain and roads
+  render/      Canvas 2D renderers (adventure, combat), sprite atlas + sprite
+               painter for themed art, token painter as the flat-color fallback
   ui/          DOM overlay screens (town, hero, combat, dialogs, HUD)
   app/         game shell: main menu, screen router, save/load, input, shortcuts
 ```
@@ -93,10 +95,12 @@ src/
 4. **Canvas 2D + DOM overlay.** Tile map and battlefield are drawn on `<canvas>`;
    menus, town screen, and dialogs are plain DOM — easy for text-heavy UI and
    e2e-testable via selectors.
-5. **Placeholder art system.** `src/render/painter.ts` draws every entity as a labeled
-   token (faction-colored disc + creature initials + tier, hero shields, town silhouettes,
-   flat terrain colors). All drawing is behind the `Painter` interface so real art can be
-   swapped in later.
+5. **Painter interface + themed art.** All canvas drawing goes through the `Painter`
+   interface. Adventure terrain, roads, and fog are drawn from the woodcut SVG theme
+   (`src/assets/themes/woodcut/`, rasterized at startup into a sprite atlas); the
+   `TokenPainter` draws everything else as labeled flat-color tokens and serves as the
+   fallback — entities, the combat screen, the minimap, and any sprite that is missing
+   or still loading.
 
 ### Known limitations
 
@@ -186,6 +190,21 @@ dangling content ids, unowned start towns, unpaired monoliths.
 Register a new map by adding its source to the `sources` list in `src/maps/index.ts`;
 it then appears in the new-game map list and is covered by the compile-all test in
 `src/maps/maps.test.ts`.
+
+## Themes & sprites
+
+Adventure-map art is theme-based: a theme is a directory of id-keyed SVG files under
+`src/assets/themes/<name>/` (currently `woodcut`). Filenames map to sprite keys:
+
+- `terrain/<terrainId>.svg` → sprite key `terrain/<id>` (e.g. `terrain/grass.svg`)
+- `terrain/road.<roadId>.svg` → sprite key `road/<id>` (e.g. `terrain/road.dirt_road.svg`)
+
+SVGs are 64×64 viewBox, loaded as raw text and rasterized once at startup into an
+in-memory atlas (`src/render/spriteAtlas.ts`). The fallback chain is theme sprite → `TokenPainter`
+flat color, so a missing or still-loading sprite never breaks rendering (and the minimap
+always uses flat terrain colors). A coverage test in `src/assets/themes/woodcut/index.test.ts`
+asserts every terrain and road id in the game data has a sprite — adding content means
+adding matching art.
 
 ## License
 

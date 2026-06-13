@@ -1,11 +1,69 @@
 import { expect, test } from '@playwright/test';
-import { canvasPoint, moveHeroTo } from './helpers';
+import { canvasPoint, moveHeroTo, TILE } from './helpers';
+
+// light-patch fill of src/assets/themes/woodcut/terrain/grass.svg (#538935)
+const GRASS_PATCH_RGB = [0x53, 0x89, 0x35] as const;
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/?map=tutorial-valley&seed=42');
   await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+});
+
+test('woodcut sprites load and render without console errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') errors.push(msg.text());
+    // sprite rasterization failures are warnings; treat them as failures here
+    if (msg.type() === 'warning' && msg.text().includes('sprite rasterization failed')) {
+      errors.push(msg.text());
+    }
+  });
+  page.on('pageerror', (err) => {
+    errors.push(err.message);
+  });
+
+  // beforeEach already navigated; reload with listeners attached to catch
+  // errors from the initial render as well
+  await page.goto('/?map=tutorial-valley&seed=42');
+  const canvas = page.getByTestId('adventure-canvas');
+  await expect(canvas).toBeVisible();
+
+  // 'true' only when every sprite rasterized; any failure flags 'failed'
+  await expect(canvas).toHaveAttribute('data-sprites-ready', 'true');
+
+  // the ready handler must repaint on its own: with no input yet, the plain
+  // visible grass tile at (4,4) already shows the woodcut texture (its light
+  // patch green) instead of the flat fallback color
+  await expect
+    .poll(() =>
+      page.evaluate(
+        ({ tile, rgb }) => {
+          const el = document.querySelector<HTMLCanvasElement>('[data-testid="adventure-canvas"]');
+          const ctx = el?.getContext('2d');
+          if (!ctx) return false;
+          const pixels = ctx.getImageData(4 * tile, 4 * tile, tile, tile).data;
+          for (let i = 0; i < pixels.length; i += 4) {
+            if (pixels[i] === rgb[0] && pixels[i + 1] === rgb[1] && pixels[i + 2] === rgb[2]) {
+              return true;
+            }
+          }
+          return false;
+        },
+        { tile: TILE, rgb: GRASS_PATCH_RGB },
+      ),
+    )
+    .toBe(true);
+
+  // pan one tile right and down so the off-origin camera draw path repaints too
+  await expect(canvas).toHaveAttribute('data-camera-x', '0');
+  await page.keyboard.press('ArrowRight');
+  await expect(canvas).toHaveAttribute('data-camera-x', '48');
+  await page.keyboard.press('ArrowDown');
+  await expect(canvas).toHaveAttribute('data-camera-y', '48');
+
+  expect(errors).toEqual([]);
 });
 
 test('select hero and move with click-confirm-click', async ({ page }) => {
@@ -161,9 +219,7 @@ test('spellbook button reports a hero without a spellbook', async ({ page }) => 
   await expect(page.getByTestId('status-line')).toHaveText('Edric has no spellbook');
 });
 
-test('adventure spellbook opens for a caster and lists only adventure spells', async ({
-  page,
-}) => {
+test('adventure spellbook opens for a caster and lists only adventure spells', async ({ page }) => {
   await page.goto('/?map=combat-arena&seed=5');
   await expect(page.getByTestId('adventure-canvas')).toBeVisible();
   await page.getByTestId('hero-item-beatrice').click();

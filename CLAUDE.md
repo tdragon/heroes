@@ -30,6 +30,8 @@ runtime dependency is `zod`. Full spec: `docs/plans/completed/20260611-heroes3-b
 - Prefer data changes over code changes — adding a faction is JSON-only (see README).
 - Maps are authored via the ASCII DSL (`src/maps/dsl.ts`); register new maps in
   `src/maps/index.ts`.
+- Sprites are id-keyed SVG assets under `src/assets/themes/` (see README "Themes &
+  sprites"); adding content must keep the sprite coverage test green.
 
 ## Testing
 
