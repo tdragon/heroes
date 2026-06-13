@@ -214,14 +214,14 @@ shared atlas bitmaps (one per id, identical for every owner/stack). The per-inst
 SVG: a creature emblem sits on a procedural **seal** (parchment disc, double ink ring,
 gold tier pips, and a player-color banner notch), and the horseman's swallow-tail banner
 gets its player-color fill + hero initial drawn on top. This keeps the atlas static while
-ownership, tier, and the hero letter stay dynamic. A creature with no emblem sprite falls
-back to its **initials centered on the seal**, so all 51 creatures get the seal look even
-though only 9 have bespoke emblems so far (the remaining 42 land in a later faction-batch
-pass — *phase 2b*).
+ownership, tier, and the hero letter stay dynamic. The woodcut theme ships bespoke emblems
+for all 51 creatures; the **initials centered on the seal** fallback only stands in before
+the bitmap loads, when art is missing, or for a future theme lacking emblems — so every
+creature still gets the seal look regardless.
 
-A coverage test in `src/assets/themes/woodcut/index.test.ts` asserts every terrain and
-road id has a sprite and every present `creature/*` key maps to a real creature id —
-adding content means adding matching art.
+A coverage test in `src/assets/themes/woodcut/index.test.ts` asserts every terrain, road,
+and creature id has a sprite and every present `creature/*` key maps to a real creature id
+— adding content means adding matching art.
 
 ## License
 

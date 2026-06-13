@@ -4,18 +4,6 @@ import { woodcutSprites } from './index';
 
 const data = loadGameData();
 
-const PORTED_CREATURES = [
-  'pikeman',
-  'griffin',
-  'archangel',
-  'centaur',
-  'wood_elf',
-  'gold_dragon',
-  'skeleton',
-  'vampire',
-  'bone_dragon',
-];
-
 describe('woodcut theme coverage', () => {
   it('has a sprite for every terrain id in GameData', () => {
     const terrainIds = Object.keys(data.terrains);
@@ -34,10 +22,15 @@ describe('woodcut theme coverage', () => {
     }
   });
 
-  it('has the 9 ported creature emblems and the horseman hero marker', () => {
-    for (const id of PORTED_CREATURES) {
+  it('has a sprite for every creature id in GameData', () => {
+    const creatureIds = Object.keys(data.creatures);
+    expect(creatureIds.length).toBeGreaterThan(0);
+    for (const id of creatureIds) {
       expect(woodcutSprites, `missing sprite creature/${id}`).toHaveProperty(`creature/${id}`);
     }
+  });
+
+  it('has the horseman hero marker', () => {
     expect(woodcutSprites).toHaveProperty('hero/horseman');
   });
 

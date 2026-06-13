@@ -311,3 +311,6 @@ Key decisions:
   batches), each verified visually
 - town/hero **DOM** lists: inline-SVG emblems in recruit/garrison rows
 - phase iii: map objects + resource icons
+
+➕ phase 2b complete: all 42 remaining emblems authored — the woodcut theme now
+has full bestiary coverage (51/51 creatures), enforced by the coverage test.
