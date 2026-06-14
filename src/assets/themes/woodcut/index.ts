@@ -3,6 +3,7 @@
 //   terrain/<id>.svg -> "terrain/<id>"
 //   terrain/road.<id>.svg -> "road/<id>"
 //   terrain/roadend.<id>.svg -> "roadend/<id>" (rounded dead-end tile)
+//   terrain/roadbend.<id>.svg -> "roadbend/<id>" (smooth 90° corner tile)
 //   creatures/<id>.svg -> "creature/<id>"
 //   heroes/<id>.svg -> "hero/<id>"
 //   resources/<id>.svg -> "resource/<id>"
@@ -28,6 +29,7 @@ function spriteKey(path: string): string {
   const name = file.replace(/\.svg$/, '');
   const category = folderCategory[folder] ?? folder;
   if (category === 'terrain') {
+    if (name.startsWith('roadbend.')) return `roadbend/${name.slice('roadbend.'.length)}`;
     if (name.startsWith('roadend.')) return `roadend/${name.slice('roadend.'.length)}`;
     if (name.startsWith('road.')) return `road/${name.slice('road.'.length)}`;
   }

@@ -12,6 +12,7 @@ import {
   tierPipSpec,
   type SpriteLookup,
 } from './spritePainter';
+import { RASTER_PX } from './spriteAtlas';
 import { asCtx, RecordingContext, RecordingPainter, stubBitmap } from './testSupport';
 
 interface FakeAtlas extends SpriteLookup {
@@ -48,7 +49,7 @@ function setup(sprites: Record<string, CanvasImageSource>): {
 
 describe('SpritePainter.terrain', () => {
   it('looks up the terrain key and draws the sprite when the bitmap exists', () => {
-    const bitmap = stubBitmap(64);
+    const bitmap = stubBitmap(RASTER_PX);
     const { painter, atlas, fallback, stub, ctx } = setup({ 'terrain/grass': bitmap });
     painter.terrain(ctx, 96, 48, 48, 'grass', GRASS_COLOR);
     expect(atlas.lookups).toEqual(['terrain/grass']);
@@ -78,7 +79,7 @@ function conn(dirs: string): RoadConnections {
 
 describe('SpritePainter.road', () => {
   it('draws the full band for an isolated road tile', () => {
-    const bitmap = stubBitmap(64);
+    const bitmap = stubBitmap(RASTER_PX);
     const { painter, atlas, fallback, stub, ctx } = setup({ 'road/dirt_road': bitmap });
     painter.road(ctx, 48, 0, 48, 'dirt_road', conn(''));
     expect(atlas.lookups).toEqual(['road/dirt_road']);
@@ -89,7 +90,7 @@ describe('SpritePainter.road', () => {
   });
 
   it('draws the full band unrotated for a straight horizontal road', () => {
-    const bitmap = stubBitmap(64);
+    const bitmap = stubBitmap(RASTER_PX);
     const { painter, stub, ctx } = setup({ 'road/dirt_road': bitmap });
     painter.road(ctx, 0, 0, 48, 'dirt_road', conn('ew'));
     expect(stub.ops).toEqual([
@@ -98,7 +99,7 @@ describe('SpritePainter.road', () => {
   });
 
   it('draws the full band rotated 90 degrees for a straight vertical road', () => {
-    const bitmap = stubBitmap(64);
+    const bitmap = stubBitmap(RASTER_PX);
     const { painter, stub, ctx } = setup({ 'road/dirt_road': bitmap });
     painter.road(ctx, 48, 96, 48, 'dirt_road', conn('ns'));
     expect(stub.ops.map((o) => o.op)).toEqual([
@@ -111,13 +112,60 @@ describe('SpritePainter.road', () => {
     expect(stub.ops[1]?.args).toEqual([72, 120]); // tile center
     expect(stub.ops[2]?.args).toEqual([Math.PI / 2]);
     // full source (no crop), centered dest
-    expect(stub.ops[3]?.args).toEqual([0, 0, 64, 64, -24, -24, 48, 48]);
+    expect(stub.ops[3]?.args).toEqual([0, 0, RASTER_PX, RASTER_PX, -24, -24, 48, 48]);
   });
 
-  it('composes a corner from two rotated east-half arms with no seam patch', () => {
-    const bitmap = stubBitmap(64);
-    const { painter, stub, ctx } = setup({ 'road/dirt_road': bitmap });
+  it('uses the dedicated curved bend tile for a corner, rotated to its orientation', () => {
+    const road = stubBitmap(RASTER_PX);
+    const bend = stubBitmap(RASTER_PX);
+    const { painter, atlas, stub, ctx } = setup({
+      'road/dirt_road': road,
+      'roadbend/dirt_road': bend,
+    });
+    // east + south neighbors: the base bend sweeps E->S, so it draws unrotated
     painter.road(ctx, 0, 0, 48, 'dirt_road', conn('es'));
+    expect(atlas.lookups).toEqual(['road/dirt_road', 'roadbend/dirt_road']);
+    expect(stub.ops.map((o) => o.op)).toEqual([
+      'save',
+      'translate',
+      'rotate',
+      'drawImage',
+      'restore',
+    ]);
+    expect(stub.ops[1]?.args).toEqual([24, 24]); // tile center
+    expect(stub.ops[2]?.args).toEqual([0]);
+    // the whole bend sprite is drawn (no crop), rotated and centered
+    expect(stub.ops[3]?.args).toEqual([0, 0, RASTER_PX, RASTER_PX, -24, -24, 48, 48]);
+    expect(stub.ops[3]?.image).toBe(bend);
+  });
+
+  it('rotates the bend tile clockwise for the other three corner orientations', () => {
+    const bend = stubBitmap(RASTER_PX);
+    const sprites = { 'road/dirt_road': stubBitmap(RASTER_PX), 'roadbend/dirt_road': bend };
+    const cases: [string, number][] = [
+      ['sw', Math.PI / 2],
+      ['nw', Math.PI],
+      ['ne', -Math.PI / 2],
+    ];
+    for (const [dirs, angle] of cases) {
+      const { painter, stub, ctx } = setup(sprites);
+      painter.road(ctx, 0, 0, 48, 'dirt_road', conn(dirs));
+      const draws = stub.ops.filter((o) => o.op === 'drawImage');
+      expect(draws, dirs).toHaveLength(1);
+      expect(draws[0]?.image, dirs).toBe(bend);
+      expect(
+        stub.ops.filter((o) => o.op === 'rotate').map((o) => o.args[0]),
+        dirs,
+      ).toEqual([angle]);
+    }
+  });
+
+  it('falls back to two rotated east-half arms for a corner when no bend tile exists', () => {
+    const bitmap = stubBitmap(RASTER_PX);
+    const { painter, atlas, stub, ctx } = setup({ 'road/dirt_road': bitmap });
+    painter.road(ctx, 0, 0, 48, 'dirt_road', conn('es'));
+    // it looks for the bend tile first, then degrades to one arm per direction
+    expect(atlas.lookups).toEqual(['road/dirt_road', 'roadbend/dirt_road']);
     const draws = stub.ops.filter((o) => o.op === 'drawImage');
     const rotations = stub.ops.filter((o) => o.op === 'rotate').map((o) => o.args[0]);
     // one arm per connected direction (E then S); the centered band makes them
@@ -125,14 +173,14 @@ describe('SpritePainter.road', () => {
     expect(draws).toHaveLength(2);
     expect(rotations).toEqual([0, Math.PI / 2]);
     // arms crop the east half of the source band and extend center -> edge
-    expect(draws[0]?.args).toEqual([32, 0, 32, 64, 0, -24, 24, 48]);
-    expect(draws[1]?.args).toEqual([32, 0, 32, 64, 0, -24, 24, 48]);
+    expect(draws[0]?.args).toEqual([RASTER_PX / 2, 0, RASTER_PX / 2, RASTER_PX, 0, -24, 24, 48]);
+    expect(draws[1]?.args).toEqual([RASTER_PX / 2, 0, RASTER_PX / 2, RASTER_PX, 0, -24, 24, 48]);
     expect(stub.ops.filter((o) => o.op === 'save')).toHaveLength(2);
     expect(stub.ops.filter((o) => o.op === 'restore')).toHaveLength(2);
   });
 
   it('draws four arms for a crossroads with no seam patch', () => {
-    const bitmap = stubBitmap(64);
+    const bitmap = stubBitmap(RASTER_PX);
     const { painter, stub, ctx } = setup({ 'road/dirt_road': bitmap });
     painter.road(ctx, 0, 0, 48, 'dirt_road', conn('nesw'));
     const draws = stub.ops.filter((o) => o.op === 'drawImage');
@@ -146,8 +194,8 @@ describe('SpritePainter.road', () => {
   });
 
   it('uses the dedicated rounded end tile for a dead-end, rotated to its one connection', () => {
-    const road = stubBitmap(64);
-    const end = stubBitmap(64);
+    const road = stubBitmap(RASTER_PX);
+    const end = stubBitmap(RASTER_PX);
     const { painter, atlas, stub, ctx } = setup({
       'road/dirt_road': road,
       'roadend/dirt_road': end,
@@ -165,12 +213,12 @@ describe('SpritePainter.road', () => {
     expect(stub.ops[1]?.args).toEqual([24, 24]); // tile center
     expect(stub.ops[2]?.args).toEqual([Math.PI / 2]);
     // the whole end sprite is drawn (no crop), rotated and centered
-    expect(stub.ops[3]?.args).toEqual([0, 0, 64, 64, -24, -24, 48, 48]);
+    expect(stub.ops[3]?.args).toEqual([0, 0, RASTER_PX, RASTER_PX, -24, -24, 48, 48]);
     expect(stub.ops[3]?.image).toBe(end);
   });
 
   it('falls back to a single capped arm for a dead-end when no end tile exists', () => {
-    const road = stubBitmap(64);
+    const road = stubBitmap(RASTER_PX);
     const { painter, atlas, stub, ctx } = setup({ 'road/dirt_road': road });
     painter.road(ctx, 0, 0, 48, 'dirt_road', conn('n'));
     // it still looks for the end tile, then degrades to one north arm
@@ -178,12 +226,12 @@ describe('SpritePainter.road', () => {
     const draws = stub.ops.filter((o) => o.op === 'drawImage');
     expect(draws).toHaveLength(1);
     expect(stub.ops.filter((o) => o.op === 'rotate').map((o) => o.args[0])).toEqual([-Math.PI / 2]);
-    expect(draws[0]?.args).toEqual([32, 0, 32, 64, 0, -24, 24, 48]);
+    expect(draws[0]?.args).toEqual([RASTER_PX / 2, 0, RASTER_PX / 2, RASTER_PX, 0, -24, 24, 48]);
     expect(draws[0]?.image).toBe(road);
   });
 
   it('delegates to the fallback for unknown road ids, connections included', () => {
-    const { painter, fallback, stub, ctx } = setup({ 'road/dirt_road': stubBitmap(64) });
+    const { painter, fallback, stub, ctx } = setup({ 'road/dirt_road': stubBitmap(RASTER_PX) });
     painter.road(ctx, 0, 0, 48, 'lost_road', conn('ns'));
     expect(stub.ops).toEqual([]);
     expect(fallback.calls).toEqual([{ method: 'road', args: [0, 0, 48, 'lost_road', conn('ns')] }]);
@@ -215,7 +263,7 @@ describe('SpritePainter.creatureToken', () => {
   const GREY = '#718096';
 
   it('blits the emblem bitmap when creature/<id> exists, with seal furniture', () => {
-    const emblem = stubBitmap(64);
+    const emblem = stubBitmap(RASTER_PX);
     const cx = 100;
     const cy = 80;
     const r = 20;
@@ -322,7 +370,7 @@ describe('SpritePainter.heroToken', () => {
   const RING_RADIUS = (r: number): number => (r * 0.48) / 0.36;
 
   it('blits the horseman bitmap, then a banner in the owner color with the letter', () => {
-    const horseman = stubBitmap(64);
+    const horseman = stubBitmap(RASTER_PX);
     const { painter, atlas, fallback, stub, ctx } = setup({ 'hero/horseman': horseman });
     painter.heroToken(ctx, 120, 90, 18, BLUE, 'E');
     expect(atlas.lookups).toEqual(['hero/horseman']);
@@ -341,7 +389,7 @@ describe('SpritePainter.heroToken', () => {
   });
 
   it('keeps the horseman blit box and banner inside the selection ring with margin', () => {
-    const horseman = stubBitmap(64);
+    const horseman = stubBitmap(RASTER_PX);
     const cx = 120;
     const cy = 90;
     const r = 18;
@@ -382,7 +430,7 @@ describe('SpritePainter.objectToken', () => {
   const COLOR = '#4a5568';
 
   it('blits object/<type> centered to fill the token box, no pip when null', () => {
-    const sprite = stubBitmap(64);
+    const sprite = stubBitmap(RASTER_PX);
     const cx = 100;
     const cy = 80;
     const r = 20;
@@ -402,8 +450,8 @@ describe('SpritePainter.objectToken', () => {
   });
 
   it('overlays the resource/<pip> bitmap with a parchment backing when pip is set', () => {
-    const sprite = stubBitmap(64);
-    const woodPip = stubBitmap(64);
+    const sprite = stubBitmap(RASTER_PX);
+    const woodPip = stubBitmap(RASTER_PX);
     const cx = 100;
     const cy = 80;
     const r = 20;
@@ -445,7 +493,7 @@ describe('SpritePainter.objectToken', () => {
   });
 
   it('skips the pip when the resource bitmap is missing but still draws the object', () => {
-    const sprite = stubBitmap(64);
+    const sprite = stubBitmap(RASTER_PX);
     const { painter, atlas, stub, ctx } = setup({ 'object/mine': sprite });
     painter.objectToken(ctx, 50, 50, 18, COLOR, 'mine', 'wood', 'SM');
     expect(atlas.lookups).toEqual(['object/mine', 'resource/wood']);
@@ -471,7 +519,7 @@ describe('SpritePainter.townToken', () => {
   const NEUTRAL = '#718096';
 
   it('blits object/town centered, then a swallow-tail flag in the owner color', () => {
-    const town = stubBitmap(64);
+    const town = stubBitmap(RASTER_PX);
     const cx = 120;
     const cy = 90;
     const r = 24;
@@ -493,7 +541,7 @@ describe('SpritePainter.townToken', () => {
   });
 
   it('uses the neutral color for an unowned town flag', () => {
-    const town = stubBitmap(64);
+    const town = stubBitmap(RASTER_PX);
     const { painter, stub, ctx } = setup({ 'object/town': town });
     painter.townToken(ctx, 50, 50, 20, NEUTRAL);
     expect(stub.ops.some((o) => o.op === 'fill' && o.fillStyle === NEUTRAL)).toBe(true);

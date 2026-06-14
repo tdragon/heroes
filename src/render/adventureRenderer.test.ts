@@ -113,6 +113,28 @@ describe('AdventureRenderer terrain id plumbing', () => {
   });
 });
 
+describe('AdventureRenderer pixel snapping', () => {
+  it('snaps tile draws to whole device pixels at a fractional camera/zoom', () => {
+    const view: AdventureView = {
+      ...makeView(newGame(tinyMap, {}, 7, data)),
+      camera: { x: 11.3, y: 7.7, width: SIZE * TILE_PX, height: SIZE * TILE_PX, zoom: 1.37 },
+      dpr: 2,
+    };
+    const painter = renderWith(view);
+    // render() rounds the per-tile device size to a whole pixel, so the
+    // effective scale is round(48 * dpr * zoom) / 48
+    const scale = Math.round(TILE_PX * view.dpr * view.camera.zoom) / TILE_PX;
+    expect(painter.terrainCalls.length).toBeGreaterThan(0);
+    for (const c of painter.terrainCalls) {
+      // every tile origin lands on a whole device pixel (no sub-pixel seam).
+      // Without the snap, the unsnapped camera (x=11.3) over a fractional scale
+      // would leave these projections off-grid and this assertion would fail.
+      expect(Math.abs(c.x * scale - Math.round(c.x * scale))).toBeLessThan(1e-9);
+      expect(Math.abs(c.y * scale - Math.round(c.y * scale))).toBeLessThan(1e-9);
+    }
+  });
+});
+
 describe('road connectivity mask', () => {
   function roadsWith(tiles: [number, number][], char = 'D'): string {
     const grid = Array.from({ length: SIZE * SIZE }, () => '.');

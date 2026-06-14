@@ -4,11 +4,13 @@
 
 export type Rasterize = (svg: string, px: number) => Promise<CanvasImageSource>;
 
-// Rasterization size in px. The live tile size is 48 (`TILE_PX`); 64 matches
-// the SVG viewBox so strokes land on authored pixels and the slight downscale
-// stays crisp. The adventure canvas backing store is not DPR-scaled, so
-// rasterizing larger would only waste bitmap memory.
-export const RASTER_PX = 64;
+// Rasterization size in px — 2x the 64-unit SVG viewBox, so authored strokes
+// stay pixel-aligned. The canvas backing store IS dpr-scaled and the camera
+// zooms up to ZOOM_MAX=2, so a tile can be drawn as large as
+// TILE_PX * dpr * 2 device px (192 at dpr 2). Rasterizing at 128 keeps
+// roads/terrain crisp when zoomed in instead of upscaling a 64px bitmap ~3x
+// (bump toward 192 if absolute-max-zoom on retina still reads soft).
+export const RASTER_PX = 128;
 
 export class SpriteAtlas {
   private readonly sources: Record<string, string>;

@@ -14,12 +14,13 @@ describe('woodcut theme coverage', () => {
     }
   });
 
-  it('has a road and a rounded end-tile sprite for every road id in GameData', () => {
+  it('has a road, a rounded end-tile and a curved bend sprite for every road id in GameData', () => {
     const roadIds = Object.keys(data.roads);
     expect(roadIds.length).toBeGreaterThan(0);
     for (const id of roadIds) {
       expect(woodcutSprites, `missing sprite road/${id}`).toHaveProperty(`road/${id}`);
       expect(woodcutSprites, `missing sprite roadend/${id}`).toHaveProperty(`roadend/${id}`);
+      expect(woodcutSprites, `missing sprite roadbend/${id}`).toHaveProperty(`roadbend/${id}`);
     }
   });
 
@@ -81,7 +82,7 @@ describe('woodcut theme coverage', () => {
 
   it('contains only valid sprite keys', () => {
     for (const key of Object.keys(woodcutSprites)) {
-      expect(key).toMatch(/^(terrain|road|roadend|creature|hero|resource|object)\/[a-z][a-z0-9_]*$/);
+      expect(key).toMatch(/^(terrain|road|roadend|roadbend|creature|hero|resource|object)\/[a-z][a-z0-9_]*$/);
     }
   });
 });
@@ -91,7 +92,7 @@ describe('woodcut sprite key-format spot checks', () => {
     '%s matches the key-format regex',
     (key) => {
       expect(key).toMatch(
-        /^(terrain|road|roadend|creature|hero|resource|object)\/[a-z][a-z0-9_]*$/,
+        /^(terrain|road|roadend|roadbend|creature|hero|resource|object)\/[a-z][a-z0-9_]*$/,
       );
     },
   );

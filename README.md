@@ -200,6 +200,10 @@ Adventure-map art is theme-based: a theme is a directory of id-keyed SVG files u
 
 - `terrain/<terrainId>.svg` → sprite key `terrain/<id>` (e.g. `terrain/grass.svg`)
 - `terrain/road.<roadId>.svg` → sprite key `road/<id>` (e.g. `terrain/road.dirt_road.svg`)
+- `terrain/roadend.<roadId>.svg` → sprite key `roadend/<id>` (rounded dead-end tile, drawn
+  rotated toward the single connected neighbor)
+- `terrain/roadbend.<roadId>.svg` → sprite key `roadbend/<id>` (smooth 90° corner tile,
+  authored as an east→south sweep and reused rotated for the other three corners)
 - `creatures/<creatureId>.svg` → sprite key `creature/<id>` (creature emblem art, e.g.
   `creatures/gold_dragon.svg`)
 - `heroes/horseman.svg` → sprite key `hero/horseman` (the mounted-hero marker art)
@@ -241,9 +245,10 @@ render text only and cannot host inline `<svg>`.)
 a procedural owner-color pennant on top (neutral grey when unowned), keeping ownership
 readable. `mine`/`dwelling` keep their existing separate `flag` call.
 
-A coverage test in `src/assets/themes/woodcut/index.test.ts` asserts every terrain, road,
-creature, resource, and (non-`monster`) object id has a sprite and every present
-`creature/*`/`object/*` key maps to a real id — adding content means adding matching art.
+A coverage test in `src/assets/themes/woodcut/index.test.ts` asserts every terrain, road
+(plus its rounded end + curved bend tile), creature, resource, and (non-`monster`) object id
+has a sprite and every present `creature/*`/`object/*` key maps to a real id — adding content
+means adding matching art.
 
 ## License
 

@@ -92,15 +92,31 @@ export class AdventureRenderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    const scale = view.dpr * camera.zoom;
+
+    // Pixel-snap the tile grid: round the per-tile device size to a whole pixel
+    // and snap the camera offset to a whole device pixel. With a fractional
+    // camera/zoom, every tile edge would otherwise land on a sub-pixel boundary,
+    // so anti-aliasing bleeds the black backdrop through the joins (a faint grid
+    // over the whole map) and the road band jitters tile-to-tile. Snapping makes
+    // adjacent tiles share an exact integer edge, so terrain and roads stay
+    // seamless and continuous. At an integer camera/zoom this is a no-op.
+    const rawScale = view.dpr * camera.zoom;
+    const tileDevicePx = Math.max(1, Math.round(TILE_PX * rawScale));
+    const scale = tileDevicePx / TILE_PX;
+    const snappedCamera: Camera = {
+      ...camera,
+      x: Math.round(camera.x * scale) / scale,
+      y: Math.round(camera.y * scale) / scale,
+    };
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
 
-    const range = visibleTileRange(camera, size);
-    this.drawTerrain(view, range.x0, range.y0, range.x1, range.y1);
-    this.drawObjects(view);
-    this.drawDimOverlay(view, range.x0, range.y0, range.x1, range.y1);
-    this.drawHeroes(view);
-    this.drawPathPreview(view);
+    const drawView: AdventureView = { ...view, camera: snappedCamera };
+    const range = visibleTileRange(snappedCamera, size);
+    this.drawTerrain(drawView, range.x0, range.y0, range.x1, range.y1);
+    this.drawObjects(drawView);
+    this.drawDimOverlay(drawView, range.x0, range.y0, range.x1, range.y1);
+    this.drawHeroes(drawView);
+    this.drawPathPreview(drawView);
   }
 
   private isExplored(view: AdventureView, x: number, y: number): boolean {
