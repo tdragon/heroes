@@ -56,6 +56,10 @@ runtime dependency is `zod`. Full spec: `docs/plans/completed/20260611-heroes3-b
 - The camera stays in world px; `zoom` applies only at the boundaries:
   `ctx.setTransform(dpr * zoom, ...)` when drawing, divide CSS coords by `zoom` before
   hit-testing (`tileAtClientPoint`). Combat scale-to-fits via `combatFitScale`.
+- Adventure tiles are pixel-snapped in `AdventureRenderer.render` (the per-tile device
+  size is rounded to a whole pixel and the camera offset snapped to a device pixel) so a
+  fractional camera/zoom can't leave sub-pixel seams between tiles (a grid over the map /
+  jittering road bands). It's a no-op at integer camera/zoom.
 - All pointer/touch input flows through the pure gesture FSM in `src/app/gestures.ts`
   (tap / longPress / panBy / pinch / hover) — keep it DOM-free and unit-tested;
   `bindInput()` in `adventureScreen.ts` is only a thin adapter.

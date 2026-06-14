@@ -161,9 +161,14 @@ export class SpritePainter implements Painter {
 
   // The road bitmap is a centered horizontal band. Straight runs draw it whole
   // (rotated 90° for vertical); a dead-end (single connection) uses the
-  // dedicated rounded end tile so the road terminates smoothly; corners and
-  // junctions compose one half-band arm per connected direction — the centered
-  // band makes the arms meet cleanly at the tile center with no seam.
+  // dedicated rounded end tile so the road terminates smoothly; a corner (two
+  // perpendicular connections) uses the dedicated curved bend tile so the road
+  // sweeps through smoothly. Junctions (and corners/ends when their dedicated
+  // tile is missing) compose one half-band arm per connected direction — the
+  // centered band makes the arms meet cleanly at the tile center with no seam.
+  //
+  // The bend tile is authored as an east→south sweep; the other three corners
+  // reuse it rotated clockwise (E+S=0, S+W=90°, W+N=180°, N+E=270°).
   road(
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -196,6 +201,18 @@ export class SpritePainter implements Painter {
       [n, -Math.PI / 2],
     ];
     const connected = arms.filter(([on]) => on);
+    // a corner: two perpendicular connections (the opposite pairs e+w and n+s
+    // are straights, already handled above) — use the curved bend tile rotated
+    // to the corner's orientation
+    if (connected.length === 2) {
+      const bend = this.atlas.get(`roadbend/${roadId}`);
+      if (bend) {
+        const angle =
+          e && s ? 0 : s && w ? Math.PI / 2 : w && n ? Math.PI : -Math.PI / 2;
+        this.drawRotated(ctx, bend, cx, cy, angle, 0, size);
+        return;
+      }
+    }
     if (connected.length === 1) {
       const endSprite = this.atlas.get(`roadend/${roadId}`);
       const dir = connected[0];
