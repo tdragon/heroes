@@ -69,6 +69,42 @@ test('building cards show resource icons and help tooltips', async ({ page }) =>
   await expect(page.getByTestId('building-village_hall')).toContainText('+500 gold per day');
 });
 
+test('town-screen building grid shows woodcut icons without console errors', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') errors.push(msg.text());
+    if (msg.type() === 'warning' && msg.text().includes('sprite rasterization failed')) {
+      errors.push(msg.text());
+    }
+  });
+  page.on('pageerror', (err) => {
+    errors.push(err.message);
+  });
+
+  // reload with listeners attached to catch initial-render errors too
+  await page.goto('/?map=tutorial-valley&seed=42');
+  await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+  // gate on the atlas finishing rasterization: the 66 building SVGs raster
+  // async, so a `sprite rasterization failed` warning could otherwise fire
+  // after the errors assertion below and be missed (matches sibling specs)
+  await expect(page.getByTestId('adventure-canvas')).toHaveAttribute(
+    'data-sprites-ready',
+    'true',
+  );
+
+  await page.getByTestId(`town-item-${RED_TOWN}`).click();
+  await expect(page.getByTestId('town-screen')).toBeVisible();
+  await expect(page.getByTestId('town-name')).toContainText('Castle Town');
+
+  // the Castle town grid renders a bespoke woodcut icon on each building card:
+  // shared structures, the mage guild, and a faction dwelling all carry one
+  for (const id of ['fort', 'tavern', 'mage_guild_1', 'castle_dwelling_1']) {
+    await expect(page.getByTestId(`building-${id}`).locator('svg.building-icon')).toBeVisible();
+  }
+
+  expect(errors).toEqual([]);
+});
+
 test('recruit max pikemen into the garrison', async ({ page }) => {
   // grab the wood pile so the dwelling stays affordable after the fort
   await page.getByTestId('hero-item-edric').click();

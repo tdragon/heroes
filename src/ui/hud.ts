@@ -4,7 +4,7 @@ import { maxMana, monthOf, weekOf, type GameState, type Hero, type Player } from
 import { maxMovementPoints } from '../core/hero';
 import { el } from './components';
 import { clampPopupPosition } from './helpers';
-import { resourceIconMarkup } from './resourceIcon';
+import { resourceIconMarkup } from './iconMarkup';
 
 export interface HudCallbacks {
   onEndTurn: () => void;
