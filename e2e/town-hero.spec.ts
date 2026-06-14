@@ -84,6 +84,13 @@ test('town-screen building grid shows woodcut icons without console errors', asy
   // reload with listeners attached to catch initial-render errors too
   await page.goto('/?map=tutorial-valley&seed=42');
   await expect(page.getByTestId('adventure-canvas')).toBeVisible();
+  // gate on the atlas finishing rasterization: the 66 building SVGs raster
+  // async, so a `sprite rasterization failed` warning could otherwise fire
+  // after the errors assertion below and be missed (matches sibling specs)
+  await expect(page.getByTestId('adventure-canvas')).toHaveAttribute(
+    'data-sprites-ready',
+    'true',
+  );
 
   await page.getByTestId(`town-item-${RED_TOWN}`).click();
   await expect(page.getByTestId('town-screen')).toBeVisible();

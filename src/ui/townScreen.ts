@@ -17,7 +17,7 @@ import {
   tradeModel,
 } from './helpers';
 import { resourceIcon } from './icons';
-import { buildingIconMarkup } from './resourceIcon';
+import { buildingIconMarkup } from './iconMarkup';
 import { openRecruitDialog } from './recruitDialog';
 
 type ArmyRow = 'garrison' | 'visiting';
